@@ -27,6 +27,8 @@ export interface LoggerContext {
 const REDACT_PATHS = [
   // Common secret-bearing field names. `remove: true` deletes the key entirely
   // rather than emitting `[Redacted]` so we don't even hint at what's there.
+  // Hyphenated keys MUST use bracket notation — fast-redact's bare-identifier
+  // path syntax does not handle them.
   "password",
   "*.password",
   "apiKey",
@@ -41,8 +43,8 @@ const REDACT_PATHS = [
   "*.secret",
   "cookie",
   "*.cookie",
-  "set-cookie",
-  "*.set-cookie",
+  '["set-cookie"]',
+  '*["set-cookie"]',
 ];
 
 function baseOptions(context: LoggerContext): LoggerOptions {

@@ -31,10 +31,24 @@ export function buildAxiomStream(opts: AxiomStreamOptions): DestinationStream {
           "Content-Type": "application/x-ndjson",
         },
         body: chunk,
-      }).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`[bec-logger] axiom ingest failed: ${msg}\n`);
-      });
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            // Non-2xx means Axiom rejected the line. Read the body for context
+            // but cap length so a runaway error page doesn't flood stderr.
+            const body = await res.text().catch(() => "");
+            const snippet = body.slice(0, 500);
+            process.stderr.write(
+              `[bec-logger] axiom ingest failed: HTTP ${res.status} ${res.statusText}${
+                snippet ? ` — ${snippet}` : ""
+              }\n`,
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          process.stderr.write(`[bec-logger] axiom ingest failed: ${msg}\n`);
+        });
     },
   };
 }

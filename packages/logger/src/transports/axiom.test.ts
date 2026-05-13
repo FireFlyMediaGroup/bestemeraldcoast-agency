@@ -61,4 +61,23 @@ describe("buildAxiomStream", () => {
     );
     stderrSpy.mockRestore();
   });
+
+  it("logs non-2xx HTTP responses to stderr (does not silently drop)", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response("dataset not found", { status: 404, statusText: "Not Found" }),
+    );
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const stream = buildAxiomStream({ token: "t", dataset: "ds" });
+    stream.write("{}\n");
+    // Wait for the resolved promise's .then() to run.
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining("HTTP 404 Not Found"),
+    );
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining("dataset not found"),
+    );
+    stderrSpy.mockRestore();
+  });
 });
