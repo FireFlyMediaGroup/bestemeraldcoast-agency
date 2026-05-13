@@ -67,6 +67,11 @@ describe("parseEnv — dev", () => {
       EnvValidationError,
     );
   });
+
+  it("normalizes empty-string optional values to undefined", () => {
+    const result = parseEnv({ ...validDev, RESEND_API_KEY: "" });
+    expect(result.server.RESEND_API_KEY).toBeUndefined();
+  });
 });
 
 describe("parseEnv — production", () => {
@@ -92,5 +97,17 @@ describe("parseEnv — production", () => {
     expect(() => parseEnv({ ...validProd, NEXTAUTH_SECRET: "short" })).toThrow(
       EnvValidationError,
     );
+  });
+
+  it("treats an empty-string required value as missing in production", () => {
+    expect(() => parseEnv({ ...validProd, ANTHROPIC_API_KEY: "" })).toThrow(
+      EnvValidationError,
+    );
+    try {
+      parseEnv({ ...validProd, ANTHROPIC_API_KEY: "" });
+    } catch (err) {
+      const e = err as EnvValidationError;
+      expect(e.fieldErrors.ANTHROPIC_API_KEY).toBeTruthy();
+    }
   });
 });
