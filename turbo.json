@@ -8,6 +8,11 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
       "env": ["NODE_ENV", "VERCEL_ENV", "DATABASE_URL"]
     },
+    "build-storybook": {
+      "dependsOn": ["^build"],
+      "outputs": ["storybook-static/**"],
+      "env": ["NODE_ENV"]
+    },
     "dev": {
       "persistent": true,
       "cache": false

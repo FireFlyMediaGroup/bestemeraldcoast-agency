@@ -94,6 +94,20 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Files changed: 4 (new `docs/runbooks/secrets-setup.md`, modified `docs/dev/status/next-step.md`, modified `docs/dev/status/task-log.md`, removed `docs/runbooks/.gitkeep`); ~316 insertions / 37 deletions across the PR's 4 push iterations.
 - Notes: Discovered cubic-dev-ai is a second active AI reviewer on the repo (not configured by the loop docs). Earlier policy mistakenly dismissed cubic as no-op; corrected to treat both reviewers as gating with same triage weight — this revision is queued as a `RALPH-LOOP.md` doc-fix in Commit 0.4's PR. Also surfaced: the format for off-plan task-template entries in `task-log.md` is ad hoc — using a date-stamped "Task" header pending formalization.
 
+## 2026-05-13 — Phase 0 / Commit 0.4 — Logger and Sentry
+
+- Branch: phase-0/commit-0.4-logger-and-sentry
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/5
+- Merge SHA: 861983fab2638dab1ce6ec0e9fd13c08da7181c9
+- CodeRabbit: APPROVED — 1 comment resolved (1 fixed, 0 replied). Round 1 review CHANGES_REQUESTED with one Actionable finding on the axiom transport (non-2xx HTTP responses silently dropped); after fix push `8fd8cee` CodeRabbit re-reviewed APPROVED at the new HEAD.
+- Secondary reviewer: `cubic-dev-ai` posted 2 findings (P2 axiom non-2xx duplicate of CodeRabbit's; P1 hyphenated `set-cookie` redact path). Both fixed in the same `8fd8cee` push; cubic's check-run = SUCCESS at the new HEAD.
+- ADRs touched: none (implements ADR-012; the `@sentry/nextjs` per-app initialization half of the master plan's Commit 0.4 prompt is deferred to Commit 1.4 — the 3 apps are still empty placeholders).
+- Acceptance evidence: 17 Vitest cases inside `@bec/logger` (sentry-transport level mapping + error reconstruction + sub-warn dropping + malformed-input resilience; axiom-transport URL building + dataset URL-encoding + custom endpoint + fetch-failure swallowing + non-2xx HTTP response logging; createLogger() shape + child loggers + base merging + 3 redact tests proving top-level `set-cookie`, nested `set-cookie`, and common secret fields are removed). `pnpm turbo build lint type-check test:unit` → `56 successful, 56 total`. Manual Sentry/Axiom acceptance (`pnpm --filter @bec/logger test-emit`) requires operator to populate `SENTRY_DSN` + `AXIOM_TOKEN` + `AXIOM_DATASET` in `.env`; gated on Phase 0 quality gate § "Sentry captures a test error from each app" — pending operator action.
+- Validation: `validation-checklist.md` § Always + § Foundations all green.
+- Files changed: 16 in the PR — 4 source (`packages/logger/src/index.ts`, `src/transports/{pretty,sentry,axiom}.ts`), 3 test (`src/index.test.ts`, `src/transports/{sentry,axiom}.test.ts`), 1 manual-acceptance script (`scripts/test-emit.ts`), 4 config (`packages/logger/{tsconfig.json,vitest.config.ts,test-setup.ts,package.json}`), 1 lockfile regeneration (`pnpm-lock.yaml`), 3 bookkeeping (`docs/dev/claude/RALPH-LOOP.md` queued doc-fixes, `docs/dev/status/{next-step.md,task-log.md}` runbook task entry).
+- Next commit queued: Phase 0 / Commit 0.5 — Storybook scaffolding (operator prereq: Vercel Pro account active for the `bec-storybook` deployment at `ui.bestemeraldcoast.com`).
+- Notes: Axiom transport is a custom fetch-based stream (not `@axiomhq/pino`) because `@axiomhq/pino` requires Pino's worker-thread transport model, which conflicts with the sync `pino.multistream()` approach. Trade-off accepted: no built-in batching; per-line POSTs. Acceptable at BEC log volume; revisit if volume climbs. The fix-round push (`8fd8cee`) closed CodeRabbit + cubic findings in one shot; CodeRabbit re-review took ~2 min. cubic-dev-ai is now formally part of the gating review set per the RALPH-LOOP.md doc-fixes carried in this PR.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:

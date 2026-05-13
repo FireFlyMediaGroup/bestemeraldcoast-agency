@@ -1,0 +1,112 @@
+/*
+ * Tailwind v4 entry + BEC archetype tokens (ADR-032).
+ *
+ * Components read every color, radius, and font via CSS variables. The default
+ * `:root` block is the Magazine archetype; switching `.archetype-coastal` or
+ * `.archetype-premium` on any wrapper overrides the same variables so descendant
+ * Tailwind utilities (e.g. `bg-primary`, `text-foreground`) repaint without
+ * rerendering.
+ */
+
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--bec-color-background);
+  --color-foreground: var(--bec-color-foreground);
+  --color-primary: var(--bec-color-primary);
+  --color-primary-fg: var(--bec-color-primary-fg);
+  --color-accent: var(--bec-color-accent);
+  --color-accent-fg: var(--bec-color-accent-fg);
+  --color-muted: var(--bec-color-muted);
+  --color-muted-fg: var(--bec-color-muted-fg);
+  --color-border: var(--bec-color-border);
+  --color-success: var(--bec-color-success);
+  --color-warning: var(--bec-color-warning);
+  --color-danger: var(--bec-color-danger);
+
+  --radius-sm: var(--bec-radius-sm);
+  --radius-md: var(--bec-radius-md);
+  --radius-lg: var(--bec-radius-lg);
+  --radius-xl: var(--bec-radius-xl);
+
+  --font-heading: var(--bec-font-heading);
+  --font-body: var(--bec-font-body);
+}
+
+:root,
+.archetype-magazine {
+  --bec-color-background: oklch(0.98 0.01 80);
+  --bec-color-foreground: oklch(0.18 0 0);
+  --bec-color-primary: oklch(0.30 0.06 240);
+  --bec-color-primary-fg: oklch(0.98 0.01 80);
+  --bec-color-accent: oklch(0.75 0.13 70);
+  --bec-color-accent-fg: oklch(0.18 0 0);
+  --bec-color-muted: oklch(0.94 0.01 80);
+  --bec-color-muted-fg: oklch(0.45 0.02 80);
+  --bec-color-border: oklch(0.88 0.01 80);
+  --bec-color-success: oklch(0.55 0.13 145);
+  --bec-color-warning: oklch(0.72 0.14 70);
+  --bec-color-danger: oklch(0.58 0.17 25);
+
+  --bec-radius-sm: 4px;
+  --bec-radius-md: 6px;
+  --bec-radius-lg: 8px;
+  --bec-radius-xl: 12px;
+
+  --bec-font-heading: Fraunces, Georgia, serif;
+  --bec-font-body: Inter, system-ui, sans-serif;
+}
+
+.archetype-coastal {
+  --bec-color-background: oklch(1.00 0 0);
+  --bec-color-foreground: oklch(0.20 0.02 220);
+  --bec-color-primary: oklch(0.55 0.12 220);
+  --bec-color-primary-fg: oklch(1.00 0 0);
+  --bec-color-accent: oklch(0.72 0.14 30);
+  --bec-color-accent-fg: oklch(0.20 0.02 220);
+  --bec-color-muted: oklch(0.96 0.02 220);
+  --bec-color-muted-fg: oklch(0.45 0.03 220);
+  --bec-color-border: oklch(0.88 0.02 220);
+  --bec-color-success: oklch(0.62 0.15 160);
+  --bec-color-warning: oklch(0.78 0.14 70);
+  --bec-color-danger: oklch(0.62 0.18 25);
+
+  --bec-radius-sm: 8px;
+  --bec-radius-md: 10px;
+  --bec-radius-lg: 12px;
+  --bec-radius-xl: 16px;
+
+  --bec-font-heading: "General Sans", Inter, system-ui, sans-serif;
+  --bec-font-body: Inter, system-ui, sans-serif;
+}
+
+.archetype-premium {
+  --bec-color-background: oklch(0.97 0.01 90);
+  --bec-color-foreground: oklch(0.20 0.01 90);
+  --bec-color-primary: oklch(0.20 0.01 90);
+  --bec-color-primary-fg: oklch(0.97 0.01 90);
+  --bec-color-accent: oklch(0.65 0.05 140);
+  --bec-color-accent-fg: oklch(0.20 0.01 90);
+  --bec-color-muted: oklch(0.93 0.01 90);
+  --bec-color-muted-fg: oklch(0.50 0.01 90);
+  --bec-color-border: oklch(0.85 0.01 90);
+  --bec-color-success: oklch(0.55 0.10 145);
+  --bec-color-warning: oklch(0.72 0.12 70);
+  --bec-color-danger: oklch(0.55 0.16 25);
+
+  --bec-radius-sm: 2px;
+  --bec-radius-md: 3px;
+  --bec-radius-lg: 4px;
+  --bec-radius-xl: 6px;
+
+  --bec-font-heading: "Editorial New", Fraunces, Georgia, serif;
+  --bec-font-body: "Söhne", "Inter Tight", Inter, system-ui, sans-serif;
+}
+
+body {
+  background: var(--bec-color-background);
+  color: var(--bec-color-foreground);
+  font-family: var(--bec-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
