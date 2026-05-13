@@ -2021,6 +2021,12 @@ Every screen — public, ops-console, mobile, newsletter — follows Apple's Hum
 
 **Acceptance**: `.claude/commands/{adr-plan,ralph-next,ship-task}.md` exist as symlinks resolving to `docs/dev/claude/commands/*.md`. PR opened against `main` with auto-merge enabled. CodeRabbit's final review state is `APPROVED`. Squash-merged to `main`; branch auto-deleted.
 
+#### Commit 0.1.7 — Public repo hygiene
+
+> "Harden the repo for the public-visibility window while CodeRabbit's OSS free tier is in use. Rewrite `.gitignore` to cover (a) all `.env*` files except the documented `.env.example`, (b) certificates / private keys (`*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.crt`, `*.cer`, etc.), (c) cloud-provider local credential caches (`.aws/`, `.gcp/`, `.op/`, etc.), (d) SSH key filenames, (e) local database files and SQL dumps, (f) infrastructure-as-code state (`.terraform/`, `*.tfstate`, `.pulumi/`, etc.), (g) extra OS / editor scratch patterns. Also annotate `docs/dev/status/next-step.md` § Commit 0.2 Acceptance with explicit *deferred-to-Commit-X* markers so the operator can proceed to Commit 0.3 with only Pass-1 protection + the SES sandbox-exit request kicked off (the rest provision just-in-time at the commit that needs them)."
+
+**Acceptance**: `.gitignore` includes every category above. `next-step.md` § Commit 0.2 Acceptance has each item tagged with its blocking commit (or `now` / `kick off now`). PR opened against `main`, CodeRabbit `APPROVED`, squash-merged.
+
 #### Commit 0.2 — Cloud accounts & domains
 
 Manual operator work (not Claude Code), but tracked here:
