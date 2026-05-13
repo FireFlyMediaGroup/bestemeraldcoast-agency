@@ -10,54 +10,58 @@
 
 **Credential procurement runbook:** [`docs/runbooks/secrets-setup.md`](../../runbooks/secrets-setup.md) — full 1Password vault setup, item template, per-phase credential checklist, and three options for getting values into local `.env` (manual copy / `op inject` / `op run`).
 
-- [x] Create the GitHub repo (`FireFlyMediaGroup/bestemeraldcoast-agency`, public, default branch `main`).
-- [x] Visibility: **public** (kept public while CodeRabbit OSS free tier is active; flip to private once dev concludes).
-- [x] Auto-merge enabled, auto-delete head branches enabled.
+- [x] Create the GitHub repo, public visibility, default branch `main`.
+- [x] Auto-merge + auto-delete head branches enabled.
 - [x] CodeRabbit GitHub App installed; `.coderabbit.yaml` at repo root.
-- [x] `gh auth status` shows authenticated user `FireFlyMediaGroup` with ADMIN.
-- [x] Initialize git and add the GitHub remote (Commit 0.1).
-- [x] CodeRabbit has reviewed at least one PR (PR #1).
+- [x] `gh auth status` shows ADMIN.
+- [x] Initialize git + GitHub remote (Commit 0.1).
+- [x] CodeRabbit has reviewed at least one PR.
 - [x] **Pass 1 branch protection** applied.
-- [ ] **Pass 2 branch protection** — apply after Commit 0.6 lands CI. Add required status checks: CI job(s) + `CodeRabbit`. Check "Require branches to be up to date before merging".
+- [x] **1Password vault `BEC-Production`** populated with Sentry × 3 DSNs + auth token + Axiom token + dataset (for Commit 0.4).
+- [ ] **Pass 2 branch protection** — apply **after Commit 0.6** lands CI. Required status checks: CI job(s) + `CodeRabbit`. Check "Require branches to be up to date before merging".
 
 ## Current Step
 
-- **Phase:** N/A — off-plan task (per `docs/dev/task-template.md`)
-- **Task:** Secrets & 1Password setup runbook
-- **Branch:** `task/2026-05-13-secrets-setup-runbook`
-- **ADRs in scope:** none directly (operationalizes ADR-007 and ADR-038)
+- **Phase:** 0 — Workspace & Foundations
+- **Commit:** 0.4 — Logger and Sentry
+- **Plan reference:** `docs/dev/MASTER-bec-project-plan.md` § Phase 0 → Commit 0.4
+- **ADRs in scope:** ADR-012 (primary), ADR-038 (env-var schema dependency from Commit 0.3).
 - **Status:** in-flight (branch cut, PR not yet opened)
 
-## Task Prompt
+## Commit Prompt (excerpt)
 
-> Write `docs/runbooks/secrets-setup.md` that walks the operator through 1Password vault setup, the standard item template (custom fields: `value`, `vendor_url`, `rotation_due`, `env_used`, `env_var`, `adr`), the full per-credential checklist organized by the commit that first needs each one, three options for getting values into local `.env` (manual copy / `op inject` / `op run`), and ADR-007's rotation policy. Link from `docs/dev/status/next-step.md` § Operator Pre-Flight.
+> Create `packages/logger` exporting a Pino instance with multiple transports: pretty-print to stdout in dev, structured JSON in production with Sentry transport for warn+ and Axiom transport for everything. *(The "initialize Sentry in each Next.js app via @sentry/nextjs" half of the master plan's prompt is deferred to Commit 1.4 — the apps don't have Next.js yet.)*
 
 ## Acceptance
 
-- `docs/runbooks/secrets-setup.md` exists and covers: 1Password account + vault setup, CLI install + signin, the per-item field template, every `.env` variable mapped to its source service and 1Password item title, ADR cross-references, and the rotation policy.
-- `docs/dev/status/next-step.md` § Operator Pre-Flight contains a link to the runbook.
-- PR opens against `main` (non-draft, no auto-merge enabled), CodeRabbit `APPROVED`, then squash-merged.
+- `logger.error(...)` shows up in Sentry — **manual verification** via `pnpm --filter @bec/logger test-emit`, then check the Sentry web UI for 2 events (warn + error) tagged with the run's `traceId`.
+- Axiom receives 3 structured log lines (info + warn + error) from the same `test-emit` run — manual verification via the Axiom web UI.
+- `pnpm turbo build lint type-check test:unit` green; 13 Vitest cases inside `@bec/logger` cover sentry-transport level mapping, error reconstruction, sub-warn dropping, malformed-input resilience; axiom-transport URL building, dataset URL-encoding, custom endpoint, fetch-failure swallowing; and createLogger() shape + child loggers + base merging.
 
-## Files Touched
+## Files Likely to Touch
 
-- `docs/runbooks/secrets-setup.md` (new)
-- `docs/runbooks/.gitkeep` (removed — directory now has real content)
-- `docs/dev/status/next-step.md` (this file — runbook link + advance pointer)
-- `docs/dev/status/task-log.md` (Commit 0.3 entry + this task's entry, folded in per the post-Pass-1 write policy)
+- `packages/logger/src/index.ts`, `src/transports/{pretty,sentry,axiom}.ts`
+- `packages/logger/src/index.test.ts`, `src/transports/{sentry,axiom}.test.ts`
+- `packages/logger/scripts/test-emit.ts` (manual acceptance script)
+- `packages/logger/{tsconfig.json,vitest.config.ts,test-setup.ts,package.json}` (real configs + deps)
+- Bookkeeping (this PR): `docs/dev/status/task-log.md` (runbook task entry), `docs/dev/status/next-step.md` (this file), `docs/dev/claude/RALPH-LOOP.md` (three queued doc-fixes).
 
 ## Validation
 
-- `validation-checklist.md` § Always (every commit) — docs-only PR; no test or schema impact.
-- Links resolve: the runbook reference from `next-step.md` and from `task-log.md` both work via relative paths.
+- `validation-checklist.md` § Always + § Foundations.
+- 13/13 Vitest cases green in `@bec/logger`.
+- `pnpm turbo build lint type-check test:unit` returns `56 successful, 56 total`.
+- Manual acceptance: `pnpm --filter @bec/logger test-emit` emits 3 lines with a per-run `traceId`; verify Sentry shows 2 events + Axiom shows 3.
 
-## Next Step After This
+## Next Commit After This
 
-- **Commit 0.4 — Logger and Sentry.** Implements `packages/logger/` (Pino + multi-transport: pretty stdout in dev, JSON in prod, Sentry transport for `warn+`, Axiom transport for everything). Wires `@sentry/nextjs` into each Next.js app. Acceptance: a test `logger.error()` shows up in Sentry.
-- **Prereq operator action (deferred from Commit 0.2):** provision Sentry × 3 projects + Axiom workspace per the runbook above. Local `.env` should have `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `AXIOM_TOKEN`, `AXIOM_DATASET` populated before Commit 0.4 begins.
+- **Commit 0.5 — Storybook scaffolding.** Sets up Storybook in `packages/ui` with theme switcher + `@storybook/addon-a11y`, deploys to `ui.bestemeraldcoast.com` (password-protected).
+- **Prereq operator action (deferred from Commit 0.2):** Vercel Pro account active for Storybook's Vercel-hosted deployment. The deferral markers in the runbook (§4.2) flag this for Commit 0.6 — bringing it forward to 0.5 is fine.
 
 ## Handoff Notes
 
 - Master ADR and master plan are the source of truth. If anything in this file conflicts with them, trust the masters and re-derive the next step.
-- This task is **off-plan** — it does not appear in `MASTER-bec-project-plan.md` (per the convention that task-template work is operational/supplementary rather than architectural). `task-log.md` records it under a date-stamped "Task" header instead of a Phase/Commit header.
-- Two doc-fix items still queued for `RALPH-LOOP.md`: (1) Option A — open PR without auto-merge, wait for `APPROVED`, then enable auto-merge; (2) formalize the task-template entry format in `task-log.md`. Both fold into a future commit's PR.
+- The `@sentry/nextjs` per-app initialization + Vercel source-map upload (second half of the master plan's Commit 0.4 prompt) is deferred to **Commit 1.4** — the 3 apps are still empty placeholders and `@sentry/nextjs` requires real Next.js app code to wrap.
+- Sentry events from local dev DO fire when `SENTRY_DSN` is set (tagged `environment=development`). Filter `environment:production` in the Sentry UI to ignore dev noise.
+- Axiom transport is a custom fetch-based stream (not `@axiomhq/pino`) — `@axiomhq/pino` requires Pino's worker-thread transport model, which conflicts with the sync `pino.multistream()` approach. Trade-off accepted: no built-in batching; per-line POSTs. Revisit if log volume climbs.
 - Phase 0 ends with the ADR-035 quality gate at `MASTER-bec-project-plan.md` § "Phase 0 quality gate (ADR-035)". Do not begin Phase 1 / Commit 1.1 until that gate is 100% green.

@@ -5,15 +5,30 @@
   "description": "Pino + Sentry + Axiom transports (ADR-012).",
   "type": "module",
   "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "build": "echo '(noop)'",
     "dev": "echo '(noop)'",
     "lint": "echo '(noop)'",
-    "type-check": "echo '(noop)'",
-    "test:unit": "echo '(noop)'"
+    "type-check": "tsc --noEmit",
+    "test:unit": "vitest run",
+    "test-emit": "tsx scripts/test-emit.ts"
+  },
+  "dependencies": {
+    "@bec/config": "workspace:*",
+    "@sentry/node": "^8.51.0",
+    "dotenv": "^16.4.7",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0"
   },
   "devDependencies": {
     "@bec/config-eslint": "workspace:*",
-    "@bec/config-tsconfig": "workspace:*"
+    "@bec/config-tsconfig": "workspace:*",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
   }
 }
