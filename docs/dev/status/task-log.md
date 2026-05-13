@@ -31,9 +31,10 @@ For **operator-only** commits (e.g., Commit 0.2):
 ## Entries
 
 ## 2026-05-12 — Phase 0 / Commit 0.1 — Monorepo skeleton
+
 - Branch: none (bootstrap exception per `claude/RALPH-LOOP.md` § Bootstrap — Commit 0.1 only)
 - PR: none (no repo to PR against until initial `main` exists)
-- Merge SHA: ec886e0
+- Merge SHA: ec886e0d8052cff1dde01d0f0a7851fd3545c767
 - CodeRabbit: N/A (no PR for the initial commit)
 - ADRs touched: none (implements ADR-039; stubs scope for ADR-038's Commit 0.3 work)
 - Acceptance evidence: `pnpm install` succeeded (15 workspace projects resolved, turbo 2.9.12 installed); `pnpm turbo build` produced `14 successful, 14 total` no-op tasks; tree matches `MASTER-bec-project-plan.md` § Repo structure (apps × 3, packages × 11, `agency/`, `infra/`, `docs/`).
