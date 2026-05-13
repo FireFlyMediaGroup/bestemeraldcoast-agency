@@ -4,16 +4,40 @@
   "private": true,
   "description": "shadcn primitives + BEC compositions + theme tokens (ADR-032, ADR-037).",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./theme": "./theme/index.ts",
+    "./styles/globals.css": "./styles/globals.css"
+  },
   "scripts": {
     "build": "echo '(noop)'",
-    "dev": "echo '(noop)'",
+    "build-storybook": "storybook build --output-dir storybook-static",
+    "dev": "storybook dev -p 6006 --no-open",
+    "storybook": "storybook dev -p 6006",
     "lint": "echo '(noop)'",
-    "type-check": "echo '(noop)'",
+    "type-check": "tsc --noEmit",
     "test:unit": "echo '(noop)'"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@bec/config-eslint": "workspace:*",
-    "@bec/config-tsconfig": "workspace:*"
+    "@bec/config-tsconfig": "workspace:*",
+    "@storybook/addon-a11y": "^8.6.0",
+    "@storybook/addon-essentials": "^8.6.0",
+    "@storybook/addon-interactions": "^8.6.0",
+    "@storybook/react": "^8.6.0",
+    "@storybook/react-vite": "^8.6.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "storybook": "^8.6.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.0"
   }
 }
