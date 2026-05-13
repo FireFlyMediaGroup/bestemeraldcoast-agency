@@ -1,5 +1,4 @@
-import { forwardRef } from "react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, Ref, ReactNode } from "react";
 
 // Placeholder Button primitive (ADR-037 component contract).
 // Reads every color, font, and radius from CSS variables — switching the
@@ -12,6 +11,7 @@ export type ButtonSize = "sm" | "md" | "lg";
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  ref?: Ref<HTMLButtonElement>;
   children?: ReactNode;
 }
 
@@ -26,10 +26,14 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
     "bg-transparent text-foreground hover:bg-muted focus-visible:outline-primary",
 };
 
+// `rounded-sm` / `rounded-md` / `rounded-lg` resolve to the `--radius-*`
+// tokens declared in `styles/globals.css`'s `@theme` block — Tailwind v4
+// auto-generates the utilities from the theme; the arbitrary-value
+// `rounded-(--radius-*)` form is only for vars NOT declared in @theme.
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-sm rounded-(--radius-sm)",
-  md: "px-4 py-2 text-base rounded-(--radius-md)",
-  lg: "px-6 py-3 text-lg rounded-(--radius-lg)",
+  sm: "px-3 py-1.5 text-sm rounded-sm",
+  md: "px-4 py-2 text-base rounded-md",
+  lg: "px-6 py-3 text-lg rounded-lg",
 };
 
 const BASE_CLASSES =
@@ -38,10 +42,15 @@ const BASE_CLASSES =
   "disabled:opacity-50 disabled:pointer-events-none " +
   "cursor-pointer select-none";
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "md", className, children, type, ...rest },
+export function Button({
+  variant = "primary",
+  size = "md",
+  className,
+  children,
+  type,
   ref,
-) {
+  ...rest
+}: ButtonProps) {
   const classes = [
     BASE_CLASSES,
     VARIANT_CLASSES[variant],
@@ -56,4 +65,4 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {children}
     </button>
   );
-});
+}
