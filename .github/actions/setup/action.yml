@@ -8,13 +8,16 @@ runs:
   using: composite
   steps:
     - name: Setup pnpm
-      uses: pnpm/action-setup@v4
+      # Pinned to a commit SHA (not the `v4` tag) so a compromised tag move
+      # can't slip a malicious step into a workflow that reads secrets.
+      # Dependabot keeps the SHA current via the comment annotation.
+      uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
       # `version` is intentionally omitted: pnpm/action-setup reads
       # `packageManager` from the root package.json (pinned to 10.13.1 there),
       # so changing the version is a one-touch edit to package.json.
 
     - name: Setup Node
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version-file: .nvmrc
         cache: pnpm

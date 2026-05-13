@@ -28,7 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      # Action pins use commit SHAs (not `@v4`) to defend against tag-move
+      # supply-chain attacks; Dependabot updates via the version comment.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: ./.github/actions/setup
       - run: pnpm turbo run lint
 
@@ -37,7 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      # Action pins use commit SHAs (not `@v4`) to defend against tag-move
+      # supply-chain attacks; Dependabot updates via the version comment.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: ./.github/actions/setup
       - run: pnpm turbo run type-check
 
@@ -49,7 +53,9 @@ jobs:
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
     steps:
-      - uses: actions/checkout@v4
+      # Action pins use commit SHAs (not `@v4`) to defend against tag-move
+      # supply-chain attacks; Dependabot updates via the version comment.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - uses: ./.github/actions/setup
 
@@ -72,14 +78,24 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"branch\":{\"name\":\"${branch_name}\"},\"endpoints\":[{\"type\":\"read_write\"}]}"
           )
-          branch_id=$(printf '%s' "$response" | jq -r '.branch.id')
-          connection_uri=$(printf '%s' "$response" | jq -r '.connection_uris[0].connection_uri')
+          branch_id=$(printf '%s' "$response" | jq -r '.branch.id // ""')
           if [ -z "$branch_id" ] || [ "$branch_id" = "null" ]; then
             echo "::error::Neon API did not return a branch id"
             exit 1
           fi
-          echo "::add-mask::$connection_uri"
+          # Emit branch_id immediately so the always() cleanup step can run
+          # even if connection_uri validation fails below.
           echo "branch_id=$branch_id" >> "$GITHUB_OUTPUT"
+
+          # Per the Neon API, `connection_uris` is omitted when the branch
+          # has no single database+role pair (e.g. multiple databases or no
+          # role). Don't paper over that with a literal "null" — fail loudly.
+          connection_uri=$(printf '%s' "$response" | jq -r '.connection_uris[0].connection_uri // ""')
+          if [ -z "$connection_uri" ] || [ "$connection_uri" = "null" ]; then
+            echo "::error::Neon API did not return a connection_uri (branch $branch_id; check the project has a single database + role)"
+            exit 1
+          fi
+          echo "::add-mask::$connection_uri"
           echo "DATABASE_URL=$connection_uri" >> "$GITHUB_ENV"
 
       - name: Run unit tests
