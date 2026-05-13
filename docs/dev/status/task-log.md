@@ -56,6 +56,19 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: Phase 0 / Commit 0.2 — Cloud accounts & domains (operator-only manual work)
 - Notes: First end-to-end exercise of the standard PR + CodeRabbit + auto-merge flow. Surfaces three doc-fix items, addressed in companion commit on `main`: (1) RALPH-LOOP.md step 7c example used `coderabbitai[bot]` but this repo's bot login is `coderabbitai` (no suffix); (2) `auto_review.drafts: false` means manual `@coderabbitai review` is required on every draft push; (3) `/ship-task`'s write path (status-file-only commits) was unspecified — now documented as "direct to main pre-Pass-1 protection; folded into next commit's PR post-protection." Pass-1 branch protection is now actionable (operator step).
 
+## 2026-05-13 — Phase 0 / Commit 0.1.7 — Public repo hygiene
+
+- Branch: phase-0/commit-0.1.7-public-repo-hygiene
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/2
+- Merge SHA: 1bb1c5413aa167c64d70616dd90d5ceeb1046c25
+- CodeRabbit: SKIPPED — auto-merge fired in seconds before CodeRabbit's webhook could queue a review; CodeRabbit posted a SUCCESS status check 16 min post-merge but no `reviews` API submission. Manual `@coderabbitai review` after merge produced no review either. **Mitigation**: starting with Commit 0.3, the standard flow opens a PR without enabling auto-merge, waits for CodeRabbit's `APPROVED` review, then enables auto-merge. RALPH-LOOP.md doc-fix queued for that change.
+- ADRs touched: none (loop-infrastructure / hygiene commit; required an off-plan project-plan amendment inserting Commit 0.1.7 between 0.1.5 and 0.2).
+- Acceptance evidence: `.gitignore` rewritten with categories (env, certs/keys, cloud caches, SSH, DB dumps, IaC state, OS/editor scratch) and smoke-tested with 8 placeholder credential filenames — all caught (`.env`, `.aws-credentials`, `aws-credentials.json`, `test.pem`, `id_rsa`, `credentials.json`, `service-account.json`, `client_secret_abc.json`). `next-step.md` § Commit 0.2 Acceptance preview annotates every item with its actual blocker (`now` / `kick off now` / `deferred to Commit X` / `deferred to Phase X`).
+- Validation: pnpm install clean; pnpm turbo build / lint / type-check / test:unit all green; staged-diff scan for secrets returned only doc-text references; master plan amendment is the only modification to `MASTER-bec-project-plan.md`.
+- Files changed: 3 (`.gitignore`, `docs/dev/MASTER-bec-project-plan.md`, `docs/dev/status/next-step.md`); 162 insertions / 46 deletions.
+- Next commit queued: Phase 0 / Commit 0.3 — Environment validation
+- Notes: A second AI reviewer (`cubic · AI code reviewer`) was discovered active on the repo via PR #2's check-runs; it's not configured by the loop docs. Deferred decision (use as second opinion vs. disable) is documented and unresolved.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
