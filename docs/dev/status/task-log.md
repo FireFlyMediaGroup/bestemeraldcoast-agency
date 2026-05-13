@@ -69,6 +69,30 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: Phase 0 / Commit 0.3 — Environment validation
 - Notes: A second AI reviewer (`cubic · AI code reviewer`) was discovered active on the repo via PR #2's check-runs; it's not configured by the loop docs. Deferred decision (use as second opinion vs. disable) is documented and unresolved.
 
+## 2026-05-13 — Phase 0 / Commit 0.3 — Environment validation
+
+- Branch: phase-0/commit-0.3-environment-validation
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/3
+- Merge SHA: 7b80238cf21413d7180118adc2f348d570418936
+- CodeRabbit: APPROVED — 1 comment resolved (1 fixed, 0 replied). Initial review COMMENTED with one Major outside-diff suggestion (add explicit empty-string normalization tests in env.test.ts), then APPROVED ~3s later as a second review object. Fix push (`e150efe`) added the two suggested tests; no re-review landed before merge (operator approved manually; the existing APPROVED state was sufficient). Final review state APPROVED via review #2.
+- ADRs touched: none (implements ADR-038 + references ADRs 002/003/005/011/012/013/017/018).
+- Acceptance evidence: `pnpm install` clean; `pnpm turbo build lint type-check test:unit` produced `56 successful, 56 total`; 14 Vitest cases inside `@bec/config` (env resolution, dev minimal path, missing-DATABASE_URL, wrong-prefix `ANTHROPIC_API_KEY`, short `NEXTAUTH_SECRET`, boolean normalization, empty-string-to-undefined for both optional and production-required fields). Manual acceptance: `cp .env.example .env && pnpm dev` → exit 0 with `✓ environment validated (env=development)`; removing the `DATABASE_URL` line → `pnpm dev` exits 1 with `✗ Environment validation failed (env=development): • DATABASE_URL: Required`.
+- Validation: `validation-checklist.md` § Always + § Foundations all green.
+- Files changed: 12 in the main commit (`.env.example`, 7 files under `packages/config/`, `turbo.json` concurrency bump, `pnpm-lock.yaml` regeneration, status-file updates) + 1 in the fix commit (`env.test.ts` +17 lines).
+- Next commit queued: Phase 0 / Commit 0.4 — Logger and Sentry (operator must provision Sentry × 3 projects + Axiom workspace first per the deferral markers from Commit 0.1.7).
+- Notes: First commit where the Option A discipline ran end-to-end: open non-draft PR → CodeRabbit auto-reviewed in ~30s → APPROVED → enable auto-merge → squash-merge in seconds. Turbo's default `concurrency: 10` rejected 12 persistent dev tasks; bumped to `concurrency: "20"` in `turbo.json`. `verbatimModuleSyntax: true` from the shared tsconfig forced explicit `.js` extensions on internal imports — works correctly with `tsx`. The bookkeeping for 0.3 (this entry + next-step advance) was deferred to the next merging PR per the post-Pass-1 write policy.
+
+## 2026-05-13 — Task — Secrets & 1Password setup runbook
+
+- Type: Off-plan documentation (task-template workflow per `docs/dev/task-template.md`).
+- Branch: task/2026-05-13-secrets-setup-runbook
+- PR: (to be filled by /ship-task in next commit's PR)
+- Merge SHA: (to be filled)
+- CodeRabbit: (pending)
+- Acceptance: `docs/runbooks/secrets-setup.md` exists, covers 1Password vault setup + per-credential checklist + `.env` integration options + rotation policy; `docs/dev/status/next-step.md` § Operator Pre-Flight links to the runbook.
+- Files changed: 3 — new `docs/runbooks/secrets-setup.md`, modified `docs/dev/status/next-step.md` (linking + advancing pointer), removed `docs/runbooks/.gitkeep` (no longer needed).
+- Notes: Surfaced gap — task-template-style tasks don't have a Phase/Commit number. Using a date-stamped "Task" header in task-log.md works; consider a doc fix in `RALPH-LOOP.md` to formalize the format alongside the queued Option A doc fix.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:

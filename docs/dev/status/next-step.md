@@ -8,6 +8,8 @@
 
 **Repo:** https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency
 
+**Credential procurement runbook:** [`docs/runbooks/secrets-setup.md`](../../runbooks/secrets-setup.md) — full 1Password vault setup, item template, per-phase credential checklist, and three options for getting values into local `.env` (manual copy / `op inject` / `op run`).
+
 - [x] Create the GitHub repo (`FireFlyMediaGroup/bestemeraldcoast-agency`, public, default branch `main`).
 - [x] Visibility: **public** (kept public while CodeRabbit OSS free tier is active; flip to private once dev concludes).
 - [x] Auto-merge enabled, auto-delete head branches enabled.
@@ -20,58 +22,42 @@
 
 ## Current Step
 
-- **Phase:** 0 — Workspace & Foundations
-- **Commit:** 0.3 — Environment validation
-- **Plan reference:** `docs/dev/MASTER-bec-project-plan.md` § Phase 0 → Commit 0.3
-- **ADRs in scope:** ADR-038 (primary), ADR-002 (`DATABASE_URL`), ADR-003 (`AGENT_API_KEY`), ADR-005 (Blob + B2), ADR-011 (PostHog), ADR-012 (Sentry + Axiom), ADR-013 (Resend + SES), ADR-017 (Upstash + Turnstile), ADR-018 (Anthropic).
+- **Phase:** N/A — off-plan task (per `docs/dev/task-template.md`)
+- **Task:** Secrets & 1Password setup runbook
+- **Branch:** `task/2026-05-13-secrets-setup-runbook`
+- **ADRs in scope:** none directly (operationalizes ADR-007 and ADR-038)
 - **Status:** in-flight (branch cut, PR not yet opened)
 
-## Commit Prompt (excerpt)
+## Task Prompt
 
-> Create `packages/config/env.ts` that defines a Zod schema for every environment variable used in BEC. Group by app/package. Export typed `serverEnv` and `clientEnv` objects. The schema must boot-fail if a required variable is missing in production. Also create a `.env.example` at the repo root with every variable documented and grouped by purpose. Implement the safety rails from ADR-038 (`PROD_DB_ALLOWED`, `EMAIL_REAL_SEND_ENABLED`).
+> Write `docs/runbooks/secrets-setup.md` that walks the operator through 1Password vault setup, the standard item template (custom fields: `value`, `vendor_url`, `rotation_due`, `env_used`, `env_var`, `adr`), the full per-credential checklist organized by the commit that first needs each one, three options for getting values into local `.env` (manual copy / `op inject` / `op run`), and ADR-007's rotation policy. Link from `docs/dev/status/next-step.md` § Operator Pre-Flight.
 
 ## Acceptance
 
-- Removing `DATABASE_URL` from `.env` causes `pnpm dev` to fail with a clear message — **verified locally**: `pnpm dev` exits 1 with `✗ Environment validation failed (env=development): • DATABASE_URL: Required`.
-- `.env.example` is comprehensive — covers every var in the schema, grouped by ADR with inline documentation.
-- `pnpm turbo build lint type-check test:unit` produces `56 successful, 56 total` (12 Vitest tests inside `@bec/config` cover happy + sad paths, including production-strict missing-key, wrong-prefix `ANTHROPIC_API_KEY`, short `NEXTAUTH_SECRET`, empty-string-as-undefined normalization).
+- `docs/runbooks/secrets-setup.md` exists and covers: 1Password account + vault setup, CLI install + signin, the per-item field template, every `.env` variable mapped to its source service and 1Password item title, ADR cross-references, and the rotation policy.
+- `docs/dev/status/next-step.md` § Operator Pre-Flight contains a link to the runbook.
+- PR opens against `main` (non-draft, no auto-merge enabled), CodeRabbit `APPROVED`, then squash-merged.
 
-## PR Discipline (new this commit — Option A)
+## Files Touched
 
-Auto-merge on this repo currently fires within seconds of opening a PR — faster than CodeRabbit's review webhook. To preserve the loop's hard gate (CodeRabbit `APPROVED` before merge), this commit and every subsequent commit follow this sequence:
-
-1. `git push -u origin HEAD` and `gh pr create --base main` (no draft).
-2. **Do NOT** enable auto-merge yet.
-3. Poll `gh pr view <PR> --json reviews --jq '[.reviews[] | select(.author.login == "coderabbitai")] | length'` until the count rises (typical 1–3 min).
-4. Triage CodeRabbit findings (fix → push; or reply with rationale).
-5. Confirm latest CodeRabbit review state is `APPROVED`.
-6. Only then `gh pr merge --auto --squash --delete-branch`.
-
-This is a temporary workaround until Pass-2 branch protection adds `CodeRabbit` as a required status check (after Commit 0.6 lands CI). A doc-fix to `RALPH-LOOP.md` § Git Discipline is queued — proceed assuming the new ordering and update the doc next.
-
-## Files Likely to Touch
-
-- `packages/config/src/env.ts` (Zod schema + parseEnv)
-- `packages/config/src/index.ts` (singleton export + ADR-038 safety rails)
-- `packages/config/src/dev.ts` (boot-time validator wired to `pnpm dev`)
-- `packages/config/src/env.test.ts` (Vitest tests)
-- `packages/config/{tsconfig.json,vitest.config.ts,package.json}`
-- `.env.example` (root, comprehensive)
-- `turbo.json` (bump `concurrency` to handle 12+ persistent dev tasks)
+- `docs/runbooks/secrets-setup.md` (new)
+- `docs/runbooks/.gitkeep` (removed — directory now has real content)
+- `docs/dev/status/next-step.md` (this file — runbook link + advance pointer)
+- `docs/dev/status/task-log.md` (Commit 0.3 entry + this task's entry, folded in per the post-Pass-1 write policy)
 
 ## Validation
 
-- `validation-checklist.md` § Always (every commit) + § Foundations.
-- Run `pnpm turbo build lint type-check test:unit` — expect `56/56` successful.
-- Manual acceptance: copy `.env.example` to `.env`, run `pnpm dev` (expect ✓), remove `DATABASE_URL` line, run `pnpm dev` again (expect ✗ with clear field error).
+- `validation-checklist.md` § Always (every commit) — docs-only PR; no test or schema impact.
+- Links resolve: the runbook reference from `next-step.md` and from `task-log.md` both work via relative paths.
 
-## Next Commit After This
+## Next Step After This
 
-- **Commit 0.4** — Logger and Sentry. Wires Pino + Sentry transport into `packages/logger`, initializes `@sentry/nextjs` in each app. Acceptance: a test `logger.error()` shows up in Sentry. **Prereqs operator must complete first**: Sentry projects (×3) + Axiom workspace (deferral markers in Commit 0.2's checklist).
+- **Commit 0.4 — Logger and Sentry.** Implements `packages/logger/` (Pino + multi-transport: pretty stdout in dev, JSON in prod, Sentry transport for `warn+`, Axiom transport for everything). Wires `@sentry/nextjs` into each Next.js app. Acceptance: a test `logger.error()` shows up in Sentry.
+- **Prereq operator action (deferred from Commit 0.2):** provision Sentry × 3 projects + Axiom workspace per the runbook above. Local `.env` should have `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `AXIOM_TOKEN`, `AXIOM_DATASET` populated before Commit 0.4 begins.
 
 ## Handoff Notes
 
 - Master ADR and master plan are the source of truth. If anything in this file conflicts with them, trust the masters and re-derive the next step.
-- Schema design: per-env strictness via `serverSchema.merge(productionRequired)` when `env === "production"`. Optional fields use `.optional()` and accept empty strings (normalized to `undefined` at parse time — `.env` files commonly leave placeholders as `KEY=`).
-- ADR-038 safety rails are exposed as functions (`assertProdDbAccessible()`, `shouldSendRealEmail()`) rather than properties, so the throw fires at the call site rather than at module load.
+- This task is **off-plan** — it does not appear in `MASTER-bec-project-plan.md` (per the convention that task-template work is operational/supplementary rather than architectural). `task-log.md` records it under a date-stamped "Task" header instead of a Phase/Commit header.
+- Two doc-fix items still queued for `RALPH-LOOP.md`: (1) Option A — open PR without auto-merge, wait for `APPROVED`, then enable auto-merge; (2) formalize the task-template entry format in `task-log.md`. Both fold into a future commit's PR.
 - Phase 0 ends with the ADR-035 quality gate at `MASTER-bec-project-plan.md` § "Phase 0 quality gate (ADR-035)". Do not begin Phase 1 / Commit 1.1 until that gate is 100% green.
