@@ -2015,6 +2015,12 @@ Every screen — public, ops-console, mobile, newsletter — follows Apple's Hum
 
 **Acceptance**: `pnpm install` succeeds. `pnpm turbo build` succeeds (no-op). Tree matches the structure documented.
 
+#### Commit 0.1.5 — Install Ralph slash commands
+
+> "Make the three Ralph loop commands (`/adr-plan`, `/ralph-next`, `/ship-task`) runnable as Claude Code slash commands. Create `.claude/commands/` at the repo root and add symlinks from there to the existing runbooks under `docs/dev/claude/commands/`. Symlinks (not copies) keep a single source of truth — editing the docs updates the slash commands. This commit doubles as the first end-to-end exercise of the standard branch-per-commit + PR + auto-merge + CodeRabbit flow; the bootstrap exception from Commit 0.1 no longer applies. After merge, the operator applies Pass-1 branch protection per `docs/dev/status/next-step.md` § Operator Pre-Flight (now that CodeRabbit has reviewed at least one PR, the `CodeRabbit` status-check name will appear in GitHub's dropdown for Pass-2 protection later)."
+
+**Acceptance**: `.claude/commands/{adr-plan,ralph-next,ship-task}.md` exist as symlinks resolving to `docs/dev/claude/commands/*.md`. PR opened against `main` with auto-merge enabled. CodeRabbit's final review state is `APPROVED`. Squash-merged to `main`; branch auto-deleted.
+
 #### Commit 0.2 — Cloud accounts & domains
 
 Manual operator work (not Claude Code), but tracked here:
