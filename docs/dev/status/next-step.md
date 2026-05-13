@@ -53,7 +53,7 @@ Inferred lower bars (carry the discipline from prior commits, not new requiremen
 ## Files Likely to Touch
 
 - `.github/workflows/ci.yml` — the new workflow file. One job per Turbo task (so each becomes a named check), or one job with three sequential steps + tee'd logs (less observable in the GitHub UI but simpler). Pick during implementation.
-- `.github/actions/setup/action.yml` — composite action for repeated setup (`actions/checkout`, `pnpm/action-setup`, `actions/setup-node` with cache, `pnpm install --frozen-lockfile`). Optional — only if the workflow has multiple jobs sharing setup.
+- `.github/actions/setup/action.yml` — composite action for repeated setup (`pnpm/action-setup`, `actions/setup-node` with pnpm cache, `pnpm install --frozen-lockfile`). `actions/checkout` runs at the job level *before* the composite is invoked — composite actions can't run pre-checkout. Optional, but worth it when the workflow has multiple jobs sharing setup.
 - `turbo.json` — possibly add `remoteCache: { signature: true }` if Turbo's signing is desired; otherwise the Vercel Remote Cache integration is purely an env-var concern.
 - `docs/runbooks/ci-baseline.md` — *optional*. Skip unless operator setup is non-obvious; the secrets list above in § Operator Pre-Flight may be enough.
 - Bookkeeping rolling forward (this branch): `docs/dev/status/task-log.md` (Commit 0.5 entry, already landed on this branch in commit `d1c613f`), `docs/dev/status/next-step.md` (this file).
