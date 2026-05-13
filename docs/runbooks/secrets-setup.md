@@ -65,7 +65,7 @@ op --version
 The first time:
 
 ```bash
-op account add --address my.1password.com --email <your-email>
+op account add --address my.1password.com --email <your-email>  # Replace with your actual 1Password sign-in address and email
 # Follow the prompts; paste your Secret Key when asked.
 ```
 
@@ -76,6 +76,8 @@ eval $(op signin)
 ```
 
 Add the eval line (or `op signin --account my`) to your shell profile so every new terminal starts with `op` ready to use.
+
+> **Security note:** adding `eval $(op signin)` to your shell profile means *any* process running in a new terminal can read from `BEC-Production` without re-authenticating. That's an acceptable trade-off while this is a single-operator project, but revisit it before adding a contractor — at that point, prefer per-session sign-in or wrap commands with `op run` (see §5.3) so secrets never sit in the shell environment.
 
 Test access:
 
@@ -102,7 +104,7 @@ Every credential in the vault uses the same item structure so everything is unif
 | **`adr`** | string | `ADR-018` | Which ADR mandates this credential. |
 | Notes | string | "Daily cap $5, monthly cap $100 (ADR-018)." | Anything else worth remembering. |
 
-The custom fields (`vendor_url`, `rotation_due`, `env_used`, `env_var`, `adr`) are added per item via the **Add new field** menu. Once you've created one item, copy it as a template for the rest.
+The custom fields (`vendor_url`, `rotation_due`, `env_used`, `env_var`, `adr`) are added per item via the **Add new field** menu. Once you've created one item, use 1Password's **Duplicate Item** feature (right-click → Duplicate, or ⌘D on macOS) to clone the field structure, then update the duplicated values. (1Password has no built-in custom-template feature; duplication is the closest equivalent.)
 
 ---
 
@@ -117,7 +119,7 @@ The order below mirrors the deferral markers in `docs/dev/status/next-step.md` �
 | `SENTRY_DSN` | [Sentry](https://sentry.io) | Projects → New: create 3 projects: `bec-editorial`, `bec-ops-console`, `bec-newsletter-public`. Each project → Settings → Client Keys (DSN) → **DSN** field. | `Sentry DSN — bec-editorial` (and equivalents for the other two) | ADR-012 |
 | `SENTRY_AUTH_TOKEN` | Sentry | Settings → Account → User Auth Tokens → New Token. Scopes: `project:read`, `project:releases`, `org:read`. | `Sentry auth token — bec-prod` | ADR-012 |
 | `AXIOM_TOKEN` | [Axiom](https://axiom.co) | Settings → API Tokens → Create. Permissions: ingest + query on your dataset. | `Axiom API token — bec-prod` | ADR-012 |
-| `AXIOM_DATASET` | Axiom | Datasets → Create dataset (suggested name: `bec-logs`). Use the dataset **name** string. | `Axiom dataset — bec-logs` (or store as a note on the API token item) | ADR-012 |
+| `AXIOM_DATASET` | Axiom | Datasets → Create dataset (suggested name: `bec-logs`). Use the dataset **name** string. | Custom field on the `Axiom API token — bec-prod` item (operator-chosen dataset name — not a true literal) | ADR-012 |
 
 For local dev, the schema only requires `DATABASE_URL` — the four observability vars are optional in dev and become required in production. So you can populate Sentry/Axiom now and the dev `pnpm dev` will still pass.
 
@@ -153,7 +155,7 @@ Plus: **Cloudflare DNS** for the 8 domains (no env var; DNS records only, per AD
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile | Same Turnstile site → **Site key** (public). | `Cloudflare Turnstile site key — bec-prod` (or store in the same item) | ADR-017 |
 | `POSTHOG_API_KEY` (server) | [PostHog](https://us.posthog.com) | Project → Settings → Project API Keys → use the **Personal API key** if you'll do server-side capture. | `PostHog server API key — bec-prod` | ADR-011 |
 | `NEXT_PUBLIC_POSTHOG_KEY` (client) | PostHog | Same project → **Project API key** (the public one starting with `phc_`). | `PostHog client API key — bec-prod` | ADR-011 |
-| `NEXT_PUBLIC_POSTHOG_HOST` | PostHog | Usually `https://us.i.posthog.com` (US region per ADR-011). | (literal, no item) | ADR-011 |
+| `NEXT_PUBLIC_POSTHOG_HOST` | PostHog | Usually `https://us.i.posthog.com` (US region per ADR-011). | n/a — literal (see §4.8) | ADR-011 |
 | `BLOB_READ_WRITE_TOKEN` | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) | Project → Storage → Connect Blob → Vercel auto-generates the token; visible in the project's Environment Variables. | `Vercel Blob read-write token — bec-prod` | ADR-005 |
 
 ### 4.5. Need before Phase 3 (Newsletter)
@@ -162,7 +164,7 @@ Plus: **Cloudflare DNS** for the 8 domains (no env var; DNS records only, per AD
 |---|---|---|---|---|
 | `AWS_ACCESS_KEY_ID` | [AWS IAM](https://us-east-1.console.aws.amazon.com/iam/home) | Create an IAM user `bec-ses-sender` with the `AmazonSESFullAccess` managed policy (or scope down to `ses:SendEmail`, `ses:SendRawEmail` on the verified domain). Generate access keys for the user. | `AWS IAM access key id — bec-ses-sender` | ADR-013 |
 | `AWS_SECRET_ACCESS_KEY` | AWS IAM | Same IAM user → secret access key. | `AWS IAM secret access key — bec-ses-sender` | ADR-013 |
-| `AWS_REGION` | AWS | The region where SES is configured (default `us-east-1`). | (literal, no item) | ADR-013 |
+| `AWS_REGION` | AWS | The region where SES is configured (default `us-east-1`). | n/a — literal (see §4.8) | ADR-013 |
 | **SES sandbox exit request** | [AWS Support Center](https://us-east-1.console.aws.amazon.com/support/home) | Service quota increase → SES → "Move out of sandbox". **Submit ASAP** — 24-48h+ AWS turnaround. | Track the case # as a note on the IAM item. | ADR-013 |
 
 ### 4.6. Need before Phase 4 (Asset generation)
@@ -172,7 +174,7 @@ Plus: **Cloudflare DNS** for the 8 domains (no env var; DNS records only, per AD
 | `B2_KEY_ID` | [Backblaze B2](https://secure.backblaze.com/app_keys.htm) | Application Keys → Add a New Application Key. Restrict to your bucket. | `Backblaze B2 key id — bec-prod` | ADR-005 |
 | `B2_APPLICATION_KEY` | Backblaze B2 | Same key creation flow — the secret part. | `Backblaze B2 application key — bec-prod` | ADR-005 |
 | `B2_BUCKET` | Backblaze B2 | Buckets → Create Bucket (private, lifecycle rules per ADR-006). Use the bucket name. | `Backblaze B2 bucket — bec-prod` | ADR-005 |
-| `B2_ENDPOINT` | Backblaze B2 | S3-compatible endpoint URL for your region (shown in the bucket details, e.g. `https://s3.us-west-002.backblazeb2.com`). | (note on bucket item) | ADR-005 |
+| `B2_ENDPOINT` | Backblaze B2 | S3-compatible endpoint URL for your region (shown in the bucket details, e.g. `https://s3.us-west-002.backblazeb2.com`). | Custom field on the `Backblaze B2 bucket — bec-prod` item (varies per region — not a true literal) | ADR-005 |
 
 ### 4.7. Need before Phase 6 (Growth engine / cron)
 
@@ -180,7 +182,18 @@ Plus: **Cloudflare DNS** for the 8 domains (no env var; DNS records only, per AD
 |---|---|---|---|
 | `CRON_SECRET` | Run `openssl rand -hex 32`. Vercel cron handlers verify `Authorization: Bearer ${CRON_SECRET}`. | `Vercel cron secret — bec-prod` | Phase 6 |
 
-### 4.8. Safety rails — set manually in `.env` (no procurement)
+### 4.8. Literal / non-secret configuration values (no 1Password item)
+
+A handful of `.env` variables are static URLs or region codes — not secrets, not operator-specific. They live only in this runbook and in `.env.example`, with no corresponding 1Password item:
+
+| `.env` var | Canonical value | Source of truth |
+|---|---|---|
+| `NEXT_PUBLIC_POSTHOG_HOST` | `https://us.i.posthog.com` (US region per ADR-011) | This file + `.env.example` |
+| `AWS_REGION` | `us-east-1` (default; override only if SES is provisioned elsewhere) | This file + `.env.example` |
+
+Per-deployment config that varies by operator (e.g., `B2_ENDPOINT` region URL, `AXIOM_DATASET` name) is stored as a **custom field on the existing credential's 1Password item** — those rows in §§4.1 and 4.6 mark this explicitly. Operator-generated secrets (`AGENT_API_KEY`, `NEXTAUTH_SECRET`, `CRON_SECRET`) get their own items per §§4.3 and 4.7.
+
+### 4.9. Safety rails — set manually in `.env` (no procurement)
 
 | `.env` var | Default | When to flip |
 |---|---|---|
