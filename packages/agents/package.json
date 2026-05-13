@@ -1,0 +1,19 @@
+{
+  "name": "@bec/agents",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared agent invocation, logging, and budget enforcement utilities (ADR-004, ADR-018).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "echo '(noop)'",
+    "dev": "echo '(noop)'",
+    "lint": "echo '(noop)'",
+    "type-check": "echo '(noop)'",
+    "test:unit": "echo '(noop)'"
+  },
+  "devDependencies": {
+    "@bec/config-eslint": "workspace:*",
+    "@bec/config-tsconfig": "workspace:*"
+  }
+}

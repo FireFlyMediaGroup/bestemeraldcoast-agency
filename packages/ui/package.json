@@ -1,0 +1,19 @@
+{
+  "name": "@bec/ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "shadcn primitives + BEC compositions + theme tokens (ADR-032, ADR-037).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "echo '(noop)'",
+    "dev": "echo '(noop)'",
+    "lint": "echo '(noop)'",
+    "type-check": "echo '(noop)'",
+    "test:unit": "echo '(noop)'"
+  },
+  "devDependencies": {
+    "@bec/config-eslint": "workspace:*",
+    "@bec/config-tsconfig": "workspace:*"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@bec/config-tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared TypeScript config presets for the BEC monorepo (ADR-039).",
+  "files": [
+    "base.json",
+    "nextjs.json",
+    "react-library.json"
+  ],
+  "scripts": {
+    "build": "echo '(noop)'",
+    "lint": "echo '(noop)'",
+    "type-check": "echo '(noop)'",
+    "test:unit": "echo '(noop)'"
+  }
+}

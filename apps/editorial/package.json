@@ -1,0 +1,18 @@
+{
+  "name": "@bec/editorial",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public editorial network across 8 domains (host routing via proxy.ts). ADR-001, ADR-010.",
+  "scripts": {
+    "build": "echo '(noop)'",
+    "dev": "echo '(noop)'",
+    "lint": "echo '(noop)'",
+    "type-check": "echo '(noop)'",
+    "test:unit": "echo '(noop)'",
+    "test:e2e": "echo '(noop)'"
+  },
+  "devDependencies": {
+    "@bec/config-eslint": "workspace:*",
+    "@bec/config-tsconfig": "workspace:*"
+  }
+}

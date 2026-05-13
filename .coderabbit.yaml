@@ -1,0 +1,80 @@
+# CodeRabbit configuration for bestemeraldcoast-agency
+# Docs: https://docs.coderabbit.ai/guides/configure-coderabbit
+#
+# This config powers the hard-gate review described in
+# docs/dev/claude/RALPH-LOOP.md § Git Discipline.
+
+language: en
+
+reviews:
+  # `assertive` posts more thorough findings; `chill` is lighter-touch.
+  # The Ralph loop assumes assertive — comments are real work for the loop to triage.
+  profile: assertive
+
+  # When true, CodeRabbit posts APPROVED or CHANGES_REQUESTED instead of just COMMENTED.
+  # The loop's hard gate at step 7e depends on this being true.
+  request_changes_workflow: true
+
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+
+  # Skip noise. Tune as the repo grows.
+  path_filters:
+    - "!**/*.lock"
+    - "!**/pnpm-lock.yaml"
+    - "!**/dist/**"
+    - "!**/.next/**"
+    - "!**/node_modules/**"
+    - "!**/.turbo/**"
+    - "!**/coverage/**"
+    # The master ADR + plan are governed by the loop, not by per-PR review.
+    - "!docs/dev/MASTER-bec-architecture-decisions.md"
+    - "!docs/dev/MASTER-bec-project-plan.md"
+
+  # Per-area review focus. Keep these aligned with the validation checklist.
+  path_instructions:
+    - path: "packages/db/**"
+      instructions: |
+        Drizzle ORM database package. Pay special attention to:
+        - Migration safety (idempotent operations only).
+        - Index coverage on frequently filtered queries.
+        - Schema changes that need a backfill script.
+        - No prod-DB writes from local (per ADR-038).
+    - path: "packages/agents/**"
+      instructions: |
+        Agent runtime code. Verify:
+        - Cost telemetry written (per ADR-018).
+        - Daily caps enforced.
+        - pipeline_signals rows written for editorial-rotation agents (per ADR-040).
+    - path: "apps/**/api/**"
+      instructions: |
+        API routes. Verify:
+        - Authentication required.
+        - Rate limiting applied (per ADR-017).
+        - Zod input validation on every handler.
+        - Errors logged via packages/logger (Sentry + Axiom per ADR-012).
+    - path: "packages/email/**"
+      instructions: |
+        Email + newsletter code. Verify:
+        - EMAIL_REAL_SEND_ENABLED gate respected outside production (per ADR-038).
+        - Sending domain matches ADR-013.
+        - FTC sponsored-content disclosure where required (per ADR-015).
+    - path: "**/*.test.ts"
+      instructions: |
+        Test files (Vitest unit, Playwright e2e per ADR-016).
+        Do not mock the database — use the ephemeral Neon branch.
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: auto

@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+.turbo/
+dist/
+build/
+out/
+
+# Test coverage
+coverage/
+*.lcov
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Vercel
+.vercel
+
+# Claude Code — operator-local settings only
+.claude/settings.local.json
+
+# Agent runtime scratch (ADR-003: filesystem is for prompt artifacts + scratch only)
+agency/state/
+agency/.env
+
+# TypeScript build info
+*.tsbuildinfo
+
+# macOS metadata
+._*

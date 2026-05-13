@@ -1,0 +1,18 @@
+{
+  "name": "@bec/newsletter-public",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Subscribe pages, archive, and preference center (mail.bestemeraldcoast.com).",
+  "scripts": {
+    "build": "echo '(noop)'",
+    "dev": "echo '(noop)'",
+    "lint": "echo '(noop)'",
+    "type-check": "echo '(noop)'",
+    "test:unit": "echo '(noop)'",
+    "test:e2e": "echo '(noop)'"
+  },
+  "devDependencies": {
+    "@bec/config-eslint": "workspace:*",
+    "@bec/config-tsconfig": "workspace:*"
+  }
+}
