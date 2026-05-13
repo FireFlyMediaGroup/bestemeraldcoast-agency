@@ -82,6 +82,18 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: Phase 0 / Commit 0.4 — Logger and Sentry (operator must provision Sentry × 3 projects + Axiom workspace first per the deferral markers from Commit 0.1.7).
 - Notes: First commit where the Option A discipline ran end-to-end: open non-draft PR → CodeRabbit auto-reviewed in ~30s → APPROVED → enable auto-merge → squash-merge in seconds. Turbo's default `concurrency: 10` rejected 12 persistent dev tasks; bumped to `concurrency: "20"` in `turbo.json`. `verbatimModuleSyntax: true` from the shared tsconfig forced explicit `.js` extensions on internal imports — works correctly with `tsx`. The bookkeeping for 0.3 (this entry + next-step advance) was deferred to the next merging PR per the post-Pass-1 write policy.
 
+## 2026-05-13 — Task — Secrets & 1Password setup runbook
+
+- Type: Off-plan documentation (task-template workflow per `docs/dev/task-template.md`).
+- Branch: task/2026-05-13-secrets-setup-runbook
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/4
+- Merge SHA: c457c2cda5a5dc4656b6eb7ef01733504e73c2db
+- CodeRabbit: APPROVED — 7 findings total across 4 review rounds (6 fixed, 1 replied with rationale on the Emergency Kit thread).
+- Secondary reviewer: `cubic-dev-ai` posted 2 findings (P1 PostHog API key + P2 placeholder task-log entry); both fixed.
+- Acceptance evidence: `docs/runbooks/secrets-setup.md` exists on `main`, covers all 9 sections (purpose, account/vault setup, CLI install, item template, per-phase credential checklist, three .env-integration options, rotation policy, contractor onboarding, cross-refs); `docs/dev/status/next-step.md` § Operator Pre-Flight links to the runbook.
+- Files changed: 4 (new `docs/runbooks/secrets-setup.md`, modified `docs/dev/status/next-step.md`, modified `docs/dev/status/task-log.md`, removed `docs/runbooks/.gitkeep`); ~316 insertions / 37 deletions across the PR's 4 push iterations.
+- Notes: Discovered cubic-dev-ai is a second active AI reviewer on the repo (not configured by the loop docs). Earlier policy mistakenly dismissed cubic as no-op; corrected to treat both reviewers as gating with same triage weight — this revision is queued as a `RALPH-LOOP.md` doc-fix in Commit 0.4's PR. Also surfaced: the format for off-plan task-template entries in `task-log.md` is ad hoc — using a date-stamped "Task" header pending formalization.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
