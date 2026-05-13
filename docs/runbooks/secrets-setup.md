@@ -15,7 +15,7 @@ ADR-007 selected 1Password as the system of record because:
 - 1Password CLI (`op`) integrates cleanly with both Vercel's `env pull` flow (for Vercel-hosted apps) and with local development on the operator's Mac (for the agent runtime per ADR-004).
 - Per-environment scoping is preserved — every item documents which environments use it (development / preview / production).
 
-Real values **never** live in this repo, in a Slack thread, in a personal `.env`, or in a screenshot. They live in 1Password and are pulled on demand.
+Real values are **never committed to this repo, posted in a Slack thread, included in a screenshot, or shared in any non-1Password channel.** They live in 1Password and are pulled on demand. A local `.env` file is allowed — and necessary — for development (see §§5.1–5.2 for the supported workflows), provided it stays on the operator's machine and is caught by the `.gitignore` (which the smoke test in Commit 0.1.7 verified).
 
 ---
 
