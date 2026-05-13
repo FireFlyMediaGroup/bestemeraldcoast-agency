@@ -1,0 +1,1 @@
+../../docs/dev/claude/commands/adr-plan.md
