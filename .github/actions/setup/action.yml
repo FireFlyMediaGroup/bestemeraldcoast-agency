@@ -1,0 +1,24 @@
+name: Setup pnpm + Node + workspace
+description: >
+  Install pnpm (version pinned by the repo's `packageManager` field), set up
+  Node from `.nvmrc`, restore the pnpm content-addressable store cache, and run
+  `pnpm install --frozen-lockfile`. Shared by every CI job (ADR-039).
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      # `version` is intentionally omitted: pnpm/action-setup reads
+      # `packageManager` from the root package.json (pinned to 10.13.1 there),
+      # so changing the version is a one-touch edit to package.json.
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: Install workspace dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile

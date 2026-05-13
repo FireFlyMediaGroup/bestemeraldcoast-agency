@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+# Cancel any in-flight CI run for the same PR when a new commit is pushed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Minimal scope — none of these jobs write back to the repo. If a future job
+# needs to comment on a PR or push a tag, override `permissions:` on that job
+# only, not at the workflow level.
+permissions:
+  contents: read
+
+# Turbo automatically picks these up to talk to the Vercel Remote Cache
+# (ADR-039). Empty values are fine — Turbo falls back to local-only caching
+# when the token is unset.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm turbo run lint
+
+  type-check:
+    name: type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm turbo run type-check
+
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup
+
+      # Create a per-run Neon branch so test:unit always sees a fresh,
+      # isolated database. Skips when secrets are unset so a no-op throwaway
+      # PR before the operator finishes the Neon setup still passes — the
+      # `test:unit` slice in Phase 0 doesn't touch the DB yet.
+      - name: Create Neon ephemeral branch
+        id: neon
+        if: env.NEON_API_KEY != '' && env.NEON_PROJECT_ID != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch_name="ci-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}"
+          response=$(
+            curl --silent --show-error --fail-with-body --max-time 30 \
+              -X POST \
+              "https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}/branches" \
+              -H "Authorization: Bearer ${NEON_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{\"branch\":{\"name\":\"${branch_name}\"},\"endpoints\":[{\"type\":\"read_write\"}]}"
+          )
+          branch_id=$(printf '%s' "$response" | jq -r '.branch.id')
+          connection_uri=$(printf '%s' "$response" | jq -r '.connection_uris[0].connection_uri')
+          if [ -z "$branch_id" ] || [ "$branch_id" = "null" ]; then
+            echo "::error::Neon API did not return a branch id"
+            exit 1
+          fi
+          echo "::add-mask::$connection_uri"
+          echo "branch_id=$branch_id" >> "$GITHUB_OUTPUT"
+          echo "DATABASE_URL=$connection_uri" >> "$GITHUB_ENV"
+
+      - name: Run unit tests
+        run: pnpm turbo run test:unit
+
+      # Always attempt cleanup so failed runs don't leak Neon branches. Guarded
+      # on `branch_id` so it no-ops when the creation step was skipped.
+      - name: Delete Neon ephemeral branch
+        if: always() && steps.neon.outputs.branch_id != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --fail-with-body --max-time 30 \
+            -X DELETE \
+            "https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}/branches/${{ steps.neon.outputs.branch_id }}" \
+            -H "Authorization: Bearer ${NEON_API_KEY}"
