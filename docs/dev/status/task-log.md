@@ -82,17 +82,6 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: Phase 0 / Commit 0.4 — Logger and Sentry (operator must provision Sentry × 3 projects + Axiom workspace first per the deferral markers from Commit 0.1.7).
 - Notes: First commit where the Option A discipline ran end-to-end: open non-draft PR → CodeRabbit auto-reviewed in ~30s → APPROVED → enable auto-merge → squash-merge in seconds. Turbo's default `concurrency: 10` rejected 12 persistent dev tasks; bumped to `concurrency: "20"` in `turbo.json`. `verbatimModuleSyntax: true` from the shared tsconfig forced explicit `.js` extensions on internal imports — works correctly with `tsx`. The bookkeeping for 0.3 (this entry + next-step advance) was deferred to the next merging PR per the post-Pass-1 write policy.
 
-## 2026-05-13 — Task — Secrets & 1Password setup runbook
-
-- Type: Off-plan documentation (task-template workflow per `docs/dev/task-template.md`).
-- Branch: task/2026-05-13-secrets-setup-runbook
-- PR: (to be filled by /ship-task in next commit's PR)
-- Merge SHA: (to be filled)
-- CodeRabbit: (pending)
-- Acceptance: `docs/runbooks/secrets-setup.md` exists, covers 1Password vault setup + per-credential checklist + `.env` integration options + rotation policy; `docs/dev/status/next-step.md` § Operator Pre-Flight links to the runbook.
-- Files changed: 3 — new `docs/runbooks/secrets-setup.md`, modified `docs/dev/status/next-step.md` (linking + advancing pointer), removed `docs/runbooks/.gitkeep` (no longer needed).
-- Notes: Surfaced gap — task-template-style tasks don't have a Phase/Commit number. Using a date-stamped "Task" header in task-log.md works; consider a doc fix in `RALPH-LOOP.md` to formalize the format alongside the queued Option A doc fix.
-
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
