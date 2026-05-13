@@ -11,7 +11,7 @@ Not every section applies to every commit. Run the sections relevant to the file
 - [ ] Commit message and PR title reference `Phase <N> / Commit <N>.<M>: <title>`.
 - [ ] PR is open against `main` with auto-merge enabled (`gh pr view --json autoMergeRequest` returns non-null).
 - [ ] CI is green on the PR before merge (auto-merge will not fire otherwise).
-- [ ] CodeRabbit has reviewed and final review state is `APPROVED` (`gh pr view --json reviews --jq '.reviews | map(select(.author.login == "coderabbitai[bot]")) | last | .state'`).
+- [ ] CodeRabbit has reviewed and final review state is `APPROVED` (`gh pr view --json reviews --jq '.reviews | map(select(.author.login == "coderabbitai")) | last | .state'`). Bot login is `coderabbitai` (no `[bot]` suffix).
 - [ ] Every CodeRabbit comment is either fixed (visible in subsequent commits) or replied to with a `gh pr comment` rationale. No silent dismissals.
 - [ ] After merge: branch is auto-deleted (`gh pr view --json headRefName,state` confirms).
 - [ ] After merge: `git checkout main && git pull --ff-only` completes cleanly.
