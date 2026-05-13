@@ -1,0 +1,27 @@
+name: Setup pnpm + Node + workspace
+description: >
+  Install pnpm (version pinned by the repo's `packageManager` field), set up
+  Node from `.nvmrc`, restore the pnpm content-addressable store cache, and run
+  `pnpm install --frozen-lockfile`. Shared by every CI job (ADR-039).
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      # Pinned to a commit SHA (not the `v4` tag) so a compromised tag move
+      # can't slip a malicious step into a workflow that reads secrets.
+      # Dependabot keeps the SHA current via the comment annotation.
+      uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      # `version` is intentionally omitted: pnpm/action-setup reads
+      # `packageManager` from the root package.json (pinned to 10.13.1 there),
+      # so changing the version is a one-touch edit to package.json.
+
+    - name: Setup Node
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: Install workspace dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
