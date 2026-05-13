@@ -43,6 +43,19 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: Phase 0 / Commit 0.1.5 — Install Ralph slash commands (off-plan loop-infrastructure commit added between 0.1 and 0.2 to wire `.claude/commands/` and exercise the standard PR + CodeRabbit flow before Commit 0.3)
 - Notes: Node 22 in `.nvmrc` and `engines.node`; pnpm pinned to `10.13.1`. Local shell still on Node 20.19.5 — install ran with the expected "unsupported engine" warning. `.claude/settings.json` is the committed allowlist; `.claude/settings.local.json` is gitignored.
 
+## 2026-05-13 — Phase 0 / Commit 0.1.5 — Install Ralph slash commands
+
+- Branch: phase-0/commit-0.1.5-install-ralph-commands
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/1
+- Merge SHA: 251f3c1249f5d4b0518acfd85fedc81ff15f7d1d
+- CodeRabbit: APPROVED — 4 comments resolved (4 fixed, 0 replied)
+- ADRs touched: none (off-plan loop-infrastructure work; required a project-plan amendment inserting Commit 0.1.5 between 0.1 and 0.2)
+- Acceptance evidence: `.claude/commands/{adr-plan,ralph-next,ship-task}.md` exist on `main` as symlinks resolving to `docs/dev/claude/commands/*.md`; PR opened against `main` with manual `@coderabbitai review` trigger (required by `.coderabbit.yaml`'s `auto_review.drafts: false`); after fix commit `c883b25`, CodeRabbit posted `APPROVED`; squash-merged via `gh pr merge --auto --squash --delete-branch`; remote branch auto-deleted (HTTP 404 on the branch endpoint confirms).
+- Validation: 4/4 CodeRabbit findings addressed in `c883b25` — 7 MD022 heading-spacing inserts in `next-step.md`, 1 status line correction, 1 MD022 in `task-log.md`, 1 short→full SHA expansion (`ec886e0` → 40-char). All validation-checklist § Always items satisfied.
+- Files changed: 6 in PR (3 symlinks, master plan +6 lines, next-step.md rewritten, task-log.md +12 lines) + 2 in fix commit (next-step.md +9, task-log.md +2).
+- Next commit queued: Phase 0 / Commit 0.2 — Cloud accounts & domains (operator-only manual work)
+- Notes: First end-to-end exercise of the standard PR + CodeRabbit + auto-merge flow. Surfaces three doc-fix items, addressed in companion commit on `main`: (1) RALPH-LOOP.md step 7c example used `coderabbitai[bot]` but this repo's bot login is `coderabbitai` (no suffix); (2) `auto_review.drafts: false` means manual `@coderabbitai review` is required on every draft push; (3) `/ship-task`'s write path (status-file-only commits) was unspecified — now documented as "direct to main pre-Pass-1 protection; folded into next commit's PR post-protection." Pass-1 branch protection is now actionable (operator step).
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
