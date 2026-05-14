@@ -2,19 +2,42 @@
   "name": "@bec/db",
   "version": "0.0.0",
   "private": true,
-  "description": "Drizzle schema + client. Postgres is the single source of truth (ADR-003).",
+  "description": "Drizzle schema + Neon serverless client. Postgres is the single source of truth (ADR-002, ADR-003).",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./src/schema/index.ts",
+      "default": "./dist/schema/index.js"
+    }
+  },
   "scripts": {
-    "build": "echo '(noop)'",
+    "build": "tsc",
     "dev": "echo '(noop)'",
     "lint": "echo '(noop)'",
-    "type-check": "echo '(noop)'",
+    "type-check": "tsc --noEmit",
     "test:unit": "echo '(noop)'",
-    "db:migrate": "echo '(noop)'"
+    "db:generate": "pnpm run build && drizzle-kit generate",
+    "db:migrate": "pnpm run build && drizzle-kit migrate",
+    "db:studio": "pnpm run build && drizzle-kit studio",
+    "db:push": "pnpm run build && drizzle-kit push"
+  },
+  "dependencies": {
+    "@bec/config": "workspace:*",
+    "@neondatabase/serverless": "^1.0.1",
+    "drizzle-orm": "^0.39.0"
   },
   "devDependencies": {
     "@bec/config-eslint": "workspace:*",
-    "@bec/config-tsconfig": "workspace:*"
+    "@bec/config-tsconfig": "workspace:*",
+    "@types/node": "^22.10.5",
+    "drizzle-kit": "^0.30.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }
