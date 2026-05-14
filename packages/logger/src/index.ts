@@ -17,7 +17,7 @@ import { currentEnv, serverEnv } from "@bec/config";
 
 import { buildAxiomStream } from "./transports/axiom.js";
 import { buildPrettyStream } from "./transports/pretty.js";
-import { buildSentryStream, flushSentry } from "./transports/sentry.js";
+import { buildSentryStream, closeSentry, flushSentry } from "./transports/sentry.js";
 
 export interface LoggerContext {
   service?: string;
@@ -100,12 +100,24 @@ export function createLogger(context: LoggerContext = {}): Logger {
 export const logger = createLogger();
 
 /**
- * Flush async transport queues before process exit. Sentry is the one that
- * matters — Axiom is fire-and-forget per-line, so its fetch promises may not
- * resolve before exit but the events have already been sent.
+ * Flush async transport queues without tearing them down. Use in long-running
+ * processes where logging must continue after the flush (Next.js servers,
+ * agent runtimes that stay up). Axiom is fire-and-forget per-line, so its
+ * fetch promises may not have settled when this resolves but the events have
+ * already left for the wire.
  */
 export async function flushLogger(timeoutMs = 2000): Promise<void> {
   await flushSentry(timeoutMs);
+}
+
+/**
+ * Flush AND tear down transports. Use in one-shot scripts and serverless
+ * exit paths so Sentry's HTTP client doesn't keep the Node event loop alive
+ * past the script's logical end. After `closeLogger()`, Sentry no longer
+ * accepts events — call this only when the process is winding down.
+ */
+export async function closeLogger(timeoutMs = 2000): Promise<void> {
+  await closeSentry(timeoutMs);
 }
 
 export type { Logger } from "pino";

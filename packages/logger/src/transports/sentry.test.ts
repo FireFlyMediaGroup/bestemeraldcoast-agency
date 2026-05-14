@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as Sentry from "@sentry/node";
 
-import { buildSentryStream } from "./sentry.js";
+import { buildSentryStream, closeSentry, flushSentry } from "./sentry.js";
 
 vi.mock("@sentry/node", () => ({
   init: vi.fn(),
   captureMessage: vi.fn(),
   captureException: vi.fn(),
   flush: vi.fn().mockResolvedValue(true),
+  close: vi.fn().mockResolvedValue(true),
 }));
 
 function line(obj: Record<string, unknown>): string {
@@ -90,5 +91,37 @@ describe("buildSentryStream", () => {
     stream.write(line({ level: 60, msg: "f" }));
     const calls = (Sentry.captureMessage as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls.map((c) => c[1].level)).toEqual(["warning", "error", "fatal"]);
+  });
+});
+
+describe("flushSentry / closeSentry", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("flushSentry() calls Sentry.flush with the timeout (does not close)", async () => {
+    buildSentryStream({ dsn: "https://abc@o0.ingest.sentry.io/0", environment: "test" });
+    await flushSentry(1500);
+    expect(Sentry.flush).toHaveBeenCalledWith(1500);
+    expect(Sentry.close).not.toHaveBeenCalled();
+  });
+
+  it("closeSentry() calls Sentry.close with the timeout — required so the host process can exit", async () => {
+    buildSentryStream({ dsn: "https://abc@o0.ingest.sentry.io/0", environment: "test" });
+    await closeSentry(1500);
+    expect(Sentry.close).toHaveBeenCalledWith(1500);
+  });
+
+  it("flushSentry() and closeSentry() are no-ops before Sentry has been initialized", async () => {
+    // Module-level `initialized` flag is reset by `closeSentry()`. Call it
+    // once to clear any leftover state from prior tests in this file, then
+    // verify both functions short-circuit without touching the SDK.
+    await closeSentry(0);
+    vi.clearAllMocks();
+
+    await flushSentry(500);
+    await closeSentry(500);
+    expect(Sentry.flush).not.toHaveBeenCalled();
+    expect(Sentry.close).not.toHaveBeenCalled();
   });
 });
