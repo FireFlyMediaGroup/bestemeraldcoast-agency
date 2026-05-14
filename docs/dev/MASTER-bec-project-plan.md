@@ -2060,6 +2060,8 @@ Manual operator work (not Claude Code), but tracked here:
 
 **Acceptance**: Storybook runs locally. Deployed Storybook is reachable with password.
 
+> **Amendment (2026-05-14, follow-up task `task/2026-05-14-storybook-basic-auth`):** Vercel's native Password Protection is restricted to the Enterprise plan / the Advanced Deployment Protection add-on (~$150/mo on Pro), which the BEC plan does not include. The "password protection" requirement is satisfied via an HTTP Basic Auth Edge Middleware (`packages/ui/middleware.ts`) — same user-facing experience (browser prompts for a single shared password), $0 cost, shareable without inviting viewers to the Vercel team. See `docs/runbooks/storybook-deploy.md` § Password protection for setup + rotation.
+
 #### Commit 0.6 — CI baseline
 
 > "Create `.github/workflows/ci.yml` that on every PR: installs with pnpm, runs `turbo lint`, `turbo type-check`, `turbo test:unit` against a Neon ephemeral branch. Cache Turbo, cache pnpm. Add Vercel Remote Cache integration."
