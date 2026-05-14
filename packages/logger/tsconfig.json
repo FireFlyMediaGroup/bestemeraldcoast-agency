@@ -3,8 +3,8 @@
   "extends": "@bec/config-tsconfig/base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./"
+    "rootDir": "./src"
   },
-  "include": ["src/**/*", "scripts/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

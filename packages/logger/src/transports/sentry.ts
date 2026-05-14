@@ -110,7 +110,26 @@ export function buildSentryStream(opts: SentryStreamOptions): DestinationStream 
   };
 }
 
+/**
+ * Flush pending Sentry events without tearing down the client. Use this in
+ * long-running processes (Next.js servers, agents that stay up) where the
+ * Sentry client must keep accepting events after the flush.
+ */
 export async function flushSentry(timeoutMs = 2000): Promise<void> {
   if (!initialized) return;
   await Sentry.flush(timeoutMs);
+}
+
+/**
+ * Flush AND tear down Sentry's transport. Use this in one-shot scripts (CLI
+ * smoke tests, serverless functions about to return, scripts about to exit)
+ * where Sentry's internal handles would otherwise keep the Node event loop
+ * alive past the script's logical end. `Sentry.flush()` alone does not close
+ * the transport; the process will hang. After `closeSentry()`, Sentry no
+ * longer accepts events — call this only when the process is winding down.
+ */
+export async function closeSentry(timeoutMs = 2000): Promise<void> {
+  if (!initialized) return;
+  await Sentry.close(timeoutMs);
+  initialized = false;
 }

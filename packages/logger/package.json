@@ -4,17 +4,21 @@
   "private": true,
   "description": "Pino + Sentry + Axiom transports (ADR-012).",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
-    "build": "echo '(noop)'",
+    "build": "tsc",
     "dev": "echo '(noop)'",
     "lint": "echo '(noop)'",
     "type-check": "tsc --noEmit",
     "test:unit": "vitest run",
-    "test-emit": "tsx scripts/test-emit.ts"
+    "test-emit": "pnpm -w turbo run build --filter=@bec/logger && node scripts/test-emit.mjs"
   },
   "dependencies": {
     "@bec/config": "workspace:*",
