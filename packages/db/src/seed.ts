@@ -41,6 +41,7 @@ const repoRoot = path.resolve(here, "..", "..", "..");
 dotenv.config({ path: path.join(repoRoot, ".env") });
 
 const { getDb } = await import("./client.js");
+const { assertProdDbAccessible } = await import("@bec/config");
 
 type Archetype = "magazine" | "coastal" | "premium";
 
@@ -325,6 +326,12 @@ const agentBudgetsSeed = [
 // ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  // ADR-038 prod-write guard. If `.env` accidentally has a production
+  // DATABASE_URL but NODE_ENV isn't 'production' (and PROD_DB_ALLOWED isn't
+  // set), this throws before any insert touches the wire. Belt against the
+  // common "wrong .env in this shell" footgun.
+  assertProdDbAccessible();
+
   const db = getDb();
   // eslint-disable-next-line no-console
   console.log("Seeding BEC database…");
@@ -346,11 +353,16 @@ async function main(): Promise<void> {
 
   // ── Categories ───────────────────────────────────────────────────
   // Re-select sites to resolve siteIds (whether they were just inserted or
-  // already existed). Slug is the natural key.
-  const persistedSites = await db
+  // already existed). Slug is the natural key. Filter the result down to
+  // the 8 seed slugs so this script only ever touches sites it owns —
+  // running against a multi-tenant DB with unrelated sites won't fabricate
+  // categories on them.
+  const seededSiteSlugs = new Set(sitesSeed.map((s) => s.slug));
+  const allPersistedSites = await db
     .select({ id: schema.sites.id, slug: schema.sites.slug, archetype: schema.sites.archetype })
     .from(schema.sites);
-  const siteIdBySlug = new Map(persistedSites.map((row) => [row.slug, row]));
+  const seededPersistedSites = allPersistedSites.filter((s) => seededSiteSlugs.has(s.slug));
+  const siteIdBySlug = new Map(seededPersistedSites.map((row) => [row.slug, row]));
 
   let categoryRowCount = 0;
   const categoryRows: Array<{
@@ -360,7 +372,7 @@ async function main(): Promise<void> {
     description: string;
     sortOrder: number;
   }> = [];
-  for (const site of persistedSites) {
+  for (const site of seededPersistedSites) {
     const archetypeCats = categoriesByArchetype[site.archetype as Archetype];
     if (!archetypeCats) continue;
     archetypeCats.forEach((cat, index) => {
@@ -382,7 +394,7 @@ async function main(): Promise<void> {
   }
   // eslint-disable-next-line no-console
   console.log(
-    `  ✓ categories: ${categoryRowCount} rows attempted across ${persistedSites.length} sites`,
+    `  ✓ categories: ${categoryRowCount} rows attempted across ${seededPersistedSites.length} of ${allPersistedSites.length} sites (filtered to seed-managed slugs)`,
   );
   void siteIdBySlug; // (held only for future child seeds that need slug → id resolution)
 
