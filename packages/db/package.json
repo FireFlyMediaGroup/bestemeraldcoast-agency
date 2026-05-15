@@ -25,7 +25,8 @@
     "db:generate": "pnpm run build && drizzle-kit generate",
     "db:migrate": "pnpm run build && drizzle-kit migrate",
     "db:studio": "pnpm run build && drizzle-kit studio",
-    "db:push": "pnpm run build && drizzle-kit push"
+    "db:push": "pnpm run build && drizzle-kit push",
+    "db:seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "@bec/config": "workspace:*",
@@ -36,6 +37,7 @@
     "@bec/config-eslint": "workspace:*",
     "@bec/config-tsconfig": "workspace:*",
     "@types/node": "^22.10.5",
+    "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.6",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"

@@ -12,53 +12,64 @@
 
 **Storybook deploy runbook:** [`docs/runbooks/storybook-deploy.md`](../../runbooks/storybook-deploy.md) — Vercel project + DNS + HTTP Basic Auth Edge Middleware + acceptance verification.
 
-- [x] Create the GitHub repo, public visibility, default branch `main`.
-- [x] Auto-merge + auto-delete head branches enabled.
-- [x] CodeRabbit GitHub App installed; `.coderabbit.yaml` at repo root.
-- [x] `gh auth status` shows ADMIN.
-- [x] Initialize git + GitHub remote (Commit 0.1).
-- [x] CodeRabbit has reviewed at least one PR.
-- [x] **Pass 1 branch protection** applied.
-- [x] **1Password vault `BEC-Production`** populated with Sentry × 3 DSNs + auth token + Axiom token + dataset + Neon + Turbo cache + Storybook deploy password.
-- [x] **Vercel Pro account active + Storybook deployed** — production deploy `bec-storybook-i5u940zb3-...` aliased to `https://ui.bestemeraldcoast.com`, gated by HTTP Basic Auth via `packages/ui/middleware.ts`.
-- [x] **Neon project + ephemeral-branch token in GitHub Actions secrets** as `NEON_API_KEY` + `NEON_PROJECT_ID`.
-- [x] **Vercel Remote Cache token in GitHub Actions secrets** as `TURBO_TOKEN` + `TURBO_TEAM`.
-- [ ] **Pass 2 branch protection** — apply **after this gate PR squash-merges**. Required status checks: `lint`, `type-check`, `unit-tests`, `CodeRabbit`. Check "Require branches to be up to date before merging". Recommended: also flip "Include administrators" to enforce protection against admin direct-pushes (the `618016e` Vercel-wake commit was an admin direct-push that triggered a protection *warning* but landed; future direct-pushes to `main` should be blocked, not warned).
-- [ ] **Vercel git-integration reliability** (deferred follow-up). The webhook silently no-op'd on the PR #9 squash-merge but fired correctly on the subsequent direct push. Investigate before Phase 1's many merges. Possible mitigations: pin Vercel App permissions, add a dashboard "Deploy Hooks" URL as a CI step, or just live with the manual-wake pattern.
-- [ ] **CodeRabbit credit limit** (deferred follow-up). Both PR #8 and PR #9 round-2 reviews were skipped due to credit exhaustion. The `--admin` bypass route works but isn't durable — Phase 1 will have many more PRs. Either upgrade CodeRabbit's plan, or accept that some rounds will be cubic-only.
+- [x] Phase 0 ADR-035 quality gate **passed** (PR #10, merged `a807616`).
+- [x] **1Password vault `BEC-Production`** populated with Sentry × 3 + Axiom + Neon + Turbo cache + Storybook deploy password.
+- [x] **Vercel Pro account active + Storybook deployed at `https://ui.bestemeraldcoast.com`** behind HTTP Basic Auth.
+- [x] **Neon project + ephemeral-branch token in GitHub Actions secrets** (`NEON_API_KEY` + `NEON_PROJECT_ID`).
+- [x] **Vercel Remote Cache token in GitHub Actions secrets** (`TURBO_TOKEN` + `TURBO_TEAM`).
+- [ ] **Pass 2 branch protection** — still queued. Settings → Branches → `main` rule → require status checks `lint`, `type-check`, `unit-tests`, `CodeRabbit`; "Require branches to be up to date before merging"; recommended "Include administrators" so admin direct-pushes are blocked, not warned. **Worth doing before Phase 1 stabilizes** — Commit 1.1 already shipped via `--admin` due to CodeRabbit's credit ceiling, and that pattern isn't durable.
+- [ ] **CodeRabbit credit limit** — hot follow-up. Round-1 reviews on PR #8, #9, and #11 all skipped due to the hourly cap ("exceeded the limit for the number of commits that can be reviewed per hour"). Only PR #10 got a clean APPROVED. With ~10 more Commit-level PRs coming in Phase 1, this needs a real fix: either upgrade the CodeRabbit plan (most direct), accept cubic-only review for half the PRs (cheapest, partial coverage), or carve up commits more finely so credits don't burn in bursts.
+- [ ] **Vercel git-integration reliability** — soft follow-up. PR #9's squash-merge to `main` silently no-op'd Vercel's webhook; a manual empty commit (`618016e`) successfully waked it. PR #11's merge to main has not been re-checked yet — confirm Vercel auto-deployed or kick it manually before relying on it for Phase 1 / Commit 1.3+ work that exercises live infrastructure.
+- [ ] **Commit 1.1 operator verification (post-merge)** — to roll up into the Commit 1.2 task-log entry as Commit 1.1's full acceptance evidence:
+  - `pnpm --filter @bec/db db:migrate` against Neon's dev branch → applies `0000_worthless_falcon.sql`.
+  - `pnpm --filter @bec/db db:studio` → visually confirm all 23 tables + the 8 enums.
 
 ## Current Step
 
-- **Phase:** 0 — Workspace & Foundations — **gate passed**, ready to squash-merge.
-- **Step:** Open and merge the **Phase 0 ADR-035 gate PR** (this branch).
-- **Plan reference:** `docs/dev/MASTER-bec-project-plan.md` § "Phase 0 quality gate (ADR-035)".
-- **Status:** ✅ all 7 ADR-035 boxes closed (see `task-log.md` § "2026-05-14 — PHASE 0 GATE PASSED" for the filled-in checklist). Branch `phase-0/gate` contains only docs/bookkeeping commits; CI on the gate PR itself will satisfy Box 7.
+- **Phase:** 1 — Database, Ops Console, Lead Pipeline.
+- **Commit:** 1.2 — Seed data.
+- **Plan reference:** `docs/dev/MASTER-bec-project-plan.md` § Phase 1 → Commit 1.2.
+- **ADRs in scope:** ADR-018 (agent budget table — 9 default budgets), ADR-021 (editorial taxonomy — 6 categories per archetype), ADR-027 (authors — 2 seeded), ADR-032 (3 archetypes → 8 sites with placeholder `SiteTheme` tokens). Cross-references in `packages/db/src/seed.ts`'s top comment.
+- **Status:** in-flight on branch `phase-1/commit-1.2-seed-data` cut from `93e788e` (Phase 1 / Commit 1.1 merged).
 
-## Gate-PR Flow (executing now)
+## Commit Prompt
 
-1. ✅ Append `## 2026-05-14 — Task — bec-storybook Basic Auth gate (PR #9)` entry to `task-log.md`.
-2. ✅ Append `## 2026-05-14 — PHASE 0 GATE PASSED` entry to `task-log.md` with the 7-item checklist.
-3. ✅ Rewrite this `next-step.md` to reflect the gate's pass + queue Phase 1 / Commit 1.1.
-4. → Commit the bookkeeping on `phase-0/gate`.
-5. → Push `phase-0/gate`; open PR titled `Phase 0 Gate: passed` with the filled-in checklist as the PR body (per RALPH-LOOP § Phase Gate Commits).
-6. → CI runs on the PR; SUCCESS closes Box 7 by construction.
-7. → CodeRabbit + cubic review the doc-only diff (likely zero findings or trivial nit; rate-limit may strike again, in which case `--admin` bypass per the PR #8 / #9 precedent).
-8. → Squash-merge as `Phase 0 Gate: passed`.
-9. → Operator flips on **Pass-2 branch protection** with the four required checks listed in § Operator Pre-Flight.
-10. → Cut `phase-1/commit-1.1-drizzle-schemas` from `main`.
+> "Create `packages/db/seed.ts` that idempotently seeds: 8 site rows with placeholder theme tokens (one per archetype), 3-5 categories per site (per ADR-021's taxonomy), 2 author rows ('BEC Editorial' as AI + the operator as human reviewer), agent budget rows for all 9 agents (per ADR-018). Add a `pnpm db:seed` script."
 
-## Phase 1 / Commit 1.1 (opens after the gate squash-merges)
+## Acceptance
 
-- **Commit 1.1 — Drizzle schemas** (per `MASTER-bec-project-plan.md` § Phase 1 → Commit 1.1):
-  > "In `packages/db/schema/`, create the Drizzle schemas exactly as defined in the project plan's Database Schema section: `sites.ts` (sites + categories), `businesses.ts` (businesses + enrichment log), `leads.ts` (leads + status history), `outreach.ts`, `editorial.ts` (articles, article_businesses, editorial_feedback, authors), `images.ts`, `events.ts`, `audience.ts` (subscribers, newsletter_issues, newsletter_sends), `monetization.ts` (featured_listings, sponsorships), `projects.ts`, `ops.ts` (agent_runs, agent_budgets). Export everything from `packages/db/schema/index.ts`. Also create `packages/db/client.ts` exporting a configured Neon serverless drizzle client. Generate the initial migration with `drizzle-kit generate`."
-- **Acceptance:** `drizzle-kit migrate` runs cleanly. All tables exist in the dev branch. `drizzle-kit studio` shows the schema.
-- **Hard dependencies (all met):** Box 3 (Neon operational) + the CI ephemeral-branch lifecycle wired in Commit 0.6.
+Per `MASTER-bec-project-plan.md` § Commit 1.2:
+
+- **Running seed against an empty DB populates it.** Verified by `pnpm --filter @bec/db db:seed` against a fresh Neon ephemeral branch (CI's existing `unit-tests` job creates one); script prints row-counts and exits 0.
+- **Running it again is a no-op.** Verified by running the seed a second time on the same branch — every insert hits `.onConflictDoNothing()`'s unique-constraint target and resolves without error or duplicate row.
+
+Implementation notes:
+
+- File lives at `packages/db/src/seed.ts` (not `packages/db/seed.ts` as the master plan's parenthetical suggests — keeping it under `src/` matches the dual-entry pattern + lets tsc type-check it).
+- Run via `pnpm --filter @bec/db db:seed`, backed by a new `db:seed: tsx src/seed.ts` script. Loads `.env` via `dotenv` before importing `@bec/db`'s client (so `@bec/config`'s env validation passes).
+- **3-5 categories vs ADR-021's 6**: ADR-021 is authoritative per the loop's source-of-truth rule; the seed uses 6 per archetype.
+- **`SiteTheme` is inlined** in the seed (same pattern as `packages/db/src/schema/types.ts`) rather than imported from `@bec/ui` — keeps `@bec/db` independent of UI.
+
+## Files Likely to Touch
+
+- `packages/db/src/seed.ts` — main seed implementation.
+- `packages/db/package.json` — `db:seed` script + `dotenv` devDependency.
+- `pnpm-lock.yaml` — `dotenv` pickup.
+- Bookkeeping rolling forward (this branch): `docs/dev/status/task-log.md` (PR #11 entry, already on this branch), `docs/dev/status/next-step.md` (this file).
+
+## Validation
+
+- `pnpm --filter @bec/db type-check` → green.
+- `pnpm turbo build lint type-check test:unit` → stays at 56/56.
+- Manual seed end-to-end against an actual Postgres instance: deferred to operator post-merge (same model as Commit 1.1's `db:migrate` acceptance). Local validation in this PR is scope-bounded to "the script compiles + type-checks." A future commit (probably Commit 1.6 — CI ephemeral-branch integration tests) wires `db:migrate` + `db:seed` into CI's `unit-tests` job so every PR gets the end-to-end check automatically.
+
+## Next Commit After This
+
+- **Commit 1.3 — `ops-console` Next.js scaffold + NextAuth + theming wired to @bec/ui** (the next commit in `MASTER-bec-project-plan.md` § Phase 1). Will be the first real app code that imports `@bec/db`'s `getDb()`.
 
 ## Handoff Notes
 
 - Master ADR and master plan are the source of truth. If anything in this file conflicts with them, trust the masters and re-derive the next step.
-- The gate PR is constructed to *be* the box-7 evidence: it adds zero source code, only docs. Its own CI run completing green is what closes the seventh box; the existing entries in `task-log.md` § "2026-05-14 — PHASE 0 GATE PASSED" record this circular-but-defensible mechanism per RALPH-LOOP § Phase Gate Commits.
-- After the gate squash-merges, the loop resumes its normal per-commit cadence. Pass-2 protection should be live by the first Phase 1 PR so auto-merge fires immediately on green and the manual "poll then merge" dance ends.
-- Two open follow-ups for Phase 1 setup: (a) Vercel git-integration reliability; (b) CodeRabbit credit-limit handling. See § Operator Pre-Flight.
-- Operator's local Storybook/Vercel WIP (`packages/ui/.storybook/main.ts`, `packages/ui/{package.json,vercel.json,vite.config.ts}`, `turbo.json`, `scripts/seed-1password-vault.sh`, `vercel.storybook.json`, `.gitignore`) is still parked in the working tree. It hasn't blocked any of the gate work; capture or land it independently when convenient.
-- The `@sentry/nextjs` per-app init (deferred from Commit 0.4) remains queued for **Commit 1.4**.
+- Operator's Storybook/Vercel WIP from Phase 0 (`packages/ui/.storybook/main.ts`, `packages/ui/{package.json,vercel.json,vite.config.ts}`, `turbo.json`, `scripts/seed-1password-vault.sh`, `vercel.storybook.json`, `.gitignore`) is still parked in the working tree across branches. Capture or land it independently when convenient; the gate work and Commits 1.1/1.2 haven't touched any of those files.
+- The `@sentry/nextjs` per-app init (deferred from Commit 0.4) is queued for **Commit 1.4** — first Next.js app boots and pulls in the Sentry SDK that side.
+- After Commit 1.2 lands, the next-step.md should also include the Commit 1.1 operator-verification evidence (db:migrate + db:studio outputs) so Phase 1 / Commit 1.1's full acceptance is closed in the gate trail.
