@@ -98,6 +98,24 @@ jobs:
           echo "::add-mask::$connection_uri"
           echo "DATABASE_URL=$connection_uri" >> "$GITHUB_ENV"
 
+      # Migration test (Phase 1 / Commit 1.3). Runs every drizzle migration
+      # forward, asserts the expected 23 tables + 8 enums, then drops the
+      # public schema and asserts it returns to empty. A purposely-broken
+      # migration causes the script to exit non-zero and fails this job.
+      #
+      # PROD_DB_ALLOWED=true: the script's @bec/config-side `assertProdDb-
+      # Accessible()` guard refuses to run unless the env is "production"
+      # OR PROD_DB_ALLOWED is set. CI's Neon ephemeral branch is a per-PR
+      # throwaway — the guard's "don't write to prod from a dev machine"
+      # intent doesn't apply, and we explicitly opt in.
+      #
+      # Skipped when the Neon branch wasn't created (no DATABASE_URL).
+      - name: Test migrations
+        if: steps.neon.outputs.branch_id != ''
+        env:
+          PROD_DB_ALLOWED: "true"
+        run: pnpm --filter @bec/db db:test-migrations
+
       - name: Run unit tests
         run: pnpm turbo run test:unit
 
