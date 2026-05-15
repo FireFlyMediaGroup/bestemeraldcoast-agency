@@ -4,57 +4,66 @@
 // every Drizzle migration forward, then rolls back, and verifies the schema
 // returns to its prior state. Wire to the CI workflow."
 //
+// Driver choice — Pool, not the HTTP `sql` template:
+//   @neondatabase/serverless 1.0.2+ restricts the `sql` tagged-template
+//   function to template-literal call form only. drizzle-orm 0.39's
+//   neon-http migrator (neon-http/session.ts) calls it in function-call
+//   form for prepared statements, so the neon-http migrator path throws
+//   "This function can now be called only as a tagged-template function".
+//   The Pool-based `drizzle-orm/neon-serverless` driver uses the pg wire
+//   protocol over a WebSocket and has no such restriction. We use it here
+//   for the migrator + raw introspection queries (`pool.query(...)`).
+//
+//   Follow-up (tracked in next-step.md): the same incompatibility affects
+//   `client.ts` (neon-http) and `seed.ts` once they run real queries against
+//   a live DB. Either bump drizzle-orm to a release that handles
+//   @neondatabase/serverless 1.x's template-only `sql`, or migrate the whole
+//   DB layer to the Pool driver. Out of scope for Commit 1.3 (migration
+//   tests); this script is self-contained on the Pool driver.
+//
 // What the script does:
+//   1. Forward  — migrate(); assert canonical 23 tables + 8 enums.
+//   2. Idempotency — re-run migrate(); assert unchanged.
+//   3. Rollback — DROP SCHEMA public CASCADE; CREATE SCHEMA public; assert
+//      empty (drizzle ships no down migrations, so the inverse is "drop all").
 //
-//   1. Forward — applies all drizzle migrations against DATABASE_URL, then
-//      asserts the public schema contains the expected 23 tables + 8 enums.
-//      A purposely-broken migration causes drizzle's migrator to throw; CI
-//      sees the non-zero exit and fails the job (the master plan's
-//      "purposely-broken migration fails CI" acceptance line).
+// Run with: pnpm --filter @bec/db db:test-migrations
 //
-//   2. Idempotency — re-runs migrations. Drizzle's migrator tracks applied
-//      migrations in `drizzle.__drizzle_migrations`; the second run is a
-//      no-op. Asserts the schema is unchanged.
-//
-//   3. Rollback — `DROP SCHEMA public CASCADE` then re-`CREATE SCHEMA public`.
-//      This is the "rolls back" step. Drizzle doesn't ship down migrations,
-//      so the practical inverse is "drop everything." Asserts the public
-//      schema is empty after the drop.
-//
-// Run with:
-//
-//   pnpm --filter @bec/db db:test-migrations
-//
-// Env: DATABASE_URL is required. The script is destructive — it drops the
-// public schema — so it's guarded by `assertProdDbAccessible()` (ADR-038).
-// In CI the guard passes because the workflow sets `PROD_DB_ALLOWED=true` on
-// the step (Neon ephemeral branches are per-PR throwaways; the guard's
-// "don't write to prod from a dev machine" intent doesn't apply). Locally,
-// the operator must explicitly opt in via env override before running.
+// Env: DATABASE_URL required. Destructive (drops the public schema), so
+// guarded by assertProdDbAccessible() (ADR-038). CI's workflow step sets
+// PROD_DB_ALLOWED=true (per-PR Neon ephemeral branch — the guard's
+// "don't write to prod from a dev machine" intent doesn't apply).
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { NeonQueryFunction } from "@neondatabase/serverless";
+import type { Pool as NeonPoolType } from "@neondatabase/serverless";
 import dotenv from "dotenv";
+import ws from "ws";
 
+// packages/db/src/test-migrations.ts → repo root
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..", "..", "..");
 dotenv.config({ path: path.join(repoRoot, ".env") });
 
-// Dynamic imports so dotenv runs before @bec/config validates env. Same
-// pattern as the seed script.
-const { neon } = await import("@neondatabase/serverless");
-const { drizzle } = await import("drizzle-orm/neon-http");
-const { migrate } = await import("drizzle-orm/neon-http/migrator");
+// Dynamic imports so dotenv runs before @bec/config validates env.
+const { Pool, neonConfig } = await import("@neondatabase/serverless");
+const { drizzle } = await import("drizzle-orm/neon-serverless");
+const { migrate } = await import("drizzle-orm/neon-serverless/migrator");
 const { assertProdDbAccessible } = await import("@bec/config");
 
+// The Pool driver connects to Neon's proxy over a WebSocket. Node 22+ has a
+// global `WebSocket`, but set it explicitly with the `ws` package so this
+// works the same on the operator's Node 20 local and on CI's Node 22.
+neonConfig.webSocketConstructor = ws;
+
+// packages/db/src/ → packages/db/migrations
 const MIGRATIONS_FOLDER = path.join(here, "..", "migrations");
 
 // The full canonical set after applying 0000_worthless_falcon.sql. Future
-// migrations should append to this list. If the migration adds a table that
-// isn't listed here, this test fails — which is the correct loud failure
-// (forces deliberate review of the canonical set).
+// migrations should append to this list. If a migration adds a table that
+// isn't listed here, this test fails — the correct loud failure (forces
+// deliberate review of the canonical set).
 const EXPECTED_TABLES = [
   "agent_budgets",
   "agent_runs",
@@ -92,36 +101,32 @@ const EXPECTED_ENUMS = [
   "subscriber_status",
 ] as const;
 
-// `neon()` returns `NeonQueryFunction<false, false>` (the default tagged-template
-// mode where awaited results are arrays of row objects, not FullQueryResults).
-// `ReturnType<typeof neon>` would broaden to `<boolean, boolean>` and fail to
-// accept the concrete instance.
-type NeonSql = NeonQueryFunction<false, false>;
+type NeonPool = InstanceType<typeof NeonPoolType>;
 
-async function listPublicTables(sql: NeonSql): Promise<string[]> {
-  const rows = (await sql`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-    ORDER BY table_name
-  `) as Array<{ table_name: string }>;
-  return rows.map((r) => r.table_name);
+async function listPublicTables(pool: NeonPool): Promise<string[]> {
+  const res = await pool.query(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+     ORDER BY table_name`,
+  );
+  return (res.rows as Array<{ table_name: string }>).map((r) => r.table_name);
 }
 
-async function listPublicEnums(sql: NeonSql): Promise<string[]> {
-  const rows = (await sql`
-    SELECT t.typname AS enum_name
-    FROM pg_type t
-    JOIN pg_namespace n ON n.oid = t.typnamespace
-    WHERE n.nspname = 'public' AND t.typtype = 'e'
-    ORDER BY t.typname
-  `) as Array<{ enum_name: string }>;
-  return rows.map((r) => r.enum_name);
+async function listPublicEnums(pool: NeonPool): Promise<string[]> {
+  const res = await pool.query(
+    `SELECT t.typname AS enum_name
+     FROM pg_type t
+     JOIN pg_namespace n ON n.oid = t.typnamespace
+     WHERE n.nspname = 'public' AND t.typtype = 'e'
+     ORDER BY t.typname`,
+  );
+  return (res.rows as Array<{ enum_name: string }>).map((r) => r.enum_name);
 }
 
-function diffSets(actual: readonly string[], expected: readonly string[]): {
-  missing: string[];
-  extra: string[];
-} {
+function diffSets(
+  actual: readonly string[],
+  expected: readonly string[],
+): { missing: string[]; extra: string[] } {
   const actualSet = new Set(actual);
   const expectedSet = new Set(expected);
   return {
@@ -130,33 +135,31 @@ function diffSets(actual: readonly string[], expected: readonly string[]): {
   };
 }
 
-async function assertCanonicalSchema(sql: NeonSql, context: string): Promise<void> {
-  const actualTables = await listPublicTables(sql);
-  const tableDiff = diffSets(actualTables, EXPECTED_TABLES);
+async function assertCanonicalSchema(pool: NeonPool, context: string): Promise<void> {
+  const tableDiff = diffSets(await listPublicTables(pool), EXPECTED_TABLES);
   if (tableDiff.missing.length > 0 || tableDiff.extra.length > 0) {
     throw new Error(
       `${context}: table set diverged from canonical 23.\n` +
         `  missing: ${tableDiff.missing.join(", ") || "(none)"}\n` +
         `  extra:   ${tableDiff.extra.join(", ") || "(none)"}\n` +
-        `If a new migration intentionally added or removed a table, update EXPECTED_TABLES in ` +
-        `packages/db/scripts/test-migrations.ts.`,
+        `If a migration intentionally added/removed a table, update EXPECTED_TABLES in ` +
+        `packages/db/src/test-migrations.ts.`,
     );
   }
 
-  const actualEnums = await listPublicEnums(sql);
-  const enumDiff = diffSets(actualEnums, EXPECTED_ENUMS);
+  const enumDiff = diffSets(await listPublicEnums(pool), EXPECTED_ENUMS);
   if (enumDiff.missing.length > 0 || enumDiff.extra.length > 0) {
     throw new Error(
       `${context}: enum set diverged from canonical 8.\n` +
         `  missing: ${enumDiff.missing.join(", ") || "(none)"}\n` +
         `  extra:   ${enumDiff.extra.join(", ") || "(none)"}\n` +
-        `If a new migration intentionally added or removed an enum, update EXPECTED_ENUMS.`,
+        `If a migration intentionally added/removed an enum, update EXPECTED_ENUMS.`,
     );
   }
 }
 
-async function assertPublicSchemaEmpty(sql: NeonSql): Promise<void> {
-  const tables = await listPublicTables(sql);
+async function assertPublicSchemaEmpty(pool: NeonPool): Promise<void> {
+  const tables = await listPublicTables(pool);
   if (tables.length > 0) {
     throw new Error(
       `Expected public schema to be empty after DROP SCHEMA + CREATE SCHEMA, but ` +
@@ -166,9 +169,9 @@ async function assertPublicSchemaEmpty(sql: NeonSql): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  // ADR-038: refuse to run without explicit prod-write opt-in. Same guard the
-  // seed uses. In CI the workflow step sets PROD_DB_ALLOWED=true (Neon
-  // ephemeral branches are per-PR throwaways).
+  // ADR-038: refuse to run without explicit prod-write opt-in. CI's workflow
+  // step sets PROD_DB_ALLOWED=true (Neon ephemeral branches are per-PR
+  // throwaways).
   assertProdDbAccessible();
 
   const databaseUrl = process.env.DATABASE_URL;
@@ -178,43 +181,46 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const sql = neon(databaseUrl);
-  const db = drizzle(sql);
+  const pool = new Pool({ connectionString: databaseUrl });
+  const db = drizzle(pool);
 
-  // eslint-disable-next-line no-console
-  console.log("Running migration tests against DATABASE_URL\n");
+  try {
+    // eslint-disable-next-line no-console
+    console.log("Running migration tests against DATABASE_URL\n");
 
-  // ── Test 1: forward ─────────────────────────────────────────────
-  // eslint-disable-next-line no-console
-  console.log("→ [1/3] Apply all migrations forward");
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-  await assertCanonicalSchema(sql, "after forward migrations");
-  // eslint-disable-next-line no-console
-  console.log(
-    `  ✓ ${EXPECTED_TABLES.length} tables + ${EXPECTED_ENUMS.length} enums present in public schema`,
-  );
+    // ── Test 1: forward ───────────────────────────────────────────
+    // eslint-disable-next-line no-console
+    console.log("→ [1/3] Apply all migrations forward");
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    await assertCanonicalSchema(pool, "after forward migrations");
+    // eslint-disable-next-line no-console
+    console.log(
+      `  ✓ ${EXPECTED_TABLES.length} tables + ${EXPECTED_ENUMS.length} enums present`,
+    );
 
-  // ── Test 2: idempotency ─────────────────────────────────────────
-  // eslint-disable-next-line no-console
-  console.log("→ [2/3] Re-run migrations (idempotency check)");
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-  await assertCanonicalSchema(sql, "after re-applying migrations");
-  // eslint-disable-next-line no-console
-  console.log("  ✓ Re-run completed without error; schema unchanged");
+    // ── Test 2: idempotency ───────────────────────────────────────
+    // eslint-disable-next-line no-console
+    console.log("→ [2/3] Re-run migrations (idempotency check)");
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    await assertCanonicalSchema(pool, "after re-applying migrations");
+    // eslint-disable-next-line no-console
+    console.log("  ✓ Re-run completed without error; schema unchanged");
 
-  // ── Test 3: rollback ────────────────────────────────────────────
-  // eslint-disable-next-line no-console
-  console.log("→ [3/3] Roll back — DROP SCHEMA public CASCADE");
-  await sql`DROP SCHEMA public CASCADE`;
-  await sql`CREATE SCHEMA public`;
-  await assertPublicSchemaEmpty(sql);
-  // eslint-disable-next-line no-console
-  console.log("  ✓ Public schema is empty after rollback");
+    // ── Test 3: rollback ──────────────────────────────────────────
+    // eslint-disable-next-line no-console
+    console.log("→ [3/3] Roll back — DROP SCHEMA public CASCADE");
+    await pool.query("DROP SCHEMA public CASCADE");
+    await pool.query("CREATE SCHEMA public");
+    await assertPublicSchemaEmpty(pool);
+    // eslint-disable-next-line no-console
+    console.log("  ✓ Public schema is empty after rollback");
 
-  // eslint-disable-next-line no-console
-  console.log("\n✓ All migration tests passed");
-  // Hard exit so the @neondatabase/serverless HTTP client's keep-alive socket
-  // pool doesn't hold the event loop past the script's logical end.
+    // eslint-disable-next-line no-console
+    console.log("\n✓ All migration tests passed");
+  } finally {
+    await pool.end();
+  }
+
   process.exit(0);
 }
 

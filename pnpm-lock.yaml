@@ -104,11 +104,14 @@ importers:
         specifier: workspace:*
         version: link:../config
       '@neondatabase/serverless':
-        specifier: ~1.0.1
+        specifier: ^1.0.1
         version: 1.0.2
       drizzle-orm:
         specifier: ^0.39.0
         version: 0.39.3(@neondatabase/serverless@1.0.2)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)
+      ws:
+        specifier: ^8.18.0
+        version: 8.20.1
     devDependencies:
       '@bec/config-eslint':
         specifier: workspace:*
@@ -119,6 +122,9 @@ importers:
       '@types/node':
         specifier: ^22.10.5
         version: 22.19.19
+      '@types/ws':
+        specifier: ^8.5.13
+        version: 8.18.1
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
@@ -1869,6 +1875,9 @@ packages:
 
   '@types/uuid@9.0.8':
     resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitest/expect@2.0.5':
     resolution: {integrity: sha512-yHZtwuP7JZivj65Gxoi8upUN2OzHTi3zVfjwdpu2WrvCZPLwsJ2Ey5ILIPccoW23dd/zQBlJ4/dhi7DWNyXCpA==}
@@ -4545,6 +4554,10 @@ snapshots:
       '@types/node': 22.19.19
 
   '@types/uuid@9.0.8': {}
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.19.19
 
   '@vitest/expect@2.0.5':
     dependencies:

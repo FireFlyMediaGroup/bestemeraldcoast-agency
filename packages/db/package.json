@@ -31,13 +31,15 @@
   },
   "dependencies": {
     "@bec/config": "workspace:*",
-    "@neondatabase/serverless": "~1.0.1",
-    "drizzle-orm": "^0.39.0"
+    "@neondatabase/serverless": "^1.0.1",
+    "drizzle-orm": "^0.39.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@bec/config-eslint": "workspace:*",
     "@bec/config-tsconfig": "workspace:*",
     "@types/node": "^22.10.5",
+    "@types/ws": "^8.5.13",
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.6",
     "tsx": "^4.19.2",
