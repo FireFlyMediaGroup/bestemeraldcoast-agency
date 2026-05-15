@@ -14,12 +14,9 @@
 //   protocol over a WebSocket and has no such restriction. We use it here
 //   for the migrator + raw introspection queries (`pool.query(...)`).
 //
-//   Follow-up (tracked in next-step.md): the same incompatibility affects
-//   `client.ts` (neon-http) and `seed.ts` once they run real queries against
-//   a live DB. Either bump drizzle-orm to a release that handles
-//   @neondatabase/serverless 1.x's template-only `sql`, or migrate the whole
-//   DB layer to the Pool driver. Out of scope for Commit 1.3 (migration
-//   tests); this script is self-contained on the Pool driver.
+//   Resolved (task/2026-05-15-db-pool-driver): `client.ts` now uses the
+//   same Pool driver, so the whole `@bec/db` layer is consistent — this
+//   script's local choice is no longer a one-off.
 //
 // What the script does:
 //   1. Forward  — migrate(); assert canonical 23 tables + 8 enums.
