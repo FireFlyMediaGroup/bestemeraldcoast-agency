@@ -26,8 +26,8 @@
     "db:migrate": "pnpm run build && drizzle-kit migrate",
     "db:studio": "pnpm run build && drizzle-kit studio",
     "db:push": "pnpm run build && drizzle-kit push",
-    "db:seed": "tsx src/seed.ts",
-    "db:test-migrations": "tsx src/test-migrations.ts"
+    "db:seed": "pnpm -w turbo run build --filter=@bec/db && tsx src/seed.ts",
+    "db:test-migrations": "pnpm -w turbo run build --filter=@bec/db && tsx src/test-migrations.ts"
   },
   "dependencies": {
     "@bec/config": "workspace:*",
