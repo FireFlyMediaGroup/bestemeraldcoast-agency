@@ -26,17 +26,20 @@
     "db:migrate": "pnpm run build && drizzle-kit migrate",
     "db:studio": "pnpm run build && drizzle-kit studio",
     "db:push": "pnpm run build && drizzle-kit push",
-    "db:seed": "tsx src/seed.ts"
+    "db:seed": "pnpm -w turbo run build --filter=@bec/db && tsx src/seed.ts",
+    "db:test-migrations": "pnpm -w turbo run build --filter=@bec/db && tsx src/test-migrations.ts"
   },
   "dependencies": {
     "@bec/config": "workspace:*",
-    "@neondatabase/serverless": "^1.0.1",
-    "drizzle-orm": "^0.39.0"
+    "@neondatabase/serverless": "~1.0.1",
+    "drizzle-orm": "^0.39.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@bec/config-eslint": "workspace:*",
     "@bec/config-tsconfig": "workspace:*",
     "@types/node": "^22.10.5",
+    "@types/ws": "^8.5.13",
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.6",
     "tsx": "^4.19.2",
