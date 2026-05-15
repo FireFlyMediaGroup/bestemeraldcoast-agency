@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@bec/config": "workspace:*",
-    "@neondatabase/serverless": "^1.0.1",
+    "@neondatabase/serverless": "~1.0.1",
     "drizzle-orm": "^0.39.0",
     "ws": "^8.18.0"
   },

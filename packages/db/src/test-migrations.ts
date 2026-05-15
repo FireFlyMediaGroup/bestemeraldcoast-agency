@@ -162,8 +162,8 @@ async function assertPublicSchemaEmpty(pool: NeonPool): Promise<void> {
   const tables = await listPublicTables(pool);
   if (tables.length > 0) {
     throw new Error(
-      `Expected public schema to be empty after DROP SCHEMA + CREATE SCHEMA, but ` +
-        `found ${tables.length} tables: ${tables.join(", ")}`,
+      `Expected public schema to be empty after the rollback DROP SCHEMA + ` +
+        `CREATE SCHEMA, but found ${tables.length} tables: ${tables.join(", ")}`,
     );
   }
 }
@@ -207,8 +207,18 @@ async function main(): Promise<void> {
     console.log("  ✓ Re-run completed without error; schema unchanged");
 
     // ── Test 3: rollback ──────────────────────────────────────────
+    // Drop BOTH `public` (the schema migrations create tables in) AND
+    // `drizzle` (where drizzle's migrator records applied migrations in
+    // `__drizzle_migrations`). Dropping only `public` would leave the
+    // migration bookkeeping behind, so a second run of this script on the
+    // same database would see migrations as "already applied", skip them,
+    // and fail the canonical-schema assertion. Dropping both returns the
+    // database to its true prior (empty) state and keeps the script
+    // re-runnable — which matters for local iteration even though CI uses
+    // a fresh ephemeral branch each run.
     // eslint-disable-next-line no-console
-    console.log("→ [3/3] Roll back — DROP SCHEMA public CASCADE");
+    console.log("→ [3/3] Roll back — DROP SCHEMA public + drizzle CASCADE");
+    await pool.query("DROP SCHEMA IF EXISTS drizzle CASCADE");
     await pool.query("DROP SCHEMA public CASCADE");
     await pool.query("CREATE SCHEMA public");
     await assertPublicSchemaEmpty(pool);

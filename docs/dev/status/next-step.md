@@ -48,14 +48,14 @@ Per `MASTER-bec-project-plan.md` § Commit 1.3:
 Implementation notes:
 
 - Script lives at `packages/db/src/test-migrations.ts` (under `src/` for tsc include, despite the master plan's `scripts/` parenthetical — same pragmatic deviation as `seed.ts`).
-- Run via `pnpm --filter @bec/db db:test-migrations` (`tsx src/test-migrations.ts`).
+- Run via `pnpm --filter @bec/db db:test-migrations` (= `pnpm -w turbo run build --filter=@bec/db && tsx src/test-migrations.ts` — the Turbo build is required so `@bec/config`'s `dist/` exists before tsx resolves it).
 - Three test phases: (1) forward apply + assert canonical 23 tables + 8 enums; (2) idempotency (re-run is a no-op); (3) rollback via `DROP SCHEMA public CASCADE` + `CREATE SCHEMA public`, assert empty.
 - Guarded by `assertProdDbAccessible()` at the top of `main()` — the script is destructive. CI's workflow step sets `PROD_DB_ALLOWED=true` for the explicit opt-in; locally, the operator must opt in deliberately.
 
 ## Files Likely to Touch (this branch)
 
 - `packages/db/src/test-migrations.ts` — new script (~205 lines).
-- `packages/db/package.json` — `db:test-migrations: tsx src/test-migrations.ts` script.
+- `packages/db/package.json` — `db:test-migrations: pnpm -w turbo run build --filter=@bec/db && tsx src/test-migrations.ts` script (Turbo build prepended so the workspace `dist/` is present for tsx resolution).
 - `.github/workflows/ci.yml` — new `Test migrations` step in `unit-tests` job, after Neon branch creation, before tests.
 - Bookkeeping rolling forward (this branch): `docs/dev/status/task-log.md` (PR #12 entry, already on this branch), `docs/dev/status/next-step.md` (this file).
 
