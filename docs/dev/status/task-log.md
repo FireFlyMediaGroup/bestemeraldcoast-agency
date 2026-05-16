@@ -268,6 +268,21 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: **Phase 1 / Commit 1.6 — Ops-console: Leads view.** Branch `phase-1/commit-1.6-leads-view` cut from `25711ce`; carries this entry + the CodeRabbit-advisory loop-doc policy change (CLAUDE.md/RALPH-LOOP.md/adr-log) + the next-step.md rewrite per the post-Pass-1 write policy.
 - Notes: 3rd consecutive operator gate-relaxation on CodeRabbit → triggered the formal ADR-035 loop-doc amendment (CodeRabbit advisory, not a merge gate) landed in the Commit 1.6 bookkeeping. The agent API's lock exclusivity is the master-plan acceptance crux and is structurally (not test-) guaranteed. 🔴 Carry-forward security action still open: rotate the Neon `neondb_owner` password.
 
+## 2026-05-16 — Phase 1 / Commit 1.6 — Ops-console: Leads view
+
+- Branch: phase-1/commit-1.6-leads-view
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/17
+- Merge SHA: 7bab3e17c38ce5340c08f1725b5a770c0e02c30f
+- CodeRabbit: rate-limited (auto-comment "exceeded the limit for the number of commits that can be reviewed per hour") — **no review posted**. **First PR merged cleanly under the new CodeRabbit-advisory policy** (adr-log 2026-05-16 — ADR-035): no operator gate-relaxation decision needed; the rate-limit was simply non-blocking by policy. This is the policy working as intended — the recurring stall that forced manual decisions on PRs #14/#15/#16 is now absorbed.
+- Secondary reviewer: `cubic-dev-ai` check NEUTRAL at merged HEAD (no inline findings, no CHANGES_REQUESTED).
+- CI on PR #17: `lint` + `type-check` + `unit-tests` all SUCCESS; Vercel Preview SUCCESS. Pass-2 required checks gated the merge naturally (auto-merge armed at open, fired on the last required check going green).
+- ADRs touched: implements ADR-036 + Apple HIG (skeleton/empty/optimistic-with-rollback/pull-to-refresh), ADR-012 (server action is a thin authed boundary; errors surface as discriminated results). No ADR text changes. Reuses the Commit-1.5 `lead-transitions.ts` map as the single source of transition truth shared by the agent API and this operator UI.
+- Acceptance evidence: master plan "Loads correctly / empty state copy / optimistic + rollback" — type-check green (48/48 workspace incl. `@bec/ops-console:type-check`); empty-state renders the exact master-plan string ("No leads yet — run Scout to populate.") with a distinct filtered-empty variant; optimistic transition via `useOptimistic`+`useTransition` with visual rollback on the action's `{ok:false}` + error toast. Browser/device e2e (Add-to-home-screen, real touch) is operator-gated on the Vercel deploy — `next build` is OOM-bound locally, `type-check` is the load-bearing local gate (established precedent since Commit 1.4).
+- Validation: `pnpm turbo lint type-check test:unit` → 48/48 workspace-wide. `next build` Vercel-authoritative.
+- Files changed: 10. New `apps/ops-console/lib/leads-data.ts` (server-only `listLeads`/`getLead`, dynamic `@bec/db` import for build-inertness); new `app/(app)/leads/` route group — `page.tsx` (gap-sorted table, status filter chips, DB-empty vs filtered-empty), `loading.tsx` skeleton, `pull-to-refresh.tsx` (client, mobile), `status-badge.tsx` (shared status presentation), `actions.ts` (`transitionLead` server action — race-safe atomic conditional UPDATE + history insert keyed by signed-in operator), `[id]/page.tsx` (detail: diagnosis/offer/assets/notes/history), `[id]/loading.tsx`, `[id]/transition-controls.tsx` (client optimistic + rollback toast); `app/(app)/page.tsx` now links to `/leads`.
+- Next commit queued: **Phase 1 / Commit 1.7 — Mobile `/m` route — basic shell.** Branch `phase-1/commit-1.7-mobile-shell` cut from `7bab3e1`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
+- Notes: The Leads view is the first read-UI consumer of agent-API-populated data; the operator transition path deliberately does NOT use the Bearer agent API (it's the authed operator surface gated by the `auth.ts` allow-list). CodeRabbit never reviewed this PR — acceptable under the advisory policy; the structural correctness (race-safe transition mirrors the unit-of-work the agent route already proved) plus type-check is the standing local signal.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:

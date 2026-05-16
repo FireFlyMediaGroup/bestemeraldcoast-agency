@@ -6,6 +6,16 @@ export const metadata: Metadata = {
   title: "BEC Ops Console",
   description: "Internal agency control plane for the Best Emerald Coast network.",
   robots: { index: false, follow: false },
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  // Apple HIG (master plan Commit 1.7): when launched from the home screen,
+  // run standalone with no Safari chrome. `black-translucent` lets the app
+  // draw under the status bar — the safe-area insets in globals.css keep
+  // content clear of the notch / home indicator.
+  appleWebApp: {
+    capable: true,
+    title: "BEC Ops",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {
