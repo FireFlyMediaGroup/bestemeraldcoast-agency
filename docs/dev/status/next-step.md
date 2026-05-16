@@ -15,40 +15,44 @@
 
 - [x] Phase 0 ADR-035 gate passed; 1Password + Vercel Pro + Storybook + Neon/Turbo GH secrets done.
 - [x] Commit 1.1/1.2 live-verified (db:migrate + db:seed ×2 against Neon dev branch).
-- [x] **Pass-2 branch protection LIVE** — `main`: required checks `lint`/`type-check`/`unit-tests`, strict (branch up to date), 0 human approvals, `enforce_admins: false`. `CodeRabbit` intentionally NOT a required check until its reliability/credit problem is fixed (see below).
+- [x] **Pass-2 branch protection LIVE** — `main`: required checks `lint`/`type-check`/`unit-tests`, strict (branch up to date), 0 human approvals, `enforce_admins: false`. PR #16 was the first merge gated naturally by it.
+- [x] **CodeRabbit is now advisory, not a merge gate** (operator decision, 2026-05-16; adr-log ADR-035 entry; `CLAUDE.md` §29–30 + `RALPH-LOOP.md` 7b–7e reworded — folded into this Commit 1.6 branch). Use CodeRabbit when it responds; address/reply to every posted finding; but its review *state* and any stall/rate-limit/no-show never block merge. The gate is: required CI green **+** cubic clean **+** posted findings triaged.
 - [ ] **Rotate Neon password** (security action above).
-- [ ] **Deploy `bec-ops-console` to Vercel + verify Resend domain** — per `ops-console-deploy.md`. Required for Commit 1.4 acceptance (login on iPhone Safari / magic-link e2e), operator-gated, untestable locally. Now buildable: `main` has the real app + the auth.ts build-inertness fix.
-- [ ] **Provision Upstash Redis + set `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`** in Vercel (and 1Password). Commit 1.5 wires the ADR-017 limiter; it **no-ops without these** (dev/CI fail-open by design, like the @bec/logger transports). Production anti-abuse on the agent API + magic-link route is OFF until these are set.
-- [ ] **CodeRabbit credit/reliability** — recurring blocker (rate-limits, ~12-min stalls, incremental re-flags caused the Commit 1.4 gate-relaxation). Fix the plan/credits, then add `CodeRabbit` to Pass-2 required checks (one `gh api` call).
+- [ ] **Deploy `bec-ops-console` to Vercel + verify Resend domain** — per `ops-console-deploy.md`. Required for Commit 1.4 acceptance (login on iPhone Safari / magic-link e2e) **and** Commit 1.5 curl-verification of the agent API. Operator-gated, untestable locally. `main` has the real app + auth.ts build-inertness fix + the agent API.
+- [ ] **Provision Upstash Redis + set `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`** in Vercel (and 1Password). Commit 1.5 wired the ADR-017 limiter; it **no-ops without these** (dev/CI fail-open by design). Production anti-abuse on the agent API + magic-link route is OFF until these are set.
+- [ ] **Curl-verify the agent API** (Commit 1.5 operator-gated acceptance) once `bec-ops-console` is deployed with `AGENT_API_KEY` + Upstash env: unauthorized → 401; concurrent lock acquire → one 200 + one 409; rate-limit → 429 after 60/min.
+- [ ] (Optional, deferred) **Promote CodeRabbit back to a Pass-2 required check** *only if* its reliability/credit problem is fixed — one `gh api` call. Not blocking; default posture is now advisory.
 
 ## Current Step
 
 - **Phase:** 1 — Database, Ops Console, Lead Pipeline.
-- **Commit:** **1.5 — Internal agent API** (in PR, this branch).
-- **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 → Commit 1.5.
-- **ADRs:** ADR-003 (Bearer AGENT_API_KEY agent auth), ADR-017 (Upstash rate-limit — and **closes** the 2026-05-16 adr-log exemption by retro-covering the auth route), ADR-018 (agent_runs cost tracking), ADR-012 (handler error capture via @bec/logger).
-- **Status:** built; CI-equivalent gate `lint`+`type-check`+`test:unit` **48/48** workspace-wide.
+- **Commit:** **1.6 — Ops-console: Leads view** (this branch: `phase-1/commit-1.6-leads-view`).
+- **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 → Commit 1.6.
+- **ADRs:** ADR-036 + Apple HIG (skeleton/empty/optimistic/pull-to-refresh), ADR-012 (error capture on any new server actions / route handlers), ADR-038 (no new env without schema). No ADR text changes expected.
+- **Status:** branch cut from `25711ce`; bookkeeping + the CodeRabbit-advisory loop-doc policy change land in this branch's first commit, then the Leads-view feature work.
 
-## What Commit 1.5 shipped
+## What Commit 1.6 must ship
 
-`apps/ops-console/app/api/agent/` — Bearer-`AGENT_API_KEY`-gated surface, all handlers: agent-auth (401) → ADR-017 rate-limit (60/key/min, 429) → @bec/logger error capture (500) → Zod-validated body → Pool-client write. All env-touching imports are dynamic (build-inert, per the Commit 1.4 cubic-P1 lesson).
+Per master plan § Commit 1.6:
 
-- `leads` POST (create), `leads/[id]` PATCH (update + transition-validated status change → writes `lead_status_history` in a transaction; 422 invalid transition), `leads/[id]/lock` POST (atomic conditional UPDATE — concurrent acquirers → 409, master-plan acceptance), `leads/[id]/release` POST (lock-holder-only), `businesses` POST (upsert by googlePlaceId), `agent-runs` POST (start), `agent-runs/[id]/finalize` POST (cost+outcome, ADR-018).
-- `lib/`: `ratelimit.ts` (@upstash/ratelimit sliding window, two limiters: agentApi 60/min + magicLink 5/15min; no-ops without Upstash env), `agent-auth.ts` (constant-time Bearer compare, fail-closed), `lead-transitions.ts` (valid `lead_status` edge map; closed_won/closed_lost terminal), `agent-handler.ts` (the auth→limit→log pipeline wrapper).
-- **Auth route now rate-limited** (`app/api/auth/[...nextauth]/route.ts` POST → magicLink limiter, IP-keyed) — **closes the ADR-017 adr-log exemption** (2026-05-16 entry; the closing adr-log entry is recorded).
-- `@bec/db` now re-exports drizzle operators (`eq`/`and`/`isNull`/…) so consumers bind to its single drizzle-orm instance (avoids the cross-package `PgColumn`-identity TS2769).
+> Create `(app)/leads/page.tsx` showing a table of leads — columns: business name, niche, city, status, gap score, days in current status, lock holder. Filter by status. Sort by gap score desc by default. Click a row → `(app)/leads/[id]` with full detail (diagnosis, offer, mockup if present, status history, manual transition controls). Apply HIG: skeleton loading, empty states, optimistic transitions with rollback toast, pull-to-refresh on mobile.
 
-## Acceptance
+**Acceptance**: Loads correctly. Empty state ("No leads yet — run Scout to populate.") renders when DB empty. Status changes optimistically and roll back on error.
 
-Per master plan § Commit 1.5: "Postman/curl tests pass. Lock acquisition is exclusive (concurrent requests get 409). Unauthorized requests get 401." The exclusivity is structurally guaranteed (single conditional `UPDATE … WHERE locked_by IS NULL`); 401 is enforced by `requireAgentAuth`. End-to-end curl verification is operator-gated (needs the deployed URL + `AGENT_API_KEY` + Upstash for the 429 path) — recorded on Commit 1.6's task-log entry. Locally-provable parts (type-check, structure, auth/limit/validation logic) all green.
+Implementation notes:
+- First **read-UI** consumer of the agent-API-populated `leads` / `lead_status_history` data. Server Components read via `@bec/db` `getDb()`; manual transition controls go through a server action (not the Bearer agent API — this is the authenticated operator surface, gated by the `auth.ts` allow-list, not `AGENT_API_KEY`).
+- Reuse the Commit 1.5 `lead-transitions.ts` valid-edge map for the manual transition controls so the UI and agent API share one source of transition truth.
+- Keep env-touching imports build-inert (dynamic import inside request scope) per the Commit-1.4 cubic-P1 lesson — `next build` must not trigger eager `parseEnv()`.
+- `type-check` is the load-bearing local gate; `next build` is Vercel-authoritative (OOM-bound locally).
 
 ## Next Commit After This
 
-- **Phase 1 / Commit 1.6 — Ops-console: Leads view.** `(app)/leads` table + `(app)/leads/[id]` detail with manual transition controls; HIG skeleton/empty/optimistic states + pull-to-refresh. First read-UI consumer of the agent-API-populated data.
+- **Phase 1 / Commit 1.7 — Mobile `/m` route — basic shell.**
 
 ## Handoff Notes
 
-- Master ADR + master plan are source of truth. The two off-plan tasks (PR #14 driver swap, the ADR-017 exemptions) are recorded in adr-log/task-log and renumber nothing.
-- `next build` remains Vercel-authoritative (OOM-bound locally); `type-check` is the local gate; CI runs `lint`/`type-check`/`unit-tests` only.
-- Operator's parked Phase-0 Storybook/Vercel WIP is still in the working tree across branches; untouched by Phase 1.
-- After Commit 1.5 merges, the operator can curl-verify the agent API once `bec-ops-console` is deployed with `AGENT_API_KEY` + Upstash env set.
+- Master ADR + master plan are source of truth. Off-plan/loop-doc changes are recorded in adr-log/task-log and renumber nothing.
+- CodeRabbit-advisory is now the standing policy — do **not** re-litigate the gate per-PR; follow `RALPH-LOOP.md` 7b–7e (best-effort poll with 10-min proceed-anyway timeout; pre-merge re-fetch checks CI/cubic/mergeable, not CodeRabbit review state).
+- `next build` remains Vercel-authoritative (OOM-bound locally); CI runs `lint`/`type-check`/`unit-tests` only.
+- Operator's parked Phase-0 Storybook/Vercel WIP is still in the working tree across branches; untouched by Phase 1 — keep it unstaged.
+- Commit 1.4 (iPhone login/magic-link e2e) and Commit 1.5 (agent API curl) acceptance remain operator-gated on the Vercel deploy; tracked in the pre-flight above.
