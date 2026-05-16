@@ -8,12 +8,15 @@ import { agentRoute, readJson, requireUuid } from "@/lib/agent-handler";
 const Finalize = z.object({
   status: z.enum(["succeeded", "failed", "aborted"]),
   outputSummary: z.string().optional(),
-  // Metrics feed ADR-018 budget reporting — reject negatives.
+  // Metrics feed ADR-018 budget reporting — reject negatives AND
+  // non-finite values (Infinity/NaN pass a bare nonnegative() check and
+  // would poison cost aggregation). .int() already implies finite for the
+  // token/duration fields; costUsd needs an explicit .finite().
   inputTokens: z.number().int().nonnegative().optional(),
   outputTokens: z.number().int().nonnegative().optional(),
   cacheCreationTokens: z.number().int().nonnegative().optional(),
   cacheReadTokens: z.number().int().nonnegative().optional(),
-  costUsd: z.number().nonnegative().optional(),
+  costUsd: z.number().finite().nonnegative().optional(),
   durationMs: z.number().int().nonnegative().optional(),
   error: z.string().optional(),
 });

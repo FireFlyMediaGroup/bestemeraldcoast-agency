@@ -38,7 +38,9 @@ export const POST = agentRoute(async (req, ctx) => {
     .returning({ id: schema.leads.id });
 
   if (acquired.length > 0) {
-    return Response.json({ locked: true, leadId: id, lockedBy: parsed.data.lockedBy });
+    // Don't reflect lockedBy even on success — it's the token a caller must
+    // present to /release; keep it out of all responses for consistency.
+    return Response.json({ locked: true, leadId: id });
   }
 
   // Zero rows updated: either the lead doesn't exist (404) or it's already

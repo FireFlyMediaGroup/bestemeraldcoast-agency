@@ -69,9 +69,14 @@ async function getLimiters(): Promise<typeof cached> {
 
 /**
  * Check a rate limit. `identifier` is the key the window is scoped to
- * (an API key for agentApi, a client IP/email for magicLink). Returns
- * `success: true` (allow) when Upstash is not configured — fail-open by
- * design for these internal/keyed surfaces; see the module comment.
+ * (an API key for agentApi, a client IP/email for magicLink).
+ *
+ * Fail-open by design — returns `success: true` (allow) both when Upstash
+ * is unconfigured AND when the limiter call itself errors (Redis slow /
+ * unavailable / transient). Anti-abuse must never take down a legitimate
+ * agent because the limiter's backing store hiccuped; an unprotected
+ * window during an Upstash outage is the lesser evil for these
+ * internal/keyed surfaces. The error is logged so outages are visible.
  */
 export async function checkRateLimit(
   name: LimiterName,
@@ -79,8 +84,14 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const limiters = await getLimiters();
   if (!limiters) return ALLOW;
-  const { success, limit, remaining, reset } = await limiters[name].limit(identifier);
-  return { success, limit, remaining, reset };
+  try {
+    const { success, limit, remaining, reset } = await limiters[name].limit(identifier);
+    return { success, limit, remaining, reset };
+  } catch (err) {
+    const { logger } = await import("@bec/logger");
+    logger.error({ err, limiter: name }, "rate limiter unavailable — failing open");
+    return ALLOW;
+  }
 }
 
 /** Build a standard 429 with rate-limit headers. */
