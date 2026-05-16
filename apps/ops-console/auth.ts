@@ -12,22 +12,30 @@
 //   provider's verification-token flow even under JWT sessions.
 // - All secrets come from @bec/config's validated serverEnv (ADR-038); we
 //   never read process.env directly here.
-// - Lazy initialization (Auth.js v5): the config is a factory, not a literal.
-//   `getDb()` and every `serverEnv.*` read happen per-request, not at module
-//   load. `next build` imports this module (for middleware + the /api/auth
-//   route) under NODE_ENV=production, which makes @bec/config's parseEnv()
-//   apply `productionRequired` — with no app-level .env at build time the
-//   prod secrets are absent and a module-scope read would boot-fail the
-//   whole build. Deferring to the factory keeps build-time import inert;
-//   the env is only resolved when a request actually hits auth.
+// - Build-time inertness (Auth.js v5): the config is an **async factory**,
+//   and `@bec/config` + `@bec/db` are **dynamically imported inside it** —
+//   never at module scope. This matters: `@bec/config`'s `index.ts` runs
+//   `parseEnv()` at *module load*, so a top-level `import { serverEnv }` (or
+//   importing `@bec/db`, which transitively imports `@bec/config`) would fire
+//   full env validation — including `productionRequired` — the moment
+//   `next build` imports this file under NODE_ENV=production, with no
+//   app-level .env present → build boot-fail. (A lazy NextAuth factory alone
+//   does NOT fix this; the import statements themselves are the trigger.)
+//   Keeping only `next-auth` + `@auth/drizzle-adapter` (env-free) at module
+//   scope and deferring the env-touching packages into the per-request async
+//   factory makes the module genuinely inert at build time. Flagged by cubic
+//   (P1, confidence 9); this is the complete fix.
+// - All secrets come from @bec/config's validated serverEnv (ADR-038).
 
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { getDb, schema } from "@bec/db";
-import { serverEnv } from "@bec/config";
 import NextAuth, { type NextAuthResult } from "next-auth";
 import Resend from "next-auth/providers/resend";
 
-const result = NextAuth(() => {
+const result = NextAuth(async () => {
+  // Dynamic — runs per-request, not at module load / `next build`.
+  const { serverEnv } = await import("@bec/config");
+  const { getDb, schema } = await import("@bec/db");
+
   const operatorEmail = serverEnv.OPERATOR_EMAIL?.toLowerCase();
 
   return {
