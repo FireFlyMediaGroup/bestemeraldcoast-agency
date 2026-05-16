@@ -85,6 +85,8 @@ export async function checkRateLimit(
 
 /** Build a standard 429 with rate-limit headers. */
 export function tooManyRequests(r: RateLimitResult): Response {
+  // Compute the delta once so the two headers are always consistent.
+  const retryAfter = Math.max(1, Math.ceil((r.reset - Date.now()) / 1000));
   return Response.json(
     { error: "rate_limited" },
     {
@@ -92,8 +94,8 @@ export function tooManyRequests(r: RateLimitResult): Response {
       headers: {
         "RateLimit-Limit": String(r.limit),
         "RateLimit-Remaining": String(r.remaining),
-        "RateLimit-Reset": String(Math.ceil((r.reset - Date.now()) / 1000)),
-        "Retry-After": String(Math.max(1, Math.ceil((r.reset - Date.now()) / 1000))),
+        "RateLimit-Reset": String(retryAfter),
+        "Retry-After": String(retryAfter),
       },
     },
   );

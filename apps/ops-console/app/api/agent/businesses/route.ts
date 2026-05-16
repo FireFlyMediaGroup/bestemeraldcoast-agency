@@ -15,8 +15,8 @@ const UpsertBusiness = z.object({
   niche: z.string().min(1),
   city: z.string().min(1),
   primarySiteId: z.string().uuid().optional(),
-  rating: z.number().optional(),
-  reviewCount: z.number().int().optional(),
+  rating: z.number().min(0).max(5).optional(),
+  reviewCount: z.number().int().nonnegative().optional(),
   websiteUrl: z.string().url().optional(),
   websiteStatus: z.enum(["none", "outdated", "modern"]).optional(),
   editorialSummary: z.string().optional(),
@@ -65,6 +65,12 @@ export const POST = agentRoute(async (req) => {
         websiteUrl: b.websiteUrl,
         websiteStatus: b.websiteStatus,
         editorialSummary: b.editorialSummary,
+        // Only attach primarySiteId when the caller actually supplied one,
+        // so a later enrichment can set it — but a call that omits it never
+        // clobbers an existing site association with null.
+        ...(b.primarySiteId !== undefined
+          ? { primarySiteId: b.primarySiteId }
+          : {}),
         lastEnrichedAt: new Date(),
         updatedAt: new Date(),
       },

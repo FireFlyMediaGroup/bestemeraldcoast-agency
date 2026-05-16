@@ -8,12 +8,15 @@
 
 import { z } from "zod";
 
-import { agentRoute, readJson } from "@/lib/agent-handler";
+import { agentRoute, readJson, requireUuid } from "@/lib/agent-handler";
 
 const Lock = z.object({ lockedBy: z.string().min(1) });
 
 export const POST = agentRoute(async (req, ctx) => {
-  const { id } = await ctx.params;
+  const { id: rawId } = await ctx.params;
+  const id = requireUuid(rawId);
+  if (id instanceof Response) return id;
+
   const [body, badJson] = await readJson<unknown>(req);
   if (badJson) return badJson;
 
@@ -43,12 +46,12 @@ export const POST = agentRoute(async (req, ctx) => {
   // only moves locked→unlocked via an explicit release, this is not a TOCTOU
   // risk for the 404/409 *classification* (the acquire itself was atomic).
   const [lead] = await db
-    .select({ lockedBy: schema.leads.lockedBy })
+    .select({ id: schema.leads.id })
     .from(schema.leads)
     .where(eq(schema.leads.id, id));
   if (!lead) return Response.json({ error: "not_found" }, { status: 404 });
-  return Response.json(
-    { error: "already_locked", lockedBy: lead.lockedBy },
-    { status: 409 },
-  );
+  // Don't echo lockedBy — the holder token is the value an attacker needs
+  // to call /release; keep it out of error responses (parallels the
+  // release-route 409).
+  return Response.json({ error: "already_locked" }, { status: 409 });
 });

@@ -17,23 +17,40 @@ type Handler = (req: Request, ctx: RouteCtx) => Promise<Response>;
 
 export function agentRoute(handler: Handler): Handler {
   return async (req, ctx) => {
-    const unauthorized = await requireAgentAuth(req);
-    if (unauthorized) return unauthorized;
-
-    const rl = await checkRateLimit("agentApi", agentKeyId(req));
-    if (!rl.success) return tooManyRequests(rl);
-
+    // The try spans auth + rate-limit + handler so a throw from ANY of them
+    // is logged + converted to 500 (not just handler throws).
     try {
+      const unauthorized = await requireAgentAuth(req);
+      if (unauthorized) return unauthorized;
+
+      const rl = await checkRateLimit("agentApi", agentKeyId(req));
+      if (!rl.success) return tooManyRequests(rl);
+
       return await handler(req, ctx);
     } catch (err) {
       const { logger } = await import("@bec/logger");
       logger.error(
         { err, route: new URL(req.url).pathname, method: req.method },
-        "agent API handler threw",
+        "agent API request failed",
       );
       return Response.json({ error: "internal_error" }, { status: 500 });
     }
   };
+}
+
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate a dynamic-route `id` as a UUID before it reaches a Postgres
+ * `uuid` column (an invalid value would otherwise surface as a raw DB
+ * error). Returns the id, or a 400 Response to return immediately.
+ */
+export function requireUuid(id: string): string | Response {
+  if (!UUID.test(id)) {
+    return Response.json({ error: "invalid_id" }, { status: 400 });
+  }
+  return id;
 }
 
 /** Parse a JSON body, returning [value, null] or [null, 400 Response]. */

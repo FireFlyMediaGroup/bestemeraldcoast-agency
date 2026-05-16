@@ -6,12 +6,15 @@
 
 import { z } from "zod";
 
-import { agentRoute, readJson } from "@/lib/agent-handler";
+import { agentRoute, readJson, requireUuid } from "@/lib/agent-handler";
 
 const Release = z.object({ lockedBy: z.string().min(1) });
 
 export const POST = agentRoute(async (req, ctx) => {
-  const { id } = await ctx.params;
+  const { id: rawId } = await ctx.params;
+  const id = requireUuid(rawId);
+  if (id instanceof Response) return id;
+
   const [body, badJson] = await readJson<unknown>(req);
   if (badJson) return badJson;
 
@@ -39,12 +42,11 @@ export const POST = agentRoute(async (req, ctx) => {
   }
 
   const [lead] = await db
-    .select({ lockedBy: schema.leads.lockedBy })
+    .select({ id: schema.leads.id })
     .from(schema.leads)
     .where(eq(schema.leads.id, id));
   if (!lead) return Response.json({ error: "not_found" }, { status: 404 });
-  return Response.json(
-    { error: "not_lock_holder", lockedBy: lead.lockedBy },
-    { status: 409 },
-  );
+  // Never echo lockedBy: it's exactly the value a caller must present to
+  // pass the ownership check, so returning it defeats the guard.
+  return Response.json({ error: "not_lock_holder" }, { status: 409 });
 });

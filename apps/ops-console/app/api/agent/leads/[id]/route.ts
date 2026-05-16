@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-import { agentRoute, readJson } from "@/lib/agent-handler";
+import { agentRoute, readJson, requireUuid } from "@/lib/agent-handler";
 import { isLeadStatus, isValidTransition } from "@/lib/lead-transitions";
 
 const PatchLead = z.object({
@@ -21,7 +21,10 @@ const PatchLead = z.object({
 });
 
 export const PATCH = agentRoute(async (req, ctx) => {
-  const { id } = await ctx.params;
+  const { id: rawId } = await ctx.params;
+  const id = requireUuid(rawId);
+  if (id instanceof Response) return id;
+
   const [body, badJson] = await readJson<unknown>(req);
   if (badJson) return badJson;
 
@@ -77,11 +80,26 @@ export const PATCH = agentRoute(async (req, ctx) => {
         { status: 422 },
       );
     }
+    // Critical: the status update is conditional on the row STILL being in
+    // `from` (the value we validated against). A concurrent transition that
+    // already moved the lead makes this UPDATE affect 0 rows → we abort the
+    // transaction and 409, instead of writing a history row for a
+    // transition that never legitimately happened (read-validate-write is
+    // now atomic at the DB, not just within the JS function).
+    const { and } = await import("@bec/db");
+    let raced = false;
     await db.transaction(async (tx) => {
-      await tx
+      const moved = await tx
         .update(schema.leads)
         .set({ ...fieldUpdate, status: to as StatusCol })
-        .where(eq(schema.leads.id, id));
+        .where(
+          and(eq(schema.leads.id, id), eq(schema.leads.status, from as StatusCol)),
+        )
+        .returning({ id: schema.leads.id });
+      if (moved.length === 0) {
+        raced = true;
+        return;
+      }
       await tx.insert(schema.leadStatusHistory).values({
         leadId: id,
         fromStatus: from as StatusCol,
@@ -90,6 +108,12 @@ export const PATCH = agentRoute(async (req, ctx) => {
         reason: d.reason,
       });
     });
+    if (raced) {
+      return Response.json(
+        { error: "status_changed_concurrently" },
+        { status: 409 },
+      );
+    }
     return Response.json({ lead: { id, status: to }, transitioned: true });
   }
 
