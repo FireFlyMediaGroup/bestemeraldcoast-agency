@@ -1,0 +1,54 @@
+// POST /api/agent/leads/:id/lock — acquire an exclusive lead lock.
+//
+// Exclusivity is enforced atomically by a single conditional UPDATE
+// (`WHERE id = ? AND locked_by IS NULL`). Concurrent acquirers race on one
+// SQL statement: exactly one updates a row, the rest update zero → 409.
+// No application-level read-then-write window, so it's correct under
+// concurrency (master plan acceptance: "concurrent requests get 409").
+
+import { z } from "zod";
+
+import { agentRoute, readJson } from "@/lib/agent-handler";
+
+const Lock = z.object({ lockedBy: z.string().min(1) });
+
+export const POST = agentRoute(async (req, ctx) => {
+  const { id } = await ctx.params;
+  const [body, badJson] = await readJson<unknown>(req);
+  if (badJson) return badJson;
+
+  const parsed = Lock.safeParse(body);
+  if (!parsed.success) {
+    return Response.json(
+      { error: "validation_failed", issues: parsed.error.flatten() },
+      { status: 400 },
+    );
+  }
+
+  const { getDb, schema, and, eq, isNull } = await import("@bec/db");
+  const db = getDb();
+
+  const acquired = await db
+    .update(schema.leads)
+    .set({ lockedBy: parsed.data.lockedBy, lockedAt: new Date() })
+    .where(and(eq(schema.leads.id, id), isNull(schema.leads.lockedBy)))
+    .returning({ id: schema.leads.id });
+
+  if (acquired.length > 0) {
+    return Response.json({ locked: true, leadId: id, lockedBy: parsed.data.lockedBy });
+  }
+
+  // Zero rows updated: either the lead doesn't exist (404) or it's already
+  // locked (409). One follow-up read distinguishes — and since lock state
+  // only moves locked→unlocked via an explicit release, this is not a TOCTOU
+  // risk for the 404/409 *classification* (the acquire itself was atomic).
+  const [lead] = await db
+    .select({ lockedBy: schema.leads.lockedBy })
+    .from(schema.leads)
+    .where(eq(schema.leads.id, id));
+  if (!lead) return Response.json({ error: "not_found" }, { status: 404 });
+  return Response.json(
+    { error: "already_locked", lockedBy: lead.lockedBy },
+    { status: 409 },
+  );
+});

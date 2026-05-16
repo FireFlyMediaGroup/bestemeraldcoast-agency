@@ -37,3 +37,11 @@ Append-only log of amendments to `MASTER-bec-architecture-decisions.md`. Every c
 - **Triggered by:** Phase 1 / Commit 1.4 — CodeRabbit review of PR #15 (auth route hardening finding)
 - **Project-plan impact:** Commit 1.5 must apply the Upstash ADR-017 limiter to `apps/ops-console/app/api/auth/[...nextauth]/route.ts` alongside the agent API (already in scope per 1.5's "Rate-limit per ADR-017"); the exemption lapses when 1.5 lands.
 - **Loop-doc impact:** none
+
+## 2026-05-16 — ADR-017 — Scoped exemption CLOSED: ops-console auth route now rate-limited (Commit 1.5)
+- **Change type:** Clarification (the 2026-05-16 Commit-1.4 exemption is now lapsed/closed)
+- **From → To:** Accepted, with Commit-1.4 exemption → Accepted, exemption discharged
+- **Rationale:** Commit 1.5 builds the shared Upstash limiter (`apps/ops-console/lib/ratelimit.ts`, `@upstash/ratelimit` sliding window) and applies it across the agent API (60/key/min per ADR-017) AND the auth route's POST surface (magic-link: 5/15 min per ADR-017). The auth route is keyed by client IP rather than email — NextAuth's framework-owned catch-all owns the request body, so per-email keying would require consuming the stream NextAuth needs; IP is the faithful, framework-safe enforcement point for that surface. The earlier exemption's condition ("the exemption lapses when 1.5 lands") is satisfied. The limiter no-ops when Upstash env is absent (dev/CI), mirroring the @bec/logger Sentry/Axiom transport pattern; production must set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (operator pre-flight).
+- **Triggered by:** Phase 1 / Commit 1.5 — Internal agent API
+- **Project-plan impact:** none (1.5's "Rate-limit per ADR-017" requirement met for both the agent API and the retro-covered auth route)
+- **Loop-doc impact:** none
