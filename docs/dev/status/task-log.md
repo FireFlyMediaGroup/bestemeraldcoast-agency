@@ -325,6 +325,20 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: **Phase 1 / Commit 1.10 — Editorial rotation foundation schema.** Branch `phase-1/commit-1.10-editorial-rotation-schema` cut from `33a1e7b`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
 - Notes: Decision to create the ADR-034 rubric files in 1.9 (not defer) — the commit prompt says "apply the ADR-034 copy rubric," which requires the rubric to exist as a referenceable single-source artifact rather than be inline-duplicated in the prompt. cubic NEUTRAL; CodeRabbit not consulted (advisory) — artifact validity + schema-accuracy review is the standing local signal for prompt-config commits.
 
+## 2026-05-16 — Phase 1 / Commit 1.10 — Editorial rotation foundation schema
+
+- Branch: phase-1/commit-1.10-editorial-rotation-schema
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/21
+- Merge SHA: 3a693f57d19433d47666d8b54bb5b73596f04f6e
+- CodeRabbit: advisory (standing policy). cubic-dev-ai check NEUTRAL at merged HEAD.
+- CI on PR #21: `lint` + `type-check` + `unit-tests` all SUCCESS; the Commit-1.3 migration-test workflow ran 0003 forward/idempotent/rollback on an ephemeral Neon branch and asserted the 32-table canonical set; Vercel Preview SUCCESS. Auto-merge fired on the Pass-2 natural gate.
+- ADRs touched: implements ADR-040 (editorial-rotation schema + seed data verbatim from the Editorial Rotation Specification), ADR-002/003 (Drizzle migration, Postgres source of truth), ADR-038 (prod-write guard unchanged — migrate/seed still gated). No ADR text changes. First code-bearing commit since 1.7.
+- Acceptance evidence: master plan "all tables created; seeded data queryable; `getSeasonalWeight('charter_fishing', 2026-06-15) === 1.5`". Migration test proves the 5 tables + 32-table canonical set apply cleanly + roll back. The seasonal-weight assertion runs in the `db:seed` tail (operator/CI-gated like Commit 1.1/1.2 — `@bec/db` has no vitest; `computeSeasonalWeight` is the pure, type-checked core). `pnpm turbo` 48/48.
+- Validation: `pnpm turbo lint type-check test:unit` → 48/48; `pnpm --filter @bec/db db:generate` produced `0003_damp_the_call.sql` offline (5 CREATE TABLE + 2 sites ADD COLUMN + the unique/btree indexes verified by inspection).
+- Files changed: 10. New `packages/db/src/schema/editorial-rotation.ts` (5 ADR-040 tables; `season_events.name` unique index added for seed idempotency), `packages/db/src/season.ts` (`computeSeasonalWeight` pure + `getSeasonalWeight` DB wrapper, exported from `@bec/db`), `migrations/0003_damp_the_call.sql` + meta; `schema/index.ts` barrel, `schema/sites.ts` (+2 weekly-article columns), `src/index.ts` (exports), `src/seed.ts` (10/30/120/8 idempotent + acceptance assertion), `test-migrations.ts` (27→32).
+- Next commit queued: **Phase 1 / Commit 1.11 — Pipeline signal capture.** Branch `phase-1/commit-1.11-pipeline-signal-capture` cut from `3a693f5`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
+- Notes: Qualitative niche values mapped to 0-100 (Very high 90 / High 80 / Medium-high 65 / Medium 50 / Low-medium 35 / Low 20). Premium archetype excludes HVAC + auto detailing (isExcluded rows carry a placeholder primaryCategorySlug). Season events seeded with representative 2026 dates; the resolver compares month/day year-agnostically so it works for any query year. The `season_events.name` unique index is a deliberate spec-superset addition (the spec lists no natural key) solely to keep the seed idempotent like every other table.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
