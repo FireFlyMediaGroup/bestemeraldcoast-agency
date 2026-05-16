@@ -3,6 +3,8 @@
 // commits. This proves the authed route group renders for a signed-in
 // operator and shows who's signed in.
 
+import Link from "next/link";
+
 import { auth, signOut } from "@/auth";
 import { Button } from "@bec/ui";
 
@@ -35,10 +37,21 @@ export default async function DashboardPage() {
         </form>
       </header>
 
+      <nav className="grid gap-3">
+        <Link
+          href="/leads"
+          className="flex min-h-[44px] items-center justify-between rounded-(--radius-lg) border border-border px-5 py-4 hover:bg-muted"
+        >
+          <span className="font-medium">Leads</span>
+          <span className="text-sm text-muted-fg">
+            Pipeline · diagnosis · manual transitions →
+          </span>
+        </Link>
+      </nav>
+
       <section className="rounded-(--radius-lg) border border-border bg-muted px-5 py-8 text-center">
         <p className="text-base text-muted-fg">
-          Scaffold ready. Lead pipeline, approvals, and metrics land in the
-          following Phase 1 commits.
+          Approvals and metrics land in the following Phase 1 commits.
         </p>
       </section>
     </main>
