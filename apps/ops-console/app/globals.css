@@ -1,0 +1,77 @@
+/*
+ * ops-console global styles.
+ *
+ * Reuses @bec/ui's token contract (the same CSS-variable system the design
+ * system is built on) but ops-console is NOT archetype-themed — it's a single
+ * internal control plane that defaults to dark for evening triage (Apple HIG
+ * § Operator-side UX, project plan). We pull @bec/ui's globals for the
+ * Tailwind v4 @theme mapping + base reset, then force the dark palette at the
+ * root and respect prefers-color-scheme for the rare daytime light case.
+ */
+
+@import "@bec/ui/styles/globals.css";
+
+:root {
+  color-scheme: dark;
+
+  /* Dark ops palette — overrides @bec/ui's light Magazine defaults. OKLCH
+     so it composes with the @theme token mapping. */
+  --bec-color-background: oklch(0.17 0.01 260);
+  --bec-color-foreground: oklch(0.96 0.005 260);
+  --bec-color-primary: oklch(0.62 0.14 250);
+  --bec-color-primary-fg: oklch(0.98 0.005 260);
+  --bec-color-accent: oklch(0.72 0.13 70);
+  --bec-color-accent-fg: oklch(0.17 0.01 260);
+  --bec-color-muted: oklch(0.24 0.01 260);
+  --bec-color-muted-fg: oklch(0.68 0.01 260);
+  --bec-color-border: oklch(0.30 0.01 260);
+  --bec-color-success: oklch(0.62 0.14 150);
+  --bec-color-warning: oklch(0.74 0.14 70);
+  --bec-color-danger: oklch(0.62 0.18 25);
+
+  --bec-radius-sm: 6px;
+  --bec-radius-md: 8px;
+  --bec-radius-lg: 12px;
+  --bec-radius-xl: 16px;
+
+  --bec-font-heading: "Inter", system-ui, sans-serif;
+  --bec-font-body: "Inter", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bec-color-background: oklch(0.99 0.003 260);
+    --bec-color-foreground: oklch(0.20 0.01 260);
+    --bec-color-muted: oklch(0.95 0.005 260);
+    --bec-color-muted-fg: oklch(0.45 0.01 260);
+    --bec-color-border: oklch(0.88 0.005 260);
+  }
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  /* Respect iOS safe-area insets — content never hides under the home
+     indicator / notch (Apple HIG § Operator-side UX). */
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+/* Honor prefers-reduced-motion globally (Apple HIG). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -6,13 +6,25 @@
 // one URL is overkill. The validator still runs whenever app code imports
 // @bec/db at runtime via src/client.ts.
 
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import dotenv from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
+// Load repo-root `.env` so `pnpm --filter @bec/db db:migrate` (and studio /
+// push) pick up DATABASE_URL exactly like seed.ts / test-migrations.ts do —
+// drizzle-kit itself doesn't auto-load a .env outside its own cwd, and the
+// repo root is three levels up from this config. CI sets DATABASE_URL in the
+// environment directly (Neon ephemeral-branch step), and dotenv never
+// overrides an already-set process.env var, so this is safe in both contexts.
+const here = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(here, "..", "..", ".env") });
+
 // drizzle-kit `generate` only diffs schema files — no DB connection required.
-// `migrate` / `push` / `studio` need DATABASE_URL; drizzle-kit will error
-// loudly itself when the URL is required but missing, so we don't pre-throw
-// here. Source DATABASE_URL via `.env` (dotenv), Neon's CI ephemeral-branch
-// step, or PROD_DB_ALLOWED=true + a vault pull for ops work (ADR-038).
+// `migrate` / `push` / `studio` need DATABASE_URL; drizzle-kit errors loudly
+// itself when the URL is required but missing, so we don't pre-throw.
+// PROD_DB_ALLOWED=true + a vault pull is the path for ops work (ADR-038).
 const databaseUrl = process.env.DATABASE_URL ?? "";
 
 // drizzle-kit reads `dist/schema/index.js` (compiled) rather than the TS

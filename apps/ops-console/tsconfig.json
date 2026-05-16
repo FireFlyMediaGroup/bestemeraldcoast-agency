@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@bec/config-tsconfig/nextjs.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    // The shared base.json enables declaration emit (it's tuned for the
+    // publishable workspace packages). A Next.js app is an application, not
+    // a library — it never emits .d.ts. Leaving declaration on makes tsc
+    // enforce type *portability* (TS2742) on inferred types from pnpm's
+    // symlinked deps like next-auth/@auth, which is irrelevant for an app
+    // that ships a bundle, not types. Turn the library-only knobs off.
+    "declaration": false,
+    "declarationMap": false,
+    "composite": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  // Do NOT exclude `.next` — `include` pulls in .next/types/**/*.ts
+  // (Next-generated route + PageProps types). Excluding .next would filter
+  // those back out and weaken type-checking. Only node_modules is excluded.
+  "exclude": ["node_modules"]
+}

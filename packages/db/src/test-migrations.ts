@@ -19,7 +19,8 @@
 //   script's local choice is no longer a one-off.
 //
 // What the script does:
-//   1. Forward  — migrate(); assert canonical 23 tables + 8 enums.
+//   1. Forward  — migrate(); assert the canonical table + enum sets
+//      (counts derived from EXPECTED_TABLES / EXPECTED_ENUMS, not hardcoded).
 //   2. Idempotency — re-run migrate(); assert unchanged.
 //   3. Rollback — DROP SCHEMA public CASCADE; CREATE SCHEMA public; assert
 //      empty (drizzle ships no down migrations, so the inverse is "drop all").
@@ -57,11 +58,13 @@ neonConfig.webSocketConstructor = ws;
 // packages/db/src/ → packages/db/migrations
 const MIGRATIONS_FOLDER = path.join(here, "..", "migrations");
 
-// The full canonical set after applying 0000_worthless_falcon.sql. Future
-// migrations should append to this list. If a migration adds a table that
-// isn't listed here, this test fails — the correct loud failure (forces
-// deliberate review of the canonical set).
+// The full canonical set after applying all migrations. Future migrations
+// that add/remove a table MUST update this list — the assertion is designed
+// to loud-fail on drift so the canonical set gets deliberate review.
+// Currently: 0000_worthless_falcon (23 domain tables) + 0001_previous_rhino
+// (4 Auth.js tables for Commit 1.4's magic-link auth) = 27.
 const EXPECTED_TABLES = [
+  "accounts",
   "agent_budgets",
   "agent_runs",
   "article_businesses",
@@ -82,9 +85,12 @@ const EXPECTED_TABLES = [
   "outreach_messages",
   "project_tasks",
   "projects",
+  "sessions",
   "sites",
   "sponsorships",
   "subscribers",
+  "users",
+  "verification_tokens",
 ] as const;
 
 const EXPECTED_ENUMS = [
@@ -136,7 +142,7 @@ async function assertCanonicalSchema(pool: NeonPool, context: string): Promise<v
   const tableDiff = diffSets(await listPublicTables(pool), EXPECTED_TABLES);
   if (tableDiff.missing.length > 0 || tableDiff.extra.length > 0) {
     throw new Error(
-      `${context}: table set diverged from canonical 23.\n` +
+      `${context}: table set diverged from canonical ${EXPECTED_TABLES.length}.\n` +
         `  missing: ${tableDiff.missing.join(", ") || "(none)"}\n` +
         `  extra:   ${tableDiff.extra.join(", ") || "(none)"}\n` +
         `If a migration intentionally added/removed a table, update EXPECTED_TABLES in ` +
@@ -147,7 +153,7 @@ async function assertCanonicalSchema(pool: NeonPool, context: string): Promise<v
   const enumDiff = diffSets(await listPublicEnums(pool), EXPECTED_ENUMS);
   if (enumDiff.missing.length > 0 || enumDiff.extra.length > 0) {
     throw new Error(
-      `${context}: enum set diverged from canonical 8.\n` +
+      `${context}: enum set diverged from canonical ${EXPECTED_ENUMS.length}.\n` +
         `  missing: ${enumDiff.missing.join(", ") || "(none)"}\n` +
         `  extra:   ${enumDiff.extra.join(", ") || "(none)"}\n` +
         `If a migration intentionally added/removed an enum, update EXPECTED_ENUMS.`,

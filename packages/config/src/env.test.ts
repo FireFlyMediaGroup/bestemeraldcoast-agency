@@ -14,6 +14,7 @@ const validProd = {
   AGENT_API_KEY: "agent-key-xxxxxxxx",
   NEXTAUTH_URL: "https://ops.bestemeraldcoast.com",
   NEXTAUTH_SECRET: "0123456789abcdef0123456789abcdef",
+  OPERATOR_EMAIL: "operator@bestemeraldcoast.com",
   ANTHROPIC_API_KEY: "sk-ant-xxxxxxxxxxxx",
   RESEND_API_KEY: "re_xxxxxxxxxxxx",
   SENTRY_DSN: "https://abc@o0.ingest.sentry.io/0",
@@ -79,6 +80,19 @@ describe("parseEnv — production", () => {
     const result = parseEnv(validProd);
     expect(result.env).toBe("production");
     expect(result.server.ANTHROPIC_API_KEY).toBe(validProd.ANTHROPIC_API_KEY);
+    expect(result.server.OPERATOR_EMAIL).toBe(validProd.OPERATOR_EMAIL);
+  });
+
+  it("rejects prod env missing OPERATOR_EMAIL", () => {
+    const { OPERATOR_EMAIL: _, ...rest } = validProd;
+    void _;
+    expect(() => parseEnv(rest)).toThrow(EnvValidationError);
+  });
+
+  it("rejects prod env with a malformed OPERATOR_EMAIL", () => {
+    expect(() => parseEnv({ ...validProd, OPERATOR_EMAIL: "not-an-email" })).toThrow(
+      EnvValidationError,
+    );
   });
 
   it("rejects prod env missing ANTHROPIC_API_KEY", () => {

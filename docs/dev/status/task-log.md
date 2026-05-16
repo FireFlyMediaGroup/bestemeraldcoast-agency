@@ -222,6 +222,22 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: **Off-plan task `task/2026-05-15-db-pool-driver`** — standardize `client.ts` (and therefore `seed.ts` via `getDb()`) on the same Pool driver, before Phase 1 / Commit 1.4 (ops-console scaffold) starts issuing live queries. Then Commit 1.4.
 - Notes: The neon-http + drizzle-0.39 incompatibility surfaced here is **latent in `client.ts` and `seed.ts`** — they throw the same `sql`-template error the moment they run real queries. The test-migrations script dodged it via the Pool driver locally; the whole-layer fix is the next task (not deferred — done before 1.4). Operator's Commit 1.1/1.2 `db:seed` verification should wait until that task lands (the migrate/studio paths use drizzle-kit's own driver and are unaffected).
 
+## 2026-05-15 — Task — Standardize @bec/db on the Pool-based neon-serverless driver
+
+- Type: **Off-plan remediation** (task-template workflow). Inserted between Phase 1 / Commit 1.3 and Commit 1.4; does not appear in `MASTER-bec-project-plan.md` and renumbers no commit.
+- Branch: task/2026-05-15-db-pool-driver (cut from `333779e`, the Commit 1.3 merge).
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/14
+- Merge SHA: 11de263befdd8aaca4e1e31cfdc9f5ffea000c99
+- CodeRabbit: **APPROVED** at HEAD `64e62e1` (2026-05-15T12:07:49Z) — clean single-pass review, **0 findings**, no rate-limit. The project's first Phase-1 PR to land APPROVED on the first review round with zero comment-resolution churn.
+- Secondary reviewer: `cubic · AI code reviewer` check = SUCCESS at the merged HEAD; no findings posted (small, surgical diff).
+- CI on PR #14: `lint` + `type-check` + `unit-tests` all SUCCESS at the merged HEAD `64e62e1`.
+- ADRs touched: No new ADRs. Implements ADR-002 (Neon) / ADR-003 (Postgres source of truth) at the driver layer; preserves the ADR-038 `PROD_DB_ALLOWED` rail (the `assertProdDbAccessible()` guard lives in `seed.ts`, unchanged — it inherits the new Pool driver via `getDb()`).
+- Acceptance evidence: `pnpm --filter @bec/db type-check` → green. `pnpm turbo build lint type-check test:unit` → 56/56. The Pool driver (`drizzle(pool, { schema })` over `drizzle-orm/neon-serverless`) is already CI-proven against a live Neon ephemeral branch by Commit 1.3's `Test migrations` step — same driver, same `@neondatabase/serverless ~1.0.1`. The query-builder path's first live exercise is the operator's post-merge `db:seed` + Commit 1.4's ops-console queries.
+- Validation: `validation-checklist.md` § Always + § Foundations green via the 56/56 turbo run. § Database: the migrate/idempotency/rollback flow is the Commit 1.3 `Test migrations` CI step, green on the same driver. No prod-DB write attempted locally (ADR-038 rail intact).
+- Files changed: 4 in PR. `packages/db/src/client.ts` (+30/-13: `neon()` + `drizzle-orm/neon-http` → `Pool` + `drizzle-orm/neon-serverless`; `neonConfig.webSocketConstructor = ws` at module scope — a config write, not a connection, so schema-only imports stay side-effect-free; `Database` type → `NeonDatabase<typeof schema>`). `packages/db/src/test-migrations.ts` (+3/-6: follow-up comment updated to "resolved (this task)"). `docs/dev/status/task-log.md` (+15: carried the Commit 1.3 entry per the post-Pass-1 write policy). `docs/dev/status/next-step.md` (+32/-46: rewritten to describe this task). `seed.ts` unchanged — inherits the Pool driver via `getDb()`; `process.exit(0)` already handles pool teardown.
+- Next commit queued: **Phase 1 / Commit 1.4 — Ops-console scaffold + auth.** First real Next.js app (Next 16, App Router, NextAuth v5 magic-link over Resend, `@bec/db` now Pool-driver). Branch `phase-1/commit-1.4-ops-console-scaffold` cut from `11de263`; carries this entry's bookkeeping + the next-step.md rewrite per the post-Pass-1 write policy.
+- Notes: The neon-http + drizzle-0.39 `sql`-template incompatibility (diagnosed across Commit 1.3's 5 CI rounds) is now resolved at the `@bec/db` layer, not just in the test script. `client.ts` + `seed.ts` were the last neon-http holdouts; both are on the Pool driver as of this merge. This unblocks the operator's coupled Commit 1.1/1.2 `db:seed` verification — the natural end-to-end smoke test for the query-builder path. Clean APPROVED with no `--admin` needed; CodeRabbit's credit ceiling held for this small diff.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
