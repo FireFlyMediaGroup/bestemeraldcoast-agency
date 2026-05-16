@@ -47,3 +47,12 @@ Append-only log of amendments to `MASTER-bec-architecture-decisions.md`. Every c
 - **Triggered by:** Phase 1 / Commit 1.5 — Internal agent API
 - **Project-plan impact:** none (1.5's "Rate-limit per ADR-017" requirement met for both the agent API and the retro-covered auth route)
 - **Loop-doc impact:** none
+
+## 2026-05-16 — ADR-035 — Loop-doc policy: CodeRabbit is advisory, not a merge gate
+
+- **Change type:** Clarification (loop operating-rule change; no ADR text change — ADR-035 phase quality gates are unaffected)
+- **From → To:** "Hard gate: CodeRabbit review state == APPROVED is a merge precondition" → "CodeRabbit is an advisory reviewer; its review *state* never blocks merge. The merge gate is: Pass-2 required CI checks (`lint`/`type-check`/`unit-tests`) green **and** cubic clean **and** every *posted* CodeRabbit/cubic finding triaged (fixed or replied-with-rationale)."
+- **Rationale:** Operator decision. Across PRs #8/#9/#11/#15/#16 CodeRabbit repeatedly stalled (~12-min), hit credit/rate-limit ceilings, never re-reviewed pushed fixes, and re-flagged already-fixed code via stale incremental-diff anchoring. Treating its `APPROVED` state as a hard gate stalled the loop while providing no reliable quality signal, forcing repeated per-PR operator gate-relaxations (recorded on the Commit 1.4/1.5 task-log entries). Making it formally advisory removes the recurring decision while *retaining* the review value: every posted finding must still be fixed or answered, and cubic + the required CI checks remain hard gates. CodeRabbit can be promoted back to a required check via one `gh api` call if its reliability/credit problem is resolved. The discipline "never silently dismiss a posted finding; escalate genuine out-of-scope disputes via an adr-log amendment" is unchanged.
+- **Triggered by:** Operator decision (post-PR-#16 merge) — "use code rabbit if available but it should not be a blocker"
+- **Project-plan impact:** none (phase quality gates per ADR-035 unchanged; no commit reorders)
+- **Loop-doc impact:** `claude/CLAUDE.md` § Non-Negotiables (lines 29–30 reworded); `claude/RALPH-LOOP.md` steps 7b/7c/7d/7e reworded (CodeRabbit poll is now best-effort with a 10-min proceed-anyway timeout; the pre-merge re-fetch checks CI/cubic/mergeable, not CodeRabbit review state)
