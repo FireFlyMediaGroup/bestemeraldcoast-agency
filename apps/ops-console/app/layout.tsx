@@ -16,10 +16,12 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   // Dark-first ops UI for evening triage; light is the prefers-color-scheme
-  // fallback handled in globals.css.
+  // fallback handled in globals.css. Hexes track the actual --bec-color-
+  // background OKLCH values (dark oklch(0.17 0.01 260), light
+  // oklch(0.99 0.003 260)) so the browser chrome tint matches the page.
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0b0e14" },
-    { media: "(prefers-color-scheme: light)", color: "#fbfbfd" },
+    { media: "(prefers-color-scheme: dark)", color: "#141519" },
+    { media: "(prefers-color-scheme: light)", color: "#fbfbfc" },
   ],
 };
 

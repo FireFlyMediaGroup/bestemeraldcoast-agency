@@ -11,7 +11,7 @@
 ## Operator Pre-Flight
 
 **Repo:** https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency
-**Runbooks:** [`secrets-setup.md`](../../runbooks/secrets-setup.md) · [`storybook-deploy.md`](../../runbooks/storybook-deploy.md)
+**Runbooks:** [`secrets-setup.md`](../../runbooks/secrets-setup.md) · [`storybook-deploy.md`](../../runbooks/storybook-deploy.md) · [`ops-console-deploy.md`](../../runbooks/ops-console-deploy.md)
 
 - [x] Phase 0 ADR-035 gate passed (PR #10).
 - [x] 1Password `BEC-Production` populated; Vercel Pro + Storybook live; Neon + Turbo-cache GH secrets set.
@@ -19,7 +19,7 @@
 - [ ] **Rotate Neon password** (see Security action above).
 - [ ] **Pass 2 branch protection** — apply now. `main` rule → required checks `lint`, `type-check`, `unit-tests`, `CodeRabbit`; "require branches up to date"; recommended "Include administrators". Commit 1.4 is a large surface and a good gate-before point; do it before 1.5.
 - [ ] **CodeRabbit credit limit** — still a coin-flip per merge. ~6 Phase-1 commits remain.
-- [ ] **ops-console Vercel deploy** (operator, parallels the Storybook runbook) — create Vercel project `bec-ops-console`, root `apps/ops-console`, map `ops.bestemeraldcoast.com`. Set env: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL=https://ops.bestemeraldcoast.com`, `OPERATOR_EMAIL`, `RESEND_API_KEY`, `SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN` for source-map upload), optional `NEXT_PUBLIC_SENTRY_DSN`. This is required for Commit 1.4's acceptance (login on iPhone Safari, magic link e2e) — that acceptance is operator-gated and cannot be tested locally.
+- [ ] **ops-console Vercel deploy** (operator, parallels the Storybook runbook) — create Vercel project `bec-ops-console`, root `apps/ops-console`, map `ops.bestemeraldcoast.com`. Set env: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL=https://ops.bestemeraldcoast.com`, `OPERATOR_EMAIL`, `RESEND_API_KEY`, `SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN` for source-map upload), optional `NEXT_PUBLIC_SENTRY_DSN`. Do **not** set `NODE_ENV` / `VERCEL_ENV` — Vercel-reserved (it populates them; `@bec/config` resolves prod from `VERCEL_ENV`). Matches `ops-console-deploy.md` §3. This is required for Commit 1.4's acceptance (login on iPhone Safari, magic link e2e) — that acceptance is operator-gated and cannot be tested locally.
 - [ ] **Resend sending domain** — verify `bestemeraldcoast.com` (or a subdomain) in Resend + add the DNS records, so `ops@bestemeraldcoast.com` magic-link mail delivers (ADR-013). Until then NextAuth falls back to Resend's onboarding sender.
 
 ## Verified Live (this session, against the Neon dev branch)

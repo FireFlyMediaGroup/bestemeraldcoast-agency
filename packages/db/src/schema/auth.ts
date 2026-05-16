@@ -15,6 +15,7 @@
 // additional internal roles arrive.
 
 import {
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -56,16 +57,26 @@ export const accounts = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.provider, t.providerAccountId] }),
+    // FK column index — the adapter looks accounts up by userId and the
+    // ON DELETE cascade from users needs it to avoid a seq scan as rows grow.
+    userIdIdx: index("accounts_user_id_idx").on(t.userId),
   }),
 );
 
-export const sessions = pgTable("sessions", {
-  sessionToken: text("session_token").primaryKey(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  expires: timestamp("expires", { withTimezone: true }).notNull(),
-});
+export const sessions = pgTable(
+  "sessions",
+  {
+    sessionToken: text("session_token").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expires: timestamp("expires", { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    // FK column index — sessions are looked up / cascade-deleted by userId.
+    userIdIdx: index("sessions_user_id_idx").on(t.userId),
+  }),
+);
 
 export const verificationTokens = pgTable(
   "verification_tokens",

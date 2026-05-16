@@ -22,5 +22,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".next"]
+  // Do NOT exclude `.next` — `include` pulls in .next/types/**/*.ts
+  // (Next-generated route + PageProps types). Excluding .next would filter
+  // those back out and weaken type-checking. Only node_modules is excluded.
+  "exclude": ["node_modules"]
 }

@@ -34,8 +34,8 @@
   --bec-radius-lg: 12px;
   --bec-radius-xl: 16px;
 
-  --bec-font-heading: Inter, system-ui, sans-serif;
-  --bec-font-body: Inter, system-ui, sans-serif;
+  --bec-font-heading: "Inter", system-ui, sans-serif;
+  --bec-font-body: "Inter", system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: light) {
