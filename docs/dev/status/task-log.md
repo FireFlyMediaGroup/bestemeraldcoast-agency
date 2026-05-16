@@ -283,6 +283,20 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: **Phase 1 / Commit 1.7 — Mobile `/m` route — basic shell.** Branch `phase-1/commit-1.7-mobile-shell` cut from `7bab3e1`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
 - Notes: The Leads view is the first read-UI consumer of agent-API-populated data; the operator transition path deliberately does NOT use the Bearer agent API (it's the authed operator surface gated by the `auth.ts` allow-list). CodeRabbit never reviewed this PR — acceptable under the advisory policy; the structural correctness (race-safe transition mirrors the unit-of-work the agent route already proved) plus type-check is the standing local signal.
 
+## 2026-05-16 — Phase 1 / Commit 1.7 — Mobile `/m` route — basic shell
+
+- Branch: phase-1/commit-1.7-mobile-shell
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/18
+- Merge SHA: 8e4ee581389a2804519a1de992b73de2a8baaeb9
+- CodeRabbit: advisory (no blocking action taken regardless of state — standing policy). cubic-dev-ai check NEUTRAL at merged HEAD; no inline findings.
+- CI on PR #18: `lint` + `type-check` + `unit-tests` all SUCCESS; Vercel Preview SUCCESS. Auto-merge armed at open, fired on the last required check green (Pass-2 natural gate).
+- ADRs touched: implements ADR-036 + Apple HIG (44pt taps, `env()` safe-area insets, modal sheets for compose, dark default, `viewport-fit=cover`, `apple-mobile-web-app-capable`, manifest). No ADR text changes. No new env, no schema, no auth surface (mobile shell nests inside the existing `(app)` guarded route group).
+- Acceptance evidence: master plan "Add-to-home-screen works on iPhone / no Safari chrome / all five tabs reachable" — the device-observable parts (PWA install, standalone chrome-less launch) are operator-gated on the Vercel deploy; locally-provable parts all green: all five routes resolve under `(app)/m/{,leads,replies,articles,metrics}`, `app/manifest.ts` serves `/manifest.webmanifest` (display:standalone, start_url /m), `appleWebApp` meta + icon links wired, type-check 48/48 workspace.
+- Validation: `pnpm turbo lint type-check test:unit` → 48/48. `next build` Vercel-authoritative (OOM-bound locally).
+- Files changed: 13. `apps/ops-console/app/manifest.ts` (Next metadata manifest), `public/icon.svg` (PWA icon), `app/layout.tsx` (appleWebApp + icon metadata), `app/(app)/m/layout.tsx` (shell column + sticky nav), `_components/bottom-nav.tsx` (client, 5 tabs, usePathname, ≥44pt, safe-area), `_components/sheet.tsx` (reusable modal bottom sheet — Escape/backdrop/scroll-lock/safe-area), `_components/placeholder.tsx`, five tab `page.tsx` (Home/Leads/Replies/Articles/Metrics), `replies/compose-reply.tsx` (client Compose → Sheet, the HIG "modal sheets for compose" requirement).
+- Next commit queued: **Phase 1 / Commit 1.8 — Agent runtime: Scout.** Branch `phase-1/commit-1.8-agent-scout` cut from `8e4ee58`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
+- Notes: iOS Apple-touch-icon wants a raster PNG (SVG ships for Chrome/Android + favicon); generating a PNG in-loop isn't feasible, so a 180×180 `app/apple-icon.png` is an operator pre-flight item (Add-to-home-screen still works without it — glyph falls back to a page snapshot). Bottom-nav `_components` uses Next's private-folder underscore so it's non-routable. cubic NEUTRAL; CodeRabbit not consulted (advisory) — type-check + structural routing is the standing local signal for a UI-shell commit.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
