@@ -4,55 +4,50 @@
 
 ---
 
-## 🔴 Security action (still open)
+## ⛔ Loop status: BLOCKED at the Phase 1 ADR-035 quality gate
 
-- **Rotate the Neon `neondb_owner` password.** A shell `.env` sourcing during the Commit 1.4 DB verification echoed the connection string into command output. Rotate in Neon → update `.env` (`DATABASE_URL` + `DATABASE_URL_UNPOOLED`) → update the `BEC-Production` 1Password item. Dev branch, low real-world risk, but rotate on principle.
+All Phase 1 implementation is merged (**Commits 1.1–1.11, PRs #3–#22**). The
+autonomous loop has completed everything code/CI-provable and **must not
+open Phase 2** until this gate passes (ADR-035 non-negotiable: gates are not
+skipped to make progress). The remaining work is operator/infra/human and
+cannot be done or self-certified by the loop. Gate status detail is the
+`PHASE 1 GATE — STATUS` entry in `task-log.md`.
 
-## Operator Pre-Flight
+## 🔴 Security action (do this first; still open)
 
-**Repo:** https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency
-**Runbooks:** [`secrets-setup.md`](../../runbooks/secrets-setup.md) · [`storybook-deploy.md`](../../runbooks/storybook-deploy.md) · [`ops-console-deploy.md`](../../runbooks/ops-console-deploy.md)
+- **Rotate the Neon `neondb_owner` password.** A shell `.env` sourcing during the Commit 1.4 DB verification echoed the connection string. Rotate in Neon → update `.env` (`DATABASE_URL` + `DATABASE_URL_UNPOOLED`) → update the `BEC-Production` 1Password item.
 
-- [x] Phase 0 ADR-035 gate passed; 1Password + Vercel Pro + Storybook + Neon/Turbo GH secrets done.
-- [x] Commit 1.1/1.2 live-verified; Pass-2 LIVE; CodeRabbit-advisory proven across PRs #17–#21.
-- [ ] **Rotate Neon password** (security action above).
-- [ ] **Run `db:migrate` + `db:seed` for the editorial-rotation tables** (Commit 1.10) against the Neon dev branch — operator-gated (ADR-038). The seed tail prints `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5` — capture as evidence.
-- [ ] **Deploy `bec-ops-console` to Vercel + verify Resend domain** — unblocks device/runtime acceptance for Commits 1.4–1.11 (incl. the new `/api/agent/pipeline-signals` endpoint Scout/Diagnoser POST to).
-- [ ] **Provision Upstash Redis** + set `UPSTASH_REDIS_REST_URL` / `_TOKEN`.
-- [ ] **Set `GOOGLE_MAPS_API_KEY` / `AGENT_API_KEY` / `OPS_CONSOLE_URL` / `DATABASE_URL_UNPOOLED`** in the agent runtime env.
-- [ ] Add a 180×180 `apps/ops-console/app/apple-icon.png` (1.7 follow-up; non-blocking).
-- [ ] (Optional) Promote `CodeRabbit` to a required check only if reliability is fixed.
+## Operator action list to clear the Phase 1 gate
+
+Ordered so each step unblocks the next:
+
+1. **Provision Neon via Vercel; verify prod + preview branches** (gate box 1). Confirm `DATABASE_URL` / `DATABASE_URL_UNPOOLED` for each environment land in `.env` + 1Password (`BEC-Production`).
+2. **Run the live DB bring-up against the Neon dev branch** (gate boxes 3–8): `pnpm --filter @bec/db db:migrate` then `pnpm --filter @bec/db db:seed`. Capture the seed tail line `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5` and the per-table "rows attempted" counts (8 sites / 10 niches / 30 mappings / 120 weights / 8 events) as gate evidence. (ADR-038: needs `PROD_DB_ALLOWED`-style opt-in only if pointing at non-dev; dev branch is fine.)
+3. **Deploy `bec-ops-console` to `ops.bestemeraldcoast.com`** per `runbooks/ops-console-deploy.md`; verify the Resend sending domain; set Vercel env: `OPERATOR_EMAIL`, `AGENT_API_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `GOOGLE_MAPS_API_KEY`, `OPS_CONSOLE_URL` (= the deployed URL), DB URLs. (Gate boxes 9.)
+4. **Log in on iPhone Safari** via the magic link; confirm no bugs; add to Home Screen and confirm chrome-less standalone launch (closes Commit 1.4 + 1.7 device acceptance; gate box 10). *(Drop a 180×180 `apps/ops-console/app/apple-icon.png` first if you want a branded glyph — optional.)*
+5. **Run Scout**: `claude /scout pensacola charter fishing` (agent env: `GOOGLE_MAPS_API_KEY`, `AGENT_API_KEY`, `OPS_CONSOLE_URL`, `DATABASE_URL_UNPOOLED`). Confirm ≥10 `leads` rows + matching `pipeline_signals` (`lead_added`) rows; daily cap respected (gate boxes 11, 12).
+6. **Run Diagnoser**: `/diagnose-pending`. Confirm a ~50-word diagnosis per lead + `pipeline_signals` (`diagnosis_done`) rows; spot-check the `GET /api/agent/pipeline-signals?niche=charter_fishing&since=<14d-ago>` trailing query (gate boxes 13, 14).
+7. **External blind validation** (gate box 15): show 3 peers 5 random Diagnoser `summary` outputs blind; record ≥3/5 "human". If it fails, that is a Diagnoser-prompt iteration (ADR-019 `version: 2` + adr-log note) — a real loop task, *not* a gate skip.
+8. **Run one restore drill** (ADR-006, gate box 17): restore the Neon backup to a scratch branch, verify row counts, document the runbook timing.
+
+When all boxes are green: replace the `PHASE 1 GATE — STATUS` entry in
+`task-log.md` with `## <date> — PHASE 1 GATE PASSED` (paste the fully-checked
+checklist), then set this file's Current Step to **Phase 2 / Commit 2.1** and
+the loop resumes.
 
 ## Current Step
 
-- **Phase:** 1 — Database, Ops Console, Lead Pipeline.
-- **Commit:** **1.11 — Pipeline signal capture** (this branch: `phase-1/commit-1.11-pipeline-signal-capture`).
-- **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 → Commit 1.11 + § Pipeline signal capture / signal-weight table (ADR-040).
-- **ADRs:** ADR-040 (pipeline_signals event log feeds the Curator), ADR-003 (agents write only via the Bearer agent API), ADR-017 (the new endpoint inherits the shared rate-limiter via `agentRoute`), ADR-018 (unchanged). No ADR text changes.
-- **Status:** branch cut from `3a693f5`; bookkeeping (this rewrite + the Commit 1.10 task-log entry) lands first, then the endpoint + agent-prompt updates.
+- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — blocked on the operator action list above.**
+- **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 quality gate.
+- **Do NOT:** start Phase 2 / Commit 2.1, or mark the gate passed, until the operator closes the items and records `PHASE 1 GATE PASSED`.
 
-## What Commit 1.11 must ship
+## Next Step After the Gate Passes
 
-Per master plan § Commit 1.11:
-
-> Update Scout + Diagnoser (and prepare hooks for Builder/Filmer/Pitcher/inbound — Phase 2-5) to write `pipeline_signals` rows alongside their work. Add agent-API `POST /pipeline-signals` and `GET /pipeline-signals?niche=&city=&since=`. Signal types + strengths per the spec table.
-
-**Acceptance**: Running Scout on a sample query produces matching `pipeline_signals` rows. The trailing-14-day query returns expected signals. Pipeline data accumulates through Phase 1→5; Curator (Phase 6) launches against 8-12 weeks of real data.
-
-Implementation notes:
-- New `apps/ops-console/app/api/agent/pipeline-signals/route.ts` — `POST` + `GET`, both wrapped by the shared `agentRoute` (Bearer auth + ADR-017 limiter + ADR-012 error capture), identical pattern to the other agent endpoints.
-- **Strength is canonical/server-side** (`SIGNAL_STRENGTHS` map = the spec table) — the client only names the `signalType`; a misbehaving agent can't poison Curator scoring. The enum already includes the future Builder/Filmer/Pitcher/inbound/Calendly signal types, so the "prepare hooks" ask = those agents just POST the same endpoint when they land (no schema change later).
-- `GET` requires `niche`; `city` + `since` optional; `since` is the Curator's trailing-window cursor (typically now−14d). Returns `{ signals, count }`.
-- Scout (`5b`) + Diagnoser (`6b`) prompts: after the lead create / diagnosis, POST one signal (`lead_added`/`diagnosis_done`), resolving the free-text niche to a real `niches.id` via `mcp__postgres-ro` (FK-constrained — skip the signal, never the lead, if the niche isn't one of the 10). Signal failure must not fail the primary work.
-- Live acceptance (Scout run → signal rows; trailing-14d GET) is operator/runtime-gated (deployed agent API + DB); locally-provable: route type-checks under `agentRoute`, prompts reference the endpoint correctly, `pnpm turbo` 48/48.
-
-## Next Commit After This
-
-- **Phase 1 quality gate (ADR-035)** — the Phase 1 acceptance checklist must be 100% green before Phase 2 opens. (Several boxes are operator/deploy-gated; the gate entry will record status + any deferrals.)
+- **Phase 2 / Commit 2.1** (Outreach + Editorial Foundation — Pitcher/Checker/Editor; see `MASTER-bec-project-plan.md` § Phase 2).
 
 ## Handoff Notes
 
-- Master ADR + master plan are source of truth. CodeRabbit-advisory standing; follow `RALPH-LOOP.md` 7b–7e.
-- Commit 1.11 mixes app code (the endpoint — `type-check` is the load-bearing local gate) + prompt edits. `next build` Vercel-authoritative.
-- After 1.11 the next loop step is the **Phase 1 ADR-035 quality gate**, not a Commit 1.12 — read the gate checklist in the project plan and record it in `task-log.md` as a `PHASE 1 GATE` entry (do not skip per ADR-035; deferrable items get explicit operator-gated notes).
+- Master ADR + master plan are source of truth. CodeRabbit-advisory standing; `RALPH-LOOP.md` 7b–7e. The policy held cleanly for 6 consecutive PRs (#17–#22) — zero per-PR operator decisions.
+- The loop is at a legitimate operator-gated stop. This is **not** a failure — it is the ADR-035 design: implementation is exhausted; deploy + live-agent + human-eval + DR are operator responsibilities.
+- If the operator wants the loop to keep producing value while the gate is open, the only ADR-035-safe options are: (a) Diagnoser-prompt quality iteration ahead of the blind test, or (b) operator explicitly authorizes starting Phase 2 prep at their own risk (a documented gate exception in `adr-log.md`). Default: wait.
 - Operator's parked Phase-0 Storybook/Vercel WIP stays unstaged across branches.

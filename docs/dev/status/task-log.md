@@ -339,6 +339,20 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: **Phase 1 / Commit 1.11 — Pipeline signal capture.** Branch `phase-1/commit-1.11-pipeline-signal-capture` cut from `3a693f5`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
 - Notes: Qualitative niche values mapped to 0-100 (Very high 90 / High 80 / Medium-high 65 / Medium 50 / Low-medium 35 / Low 20). Premium archetype excludes HVAC + auto detailing (isExcluded rows carry a placeholder primaryCategorySlug). Season events seeded with representative 2026 dates; the resolver compares month/day year-agnostically so it works for any query year. The `season_events.name` unique index is a deliberate spec-superset addition (the spec lists no natural key) solely to keep the seed idempotent like every other table.
 
+## 2026-05-16 — Phase 1 / Commit 1.11 — Pipeline signal capture
+
+- Branch: phase-1/commit-1.11-pipeline-signal-capture
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/22
+- Merge SHA: da475e6dc1f0f87c09c86acb7e7ac5de5e614b0d
+- CodeRabbit: advisory (standing policy). cubic-dev-ai check NEUTRAL at merged HEAD.
+- CI on PR #22: `lint` + `type-check` + `unit-tests` all SUCCESS; Vercel Preview SUCCESS. Auto-merge fired on the Pass-2 natural gate.
+- ADRs touched: implements ADR-040 (pipeline_signals event log), ADR-003 (agents write only via the Bearer agent API), ADR-017 (new endpoint inherits the shared limiter via `agentRoute`), ADR-012 (error capture via `agentRoute`). No ADR text changes.
+- Acceptance evidence: master plan "Scout run → matching pipeline_signals; trailing-14d GET returns expected" is operator/runtime-gated (deployed agent API + DB). Locally-provable green: the POST+GET route type-checks under `agentRoute`; Scout `5b` / Diagnoser `6b` reference the endpoint with FK-safe niche resolution; `pnpm turbo` 48/48.
+- Validation: `pnpm turbo lint type-check test:unit` → 48/48.
+- Files changed: 3. New `apps/ops-console/app/api/agent/pipeline-signals/route.ts` (POST canonical-strength + GET ?niche=&city=&since=, both Bearer/limiter/error-wrapped); `agency/.claude/agents/scout.md` (+5b lead_added signal) and `diagnoser.md` (+6b diagnosis_done signal), niche resolved to a real `niches.id` via postgres-ro, signal failure non-fatal.
+- Next loop step: **Phase 1 ADR-035 quality gate** (NOT a Commit 1.12 — Phase 1 has no further implementation commits).
+- Notes: Strength is server-canonical (`SIGNAL_STRENGTHS` = spec table); the enum already carries the future Builder/Filmer/Pitcher/inbound/Calendly signal types so those agents need no schema change when they land (the "prepare hooks" ask). All Phase 1 implementation commits (1.1–1.11) are now merged.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
@@ -348,4 +362,45 @@ Each phase gate (per ADR-035) is a special entry:
 - Next phase opens: Phase X+1 / Commit X+1.1
 ```
 
-<!-- The first phase gate entry will land after all Phase 0 commits are shipped and the Phase 0 ADR-035 checklist is fully green. -->
+## 2026-05-16 — PHASE 1 GATE — STATUS: NOT PASSED (blocked on operator actions)
+
+Per ADR-035 a gate is acceptance criteria, not aspiration, and must not be
+skipped "to make progress." All Phase 1 *implementation* is merged
+(Commits 1.1–1.11, PRs #3–#22); the autonomous loop has done everything
+code/CI-provable. The remaining boxes are inherently operator/infra/human
+actions the loop cannot perform or self-certify. **Phase 2 does NOT open
+until the operator closes these and this entry is replaced with
+`PHASE 1 GATE PASSED`.**
+
+Checklist status (master plan § Phase 1 quality gate, 17 boxes):
+
+- ✅ **Migrations forward/backward** — CI migration-test workflow runs
+  0000–0003 forward + idempotent + rollback on a per-PR ephemeral Neon
+  branch; 32-table canonical set asserted (test-migrations.ts). Green on #22.
+- ✅ **All Phase 1 unit tests pass on CI** — lint/type-check/unit-tests
+  green on every PR (@bec/logger 20/20 + @bec/config 16/16 are the real
+  suites; @bec/db / @bec/ops-console test:unit are intentional noops).
+- ✅ **Schema: all 32 tables creatable** — proven by the migration test.
+- 🟡 **Seed completeness (code, not live run)** — `seed.ts` is complete +
+  idempotent for 8 sites, 10 niches, 30 niche-category mappings, 120
+  season weights, 8 season events, authors, 9 agent budgets, and asserts
+  `getSeasonalWeight('charter_fishing', 2026-06-15) === 1.5`. The **live
+  `db:seed` run is operator-gated** (ADR-038) — pending evidence capture.
+- 🔴 **Neon provisioned via Vercel; prod+preview branches verified** — operator infra.
+- 🔴 **Ops-console deployed to ops.bestemeraldcoast.com + magic link** — operator (Vercel + Resend domain).
+- 🔴 **Operator login on iPhone Safari** — operator/device.
+- 🔴 **Scout writes ≥10 leads on a sample query** — operator/runtime (needs deploy + `GOOGLE_MAPS_API_KEY` + `AGENT_API_KEY`). Code complete (Commit 1.8).
+- 🔴 **Scout writes pipeline_signals** — runtime-gated; code complete (1.11).
+- 🔴 **Diagnoser 50-word diagnosis per lead** — runtime-gated; code complete (1.9).
+- 🔴 **Diagnoser writes pipeline_signals** — runtime-gated; code complete (1.11).
+- 🔴 **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study.
+- 🔴 **One restore drill (ADR-006)** — operator-run DR exercise.
+
+Summary: 3 boxes fully green (CI-proven), 1 yellow (seed code complete,
+live run operator-gated), the rest red and operator-gated. The loop is
+**correctly blocked here** — proceeding into Phase 2 would violate the
+ADR-035 non-negotiable. See `next-step.md` for the operator action list.
+
+<!-- Replace with `## YYYY-MM-DD — PHASE 1 GATE PASSED` once the operator
+closes the 🔴/🟡 items and pastes the fully-checked checklist. -->
+
