@@ -172,6 +172,29 @@ atomically. Responses to handle:
 - `401` → bad/missing `AGENT_API_KEY`: stop, finalize `failed`.
 - `429` → ADR-017 rate limit: brief backoff, then resume.
 
+### 6b. Record a pipeline signal (ADR-040)
+
+Only if the transition succeeded, POST one editorial-rotation signal:
+
+`POST ${OPS_CONSOLE_URL}/api/agent/pipeline-signals`
+
+```json
+{
+  "nicheId": "<canonical niches.id>",
+  "city": "<business city>",
+  "signalType": "diagnosis_done",
+  "leadId": "<this lead id>"
+}
+```
+
+Do **not** send a strength — the endpoint sets it canonically
+(diagnosis_done = 15). `nicheId` must be a real `niches.id`, not free text:
+resolve the business's niche against `select id, display_name from niches`
+(via `mcp__postgres-ro`) and use the closest match. If the niche isn't one
+of the 10 priority niches, **skip the signal** (FK-constrained); the
+diagnosis still stands. A signal failure must not fail the lead — log and
+continue to finalize.
+
 ### 7. Finalize the run (always)
 
 `POST ${OPS_CONSOLE_URL}/api/agent/agent-runs/<runId>/finalize`:

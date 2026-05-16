@@ -174,6 +174,31 @@ Increment your `leadsAdded` counter; stop creating leads the moment
 `leadsAdded` would reach `remaining_leads`. Businesses scoring < 60, or
 skipped per ADR-031, are recorded (scanned) but get no lead.
 
+### 5b. Record a pipeline signal (ADR-040)
+
+Immediately after a lead is created, POST one editorial-rotation signal:
+
+`POST ${OPS_CONSOLE_URL}/api/agent/pipeline-signals`
+
+```json
+{
+  "nicheId": "<canonical niches.id>",
+  "city": "<derived city>",
+  "signalType": "lead_added",
+  "leadId": "<lead id from step 5>"
+}
+```
+
+Do **not** send a strength — the endpoint sets it canonically (lead_added =
+10) from the spec table. `nicheId` is **not** the free-text query niche; it
+must be a real `niches.id`. Resolve it once per run via `mcp__postgres-ro`:
+`select id, display_name from niches`, then match the parsed query niche to
+the closest row (e.g. "charter fishing" → `charter_fishing`). If nothing
+matches the 10 priority niches, **skip the signal** (the column is
+FK-constrained — a non-existent niche id would error); the lead itself still
+stands. A failed/again-skipped signal must not abort lead processing — log
+it and continue.
+
 ### 6. Finalize the run (always)
 
 Whether the run completes, hits a cap, or errors, `POST
