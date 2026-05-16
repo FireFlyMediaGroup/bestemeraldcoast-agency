@@ -18,3 +18,11 @@ export { getDb, schema, type Database } from "./client.js";
 // through @bec/db guarantees a single drizzle-orm identity across the
 // monorepo. Add more here as query needs grow.
 export { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+
+// ADR-040 editorial rotation: seasonal-weight resolution (Commit 1.10).
+export {
+  computeSeasonalWeight,
+  getSeasonalWeight,
+  type SeasonWeightRow,
+  type SeasonEventRow,
+} from "./season.js";

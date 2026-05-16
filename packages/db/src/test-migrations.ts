@@ -62,7 +62,9 @@ const MIGRATIONS_FOLDER = path.join(here, "..", "migrations");
 // that add/remove a table MUST update this list — the assertion is designed
 // to loud-fail on drift so the canonical set gets deliberate review.
 // Currently: 0000_worthless_falcon (23 domain tables) + 0001_previous_rhino
-// (4 Auth.js tables for Commit 1.4's magic-link auth) = 27.
+// (4 Auth.js tables for Commit 1.4's magic-link auth) + 0003_damp_the_call
+// (5 ADR-040 editorial-rotation tables for Commit 1.10) = 32.
+// (0002_wide_forge added FK indexes only — no tables.)
 const EXPECTED_TABLES = [
   "accounts",
   "agent_budgets",
@@ -82,9 +84,14 @@ const EXPECTED_TABLES = [
   "leads",
   "newsletter_issues",
   "newsletter_sends",
+  "niche_category_map",
+  "niches",
   "outreach_messages",
+  "pipeline_signals",
   "project_tasks",
   "projects",
+  "season_events",
+  "season_weights",
   "sessions",
   "sites",
   "sponsorships",
