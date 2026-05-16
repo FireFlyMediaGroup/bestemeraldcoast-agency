@@ -10,3 +10,11 @@
 // source) and at runtime (via `default` pointing at compiled `dist/`).
 
 export { getDb, schema, type Database } from "./client.js";
+
+// Re-export the drizzle operators consumers need so they bind to @bec/db's
+// own drizzle-orm instance. Importing `eq`/`and`/etc. from a consumer
+// package's own drizzle-orm produces a structurally-incompatible `PgColumn`
+// type vs. the schema's (TS2769 "no overload matches"); funnelling them
+// through @bec/db guarantees a single drizzle-orm identity across the
+// monorepo. Add more here as query needs grow.
+export { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
