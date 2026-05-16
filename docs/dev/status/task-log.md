@@ -311,6 +311,20 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: **Phase 1 / Commit 1.9 — Agent runtime: Diagnoser.** Branch `phase-1/commit-1.9-agent-diagnoser` cut from `82366fd`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
 - Notes: The commit prompt said "fetch business detail from API" but the Commit-1.5 surface is **POST/PATCH-only (no GET)** — reads go through the read-only Postgres MCP per ADR-003 (same pattern as Scout's cap reads). Operator pre-flight gained `GOOGLE_MAPS_API_KEY` / `AGENT_API_KEY` / `OPS_CONSOLE_URL`; ADR-038 schema add for `GOOGLE_MAPS_API_KEY` deferred to when agent-runtime app code lands (1.8 ships no `@bec/config`-touching code).
 
+## 2026-05-16 — Phase 1 / Commit 1.9 — Agent runtime: Diagnoser
+
+- Branch: phase-1/commit-1.9-agent-diagnoser
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/20
+- Merge SHA: 33a1e7b02b0d3c2ed928cdcab9acda688fdc7ea1
+- CodeRabbit: advisory (standing policy). cubic-dev-ai check NEUTRAL at merged HEAD.
+- CI on PR #20: `lint` + `type-check` + `unit-tests` all SUCCESS; Vercel Preview SUCCESS. Auto-merge fired on the Pass-2 natural gate.
+- ADRs touched: implements ADR-019 (`version: 1` frontmatter), ADR-003 (read via read-only Postgres MCP — no GET API; write only via the Bearer `PATCH`), ADR-018 (`agent_runs` logging), ADR-035 (Diagnoser daily cap 30), **ADR-034 (created the two canonical rubric files** `agency/.claude/rubrics/copy-quality.md` + `banned-phrases.md` — previously only `.gitkeep`; ADR-034 mandates them as the single source referenced by Diagnoser now / Checker+Editor later). No ADR text changes; no schema; no app code.
+- Acceptance evidence: master plan "10 leads → 10 diagnoses, ≥7/10 sound human" is operator-judged + runtime-gated (needs deployed agent API). Locally-provable parts green: `diagnoser.md` valid `version: 1` frontmatter, rubric files present, `/diagnose` + `/diagnose-pending` delegate correctly, payloads verified against the Commit-1.5 `PatchLead` schema (`changedBy` required; `new → diagnosed` valid; `diagnosis`/`offer` are `z.record`). `pnpm turbo` 48/48 FULL TURBO (no workspace code).
+- Validation: `pnpm turbo lint type-check test:unit` → 48/48. Artifact frontmatter + delegation verified by inspection.
+- Files changed: 5. `agency/.claude/rubrics/copy-quality.md`, `agency/.claude/rubrics/banned-phrases.md`, `agency/.claude/agents/diagnoser.md` (v1: read lead+business via postgres-ro → checklist eval → ~50-word consultant-voice summary under ADR-034 → tiered Offer by gap_score → PATCH→`diagnosed` → finalize), `agency/.claude/commands/diagnose.md`, `agency/.claude/commands/diagnose-pending.md`.
+- Next commit queued: **Phase 1 / Commit 1.10 — Editorial rotation foundation schema.** Branch `phase-1/commit-1.10-editorial-rotation-schema` cut from `33a1e7b`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
+- Notes: Decision to create the ADR-034 rubric files in 1.9 (not defer) — the commit prompt says "apply the ADR-034 copy rubric," which requires the rubric to exist as a referenceable single-source artifact rather than be inline-duplicated in the prompt. cubic NEUTRAL; CodeRabbit not consulted (advisory) — artifact validity + schema-accuracy review is the standing local signal for prompt-config commits.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:

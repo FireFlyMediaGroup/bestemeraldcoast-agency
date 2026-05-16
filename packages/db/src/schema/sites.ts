@@ -29,6 +29,10 @@ export const sites = pgTable("sites", {
   ogImageUrl: text("og_image_url"),
   faviconUrl: text("favicon_url"),
   sendingFromName: text("sending_from_name"), // e.g. 'Pensacola Weekly'
+  // ADR-040 editorial rotation: per-site weekly article floor/ceiling the
+  // Curator's brief-queue generator targets (master plan Commit 1.10).
+  minimumWeeklyArticles: integer("minimum_weekly_articles").default(2),
+  maximumWeeklyArticles: integer("maximum_weekly_articles").default(3),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

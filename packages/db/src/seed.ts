@@ -32,6 +32,7 @@ import dotenv from "dotenv";
 // must wait until after dotenv has populated process.env.
 import * as schema from "./schema/index.js";
 import type { SiteTheme } from "./schema/types.js";
+import { computeSeasonalWeight } from "./season.js";
 
 // Load `.env` from the repo root BEFORE importing @bec/db's client — it
 // reaches into @bec/config's validated serverEnv at module load and would
@@ -322,6 +323,133 @@ const agentBudgetsSeed = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────
+// Editorial rotation (ADR-040) — Commit 1.10.
+//
+// All values transcribed from the master plan's Editorial Rotation
+// Specification (priority-niche profile table, niche-category-archetype
+// mapping, seasonal weight table, named seasonal events). Qualitative
+// commercial/editorial labels map to a 0-100 scale:
+//   Very high 90 · High 80 · Medium-high 65 · Medium 50 · Low-medium 35 · Low 20
+// ─────────────────────────────────────────────────────────────────────
+
+interface NicheSeed {
+  id: string;
+  displayName: string;
+  commercialValue: number;
+  editorialValue: number;
+  primaryArchetypes: Archetype[];
+  excludedArchetypes: Archetype[];
+  notes: string;
+}
+
+const nichesSeed: NicheSeed[] = [
+  { id: "charter_fishing", displayName: "Charter fishing", commercialValue: 80, editorialValue: 65, primaryArchetypes: ["coastal"], excludedArchetypes: [], notes: "Peak May-Sep; bookings-driven" },
+  { id: "wedding_venues", displayName: "Wedding venues", commercialValue: 80, editorialValue: 80, primaryArchetypes: ["premium", "coastal"], excludedArchetypes: [], notes: "Peak Apr-Jun + Oct; high LTV" },
+  { id: "vacation_rental_managers", displayName: "Vacation rental managers", commercialValue: 80, editorialValue: 50, primaryArchetypes: ["magazine", "coastal", "premium"], excludedArchetypes: [], notes: "Year-round; multi-property accounts" },
+  { id: "boutique_hotels", displayName: "Boutique hotels", commercialValue: 80, editorialValue: 65, primaryArchetypes: ["premium", "coastal"], excludedArchetypes: [], notes: "Year-round; high touch" },
+  { id: "seafood_restaurants", displayName: "Seafood restaurants", commercialValue: 50, editorialValue: 90, primaryArchetypes: ["magazine", "coastal", "premium"], excludedArchetypes: [], notes: "Year-round; biggest traffic driver" },
+  { id: "dental_practices", displayName: "Dental practices", commercialValue: 80, editorialValue: 35, primaryArchetypes: ["magazine"], excludedArchetypes: [], notes: "Year-round; family-focused content" },
+  { id: "hvac_contractors", displayName: "HVAC / contractors", commercialValue: 65, editorialValue: 20, primaryArchetypes: ["magazine"], excludedArchetypes: ["premium"], notes: "Seasonal demand; service-emergency content" },
+  { id: "salon_spa", displayName: "Salon / spa", commercialValue: 50, editorialValue: 50, primaryArchetypes: ["premium", "coastal"], excludedArchetypes: [], notes: "Wedding tie-in; lifestyle content" },
+  { id: "landscaping", displayName: "Landscaping", commercialValue: 50, editorialValue: 20, primaryArchetypes: ["magazine"], excludedArchetypes: [], notes: "Spring peak; visual-friendly" },
+  { id: "auto_detailing", displayName: "Auto detailing", commercialValue: 35, editorialValue: 20, primaryArchetypes: ["magazine"], excludedArchetypes: ["premium"], notes: "Year-round; underserved niche" },
+];
+
+// niche → category slug per archetype (spec § Niche-category-archetype
+// mapping). Premium excludes HVAC + auto detailing entirely (wrong voice
+// fit); excluded rows still need a notNull primaryCategorySlug, so they
+// carry a placeholder + isExcluded=true (readers gate on isExcluded).
+interface NCMEntry {
+  primary: string;
+  secondary?: string;
+  excluded?: boolean;
+}
+const nicheCategoryByArchetype: Record<Archetype, Record<string, NCMEntry>> = {
+  magazine: {
+    charter_fishing: { primary: "things-to-do" },
+    wedding_venues: { primary: "local-business" },
+    vacation_rental_managers: { primary: "stay" },
+    boutique_hotels: { primary: "stay" },
+    seafood_restaurants: { primary: "eat-drink" },
+    dental_practices: { primary: "local-business" },
+    hvac_contractors: { primary: "local-business" },
+    salon_spa: { primary: "local-business" },
+    landscaping: { primary: "local-business" },
+    auto_detailing: { primary: "local-business" },
+  },
+  coastal: {
+    charter_fishing: { primary: "charters-boats" },
+    wedding_venues: { primary: "events" },
+    vacation_rental_managers: { primary: "stay" },
+    boutique_hotels: { primary: "stay" },
+    seafood_restaurants: { primary: "eat-drink" },
+    dental_practices: { primary: "lifestyle" },
+    hvac_contractors: { primary: "lifestyle" },
+    salon_spa: { primary: "lifestyle" },
+    landscaping: { primary: "lifestyle" },
+    auto_detailing: { primary: "lifestyle" },
+  },
+  premium: {
+    charter_fishing: { primary: "restaurants-bars", secondary: "stays-homes" },
+    wedding_venues: { primary: "weddings-events" },
+    vacation_rental_managers: { primary: "stays-homes" },
+    boutique_hotels: { primary: "stays-homes" },
+    seafood_restaurants: { primary: "restaurants-bars" },
+    dental_practices: { primary: "wellness-beauty" },
+    hvac_contractors: { primary: "style-design", excluded: true },
+    salon_spa: { primary: "wellness-beauty" },
+    landscaping: { primary: "style-design" },
+    auto_detailing: { primary: "style-design", excluded: true },
+  },
+};
+
+// Seasonal weight table — 12 monthly multipliers per niche (Jan→Dec).
+const seasonWeightByNiche: Record<string, number[]> = {
+  charter_fishing: [0.6, 0.7, 1.0, 1.3, 1.5, 1.5, 1.5, 1.4, 1.3, 1.1, 0.7, 0.6],
+  wedding_venues: [0.8, 0.9, 1.2, 1.5, 1.5, 1.4, 0.9, 0.9, 1.0, 1.4, 1.0, 0.8],
+  vacation_rental_managers: [1.2, 1.3, 1.4, 1.2, 1.0, 1.1, 1.2, 1.1, 0.9, 0.9, 1.0, 1.3],
+  boutique_hotels: [1.0, 1.1, 1.3, 1.2, 1.1, 1.1, 1.2, 1.1, 0.9, 1.0, 0.9, 1.0],
+  seafood_restaurants: [0.9, 0.9, 1.2, 1.3, 1.2, 1.2, 1.3, 1.2, 1.0, 1.2, 1.0, 1.0],
+  dental_practices: [1.1, 1.0, 1.0, 1.0, 0.9, 0.9, 1.0, 1.1, 1.1, 1.0, 1.0, 1.1],
+  hvac_contractors: [1.2, 1.1, 1.0, 0.9, 1.0, 1.3, 1.4, 1.3, 1.0, 0.9, 1.0, 1.1],
+  salon_spa: [1.0, 1.1, 1.3, 1.4, 1.3, 1.2, 1.0, 1.0, 1.0, 1.2, 1.1, 1.1],
+  landscaping: [0.7, 0.8, 1.4, 1.5, 1.4, 1.2, 1.0, 1.0, 1.0, 1.1, 0.9, 0.7],
+  auto_detailing: [0.9, 0.9, 1.1, 1.2, 1.1, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.9],
+};
+
+// "All tourism niches" set (Memorial Day weekend boost) — the visitor-facing
+// niches, per the spec's intent.
+const TOURISM_NICHES = [
+  "charter_fishing",
+  "wedding_venues",
+  "vacation_rental_managers",
+  "boutique_hotels",
+  "seafood_restaurants",
+  "salon_spa",
+];
+
+// Named season events. Stored with representative 2026 dates; the resolver
+// (`computeSeasonalWeight`) compares month/day year-agnostically.
+interface SeasonEventSeed {
+  name: string;
+  startDate: string;
+  endDate: string;
+  boostedNicheIds: string[];
+  multiplier: string;
+  notes: string;
+}
+const seasonEventsSeed: SeasonEventSeed[] = [
+  { name: "Spring break", startDate: "2026-03-01", endDate: "2026-04-15", boostedNicheIds: ["seafood_restaurants", "charter_fishing", "vacation_rental_managers"], multiplier: "1.6", notes: "Restaurants, Charters, VRMs" },
+  { name: "Wedding peak", startDate: "2026-04-15", endDate: "2026-06-15", boostedNicheIds: ["wedding_venues", "salon_spa", "boutique_hotels"], multiplier: "1.8", notes: "Wedding venues, Salon/spa, Hotels" },
+  { name: "Memorial Day weekend", startDate: "2026-05-23", endDate: "2026-05-27", boostedNicheIds: TOURISM_NICHES, multiplier: "1.4", notes: "All tourism niches" },
+  { name: "July 4 week", startDate: "2026-06-30", endDate: "2026-07-07", boostedNicheIds: ["seafood_restaurants", "charter_fishing"], multiplier: "1.5", notes: "Restaurants, Charters" },
+  { name: "Destin Seafood Festival", startDate: "2026-10-10", endDate: "2026-10-20", boostedNicheIds: ["seafood_restaurants", "charter_fishing"], multiplier: "1.7", notes: "Mid-October; Restaurants, Charters" },
+  { name: "Fall wedding", startDate: "2026-09-15", endDate: "2026-11-01", boostedNicheIds: ["wedding_venues"], multiplier: "1.5", notes: "Wedding venues" },
+  { name: "Snowbird arrival", startDate: "2026-11-01", endDate: "2026-12-15", boostedNicheIds: ["vacation_rental_managers", "seafood_restaurants", "dental_practices"], multiplier: "1.4", notes: "VRMs, Restaurants, Dental" },
+  { name: "Pensacola Beach Air Show", startDate: "2026-07-10", endDate: "2026-07-20", boostedNicheIds: ["seafood_restaurants", "boutique_hotels"], multiplier: "1.3", notes: "Mid-July; Restaurants, Hotels" },
+];
+
+// ─────────────────────────────────────────────────────────────────────
 // Seed orchestration.
 // ─────────────────────────────────────────────────────────────────────
 
@@ -410,6 +538,133 @@ async function main(): Promise<void> {
     .onConflictDoNothing({ target: schema.agentBudgets.agentName });
   // eslint-disable-next-line no-console
   console.log(`  ✓ agent_budgets: ${agentBudgetsSeed.length} rows attempted`);
+
+  // ── Editorial rotation: niches (ADR-040) ─────────────────────────
+  await db
+    .insert(schema.niches)
+    .values(
+      nichesSeed.map((n) => ({
+        id: n.id,
+        displayName: n.displayName,
+        commercialValue: n.commercialValue,
+        editorialValue: n.editorialValue,
+        primaryArchetypes: n.primaryArchetypes,
+        excludedArchetypes: n.excludedArchetypes,
+        notes: n.notes,
+      })),
+    )
+    .onConflictDoNothing({ target: schema.niches.id });
+  // eslint-disable-next-line no-console
+  console.log(`  ✓ niches: ${nichesSeed.length} rows attempted`);
+
+  // ── niche_category_map (3 archetypes × 10 niches = 30) ───────────
+  const ncmRows: Array<{
+    nicheId: string;
+    archetype: string;
+    primaryCategorySlug: string;
+    secondaryCategorySlug: string | null;
+    isExcluded: boolean;
+  }> = [];
+  for (const archetype of ["magazine", "coastal", "premium"] as Archetype[]) {
+    const map = nicheCategoryByArchetype[archetype];
+    for (const niche of nichesSeed) {
+      const entry = map[niche.id];
+      if (!entry) continue;
+      ncmRows.push({
+        nicheId: niche.id,
+        archetype,
+        primaryCategorySlug: entry.primary,
+        secondaryCategorySlug: entry.secondary ?? null,
+        isExcluded: entry.excluded ?? false,
+      });
+    }
+  }
+  await db
+    .insert(schema.nicheCategoryMap)
+    .values(ncmRows)
+    .onConflictDoNothing({
+      target: [
+        schema.nicheCategoryMap.nicheId,
+        schema.nicheCategoryMap.archetype,
+      ],
+    });
+  // eslint-disable-next-line no-console
+  console.log(`  ✓ niche_category_map: ${ncmRows.length} rows attempted`);
+
+  // ── season_weights (10 niches × 12 months = 120) ─────────────────
+  const swRows: Array<{
+    nicheId: string;
+    month: number;
+    multiplier: string;
+  }> = [];
+  for (const [nicheId, months] of Object.entries(seasonWeightByNiche)) {
+    months.forEach((mult, i) => {
+      swRows.push({ nicheId, month: i + 1, multiplier: String(mult) });
+    });
+  }
+  await db
+    .insert(schema.seasonWeights)
+    .values(swRows)
+    .onConflictDoNothing({
+      target: [schema.seasonWeights.nicheId, schema.seasonWeights.month],
+    });
+  // eslint-disable-next-line no-console
+  console.log(`  ✓ season_weights: ${swRows.length} rows attempted`);
+
+  // ── season_events (8) ────────────────────────────────────────────
+  await db
+    .insert(schema.seasonEvents)
+    .values(
+      seasonEventsSeed.map((e) => ({
+        name: e.name,
+        startDate: e.startDate,
+        endDate: e.endDate,
+        boostedNicheIds: e.boostedNicheIds,
+        multiplier: e.multiplier,
+        notes: e.notes,
+      })),
+    )
+    .onConflictDoNothing({ target: schema.seasonEvents.name });
+  // eslint-disable-next-line no-console
+  console.log(`  ✓ season_events: ${seasonEventsSeed.length} rows attempted`);
+
+  // ── Acceptance check (master plan § Commit 1.10) ─────────────────
+  // getSeasonalWeight('charter_fishing', 2026-06-15) must return 1.5:
+  // June base for charter_fishing is 1.5; the only event active on Jun 15
+  // is "Wedding peak" (Apr 15–Jun 15), which boosts wedding/salon/hotels
+  // — NOT charter — so the base is returned unchanged.
+  const verifyDate = new Date("2026-06-15T00:00:00Z");
+  const swForVerify = await db
+    .select({
+      nicheId: schema.seasonWeights.nicheId,
+      month: schema.seasonWeights.month,
+      multiplier: schema.seasonWeights.multiplier,
+    })
+    .from(schema.seasonWeights);
+  const seForVerify = await db
+    .select({
+      boostedNicheIds: schema.seasonEvents.boostedNicheIds,
+      startDate: schema.seasonEvents.startDate,
+      endDate: schema.seasonEvents.endDate,
+      multiplier: schema.seasonEvents.multiplier,
+    })
+    .from(schema.seasonEvents);
+  const w = computeSeasonalWeight(
+    swForVerify,
+    seForVerify,
+    "charter_fishing",
+    verifyDate,
+  );
+  if (w !== 1.5) {
+    throw new Error(
+      `Commit 1.10 acceptance FAILED: getSeasonalWeight('charter_fishing', ` +
+        `2026-06-15) = ${w}, expected 1.5. Seed data or resolver is wrong.`,
+    );
+  }
+  // eslint-disable-next-line no-console
+  console.log(
+    `  ✓ acceptance: getSeasonalWeight('charter_fishing', 2026-06-15) = ${w}`,
+  );
 
   // eslint-disable-next-line no-console
   console.log("\nSeed complete. Re-running this script is a no-op (idempotent).");

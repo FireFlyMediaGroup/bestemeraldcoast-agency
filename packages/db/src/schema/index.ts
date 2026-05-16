@@ -16,3 +16,4 @@ export * from "./monetization.js";
 export * from "./projects.js";
 export * from "./ops.js";
 export * from "./auth.js";
+export * from "./editorial-rotation.js";
