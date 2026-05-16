@@ -57,11 +57,13 @@ neonConfig.webSocketConstructor = ws;
 // packages/db/src/ → packages/db/migrations
 const MIGRATIONS_FOLDER = path.join(here, "..", "migrations");
 
-// The full canonical set after applying 0000_worthless_falcon.sql. Future
-// migrations should append to this list. If a migration adds a table that
-// isn't listed here, this test fails — the correct loud failure (forces
-// deliberate review of the canonical set).
+// The full canonical set after applying all migrations. Future migrations
+// that add/remove a table MUST update this list — the assertion is designed
+// to loud-fail on drift so the canonical set gets deliberate review.
+// Currently: 0000_worthless_falcon (23 domain tables) + 0001_previous_rhino
+// (4 Auth.js tables for Commit 1.4's magic-link auth) = 27.
 const EXPECTED_TABLES = [
+  "accounts",
   "agent_budgets",
   "agent_runs",
   "article_businesses",
@@ -82,9 +84,12 @@ const EXPECTED_TABLES = [
   "outreach_messages",
   "project_tasks",
   "projects",
+  "sessions",
   "sites",
   "sponsorships",
   "subscribers",
+  "users",
+  "verification_tokens",
 ] as const;
 
 const EXPECTED_ENUMS = [

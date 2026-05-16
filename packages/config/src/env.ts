@@ -53,6 +53,9 @@ const serverSchema = z.object({
   // Operator auth — NextAuth (Phase 1).
   NEXTAUTH_URL: z.string().url().optional(),
   NEXTAUTH_SECRET: z.string().min(32).optional(),
+  // Single allow-listed operator address for ops-console magic-link sign-in
+  // (Commit 1.4). The NextAuth signIn callback rejects every other address.
+  OPERATOR_EMAIL: z.string().email().optional(),
 
   // Anthropic — agent runtime (ADR-004, ADR-018).
   ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-").optional(),
@@ -110,6 +113,7 @@ const productionRequired = z.object({
   AGENT_API_KEY: z.string().min(1),
   NEXTAUTH_URL: z.string().url(),
   NEXTAUTH_SECRET: z.string().min(32),
+  OPERATOR_EMAIL: z.string().email(),
   ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-"),
   RESEND_API_KEY: z.string().startsWith("re_"),
   SENTRY_DSN: z.string().url(),

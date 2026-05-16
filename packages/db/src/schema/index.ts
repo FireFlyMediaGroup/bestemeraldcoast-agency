@@ -15,3 +15,4 @@ export * from "./audience.js";
 export * from "./monetization.js";
 export * from "./projects.js";
 export * from "./ops.js";
+export * from "./auth.js";

@@ -8,6 +8,13 @@
       "when": 1778800100700,
       "tag": "0000_worthless_falcon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778848587999,
+      "tag": "0001_previous_rhino",
+      "breakpoints": true
     }
   ]
 }
