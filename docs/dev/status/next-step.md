@@ -14,47 +14,44 @@
 **Runbooks:** [`secrets-setup.md`](../../runbooks/secrets-setup.md) · [`storybook-deploy.md`](../../runbooks/storybook-deploy.md) · [`ops-console-deploy.md`](../../runbooks/ops-console-deploy.md)
 
 - [x] Phase 0 ADR-035 gate passed; 1Password + Vercel Pro + Storybook + Neon/Turbo GH secrets done.
-- [x] Commit 1.1/1.2 live-verified (db:migrate + db:seed ×2 against Neon dev branch).
-- [x] **Pass-2 branch protection LIVE**; PRs #16/#17/#18 merged naturally under it.
-- [x] **CodeRabbit advisory policy proven** across #17/#18 — zero per-PR operator decisions.
+- [x] Commit 1.1/1.2 live-verified; Pass-2 branch protection LIVE; CodeRabbit-advisory policy proven across PRs #17–#19 (zero per-PR operator decisions).
 - [ ] **Rotate Neon password** (security action above).
-- [ ] **Deploy `bec-ops-console` to Vercel + verify Resend domain** — per `ops-console-deploy.md`. Unblocks device/operator-gated acceptance for Commits 1.4 (iPhone login), 1.5 (agent API curl), 1.6 (mobile Leads), 1.7 (Add-to-home-screen), **and 1.8 (Scout writes to the live agent API).**
+- [ ] **Deploy `bec-ops-console` to Vercel + verify Resend domain** — unblocks device/runtime-gated acceptance for Commits 1.4 (login), 1.5 (agent API curl), 1.6 (mobile Leads), 1.7 (Add-to-home-screen), 1.8 (Scout), **and 1.9 (Diagnoser PATCHes leads via the live agent API).**
 - [ ] **Provision Upstash Redis + set `UPSTASH_REDIS_REST_URL` / `_TOKEN`** in Vercel. Production anti-abuse OFF until set.
-- [ ] **Set `GOOGLE_MAPS_API_KEY`** (Places API enabled) for the Scout MCP — add to `.env` + `BEC-Production` 1Password. Commit 1.8 registers the Google Maps MCP; Scout cannot discover businesses without it. **ADR-038 follow-up:** add `GOOGLE_MAPS_API_KEY` to the `@bec/config` env schema (dev-optional, prod-required) when Phase 1 agent runtime is wired — noted, not done in 1.8 (1.8 ships prompt/MCP artifacts only, no app code touching `@bec/config`).
-- [ ] **Set `AGENT_API_KEY` + `OPS_CONSOLE_URL`** in the agent runtime environment — Scout authenticates to the Commit-1.5 agent API with the Bearer key and posts to `${OPS_CONSOLE_URL}/api/agent/*`. Same key the operator sets in Vercel for the ops-console.
-- [ ] Add a 180×180 `apps/ops-console/app/apple-icon.png` (Commit 1.7 follow-up; Add-to-home-screen works without it, glyph just unbranded).
+- [ ] **Set `GOOGLE_MAPS_API_KEY`** (Places API) + **`AGENT_API_KEY`** + **`OPS_CONSOLE_URL`** + ensure **`DATABASE_URL_UNPOOLED`** in the agent runtime env — Scout (1.8) and Diagnoser (1.9) need these for the Google Maps MCP, the Bearer agent API, and the read-only Postgres MCP respectively. ADR-038: add `GOOGLE_MAPS_API_KEY` to the `@bec/config` schema when agent-runtime app code lands (not in 1.8/1.9 — prompt artifacts only).
+- [ ] Add a 180×180 `apps/ops-console/app/apple-icon.png` (Commit 1.7 follow-up; non-blocking).
 - [ ] (Optional, deferred) Promote `CodeRabbit` to a required check only if its reliability is fixed.
 
 ## Current Step
 
 - **Phase:** 1 — Database, Ops Console, Lead Pipeline.
-- **Commit:** **1.8 — Agent runtime: Scout** (this branch: `phase-1/commit-1.8-agent-scout`).
-- **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 → Commit 1.8.
-- **ADRs:** ADR-003 (Postgres is source of truth; agents mutate **only** via the agent API; filesystem is for prompt artifacts), ADR-019 (prompt YAML frontmatter `version: N` → written to `agentRuns.promptVersion`), ADR-018 (all work logged via `agent_runs`), ADR-035 (Scout daily caps: 150 scanned / 30 leads added), ADR-031 (`doNotContact` excluded from Scout queries). Gap-score formula per the architecture doc (review_count×0.3 + rating×0.2 + website_age×0.3 + channel_diversity×0.1 + niche_priority×0.1, 0–100). No ADR text changes.
-- **Status:** branch cut from `8e4ee58`; bookkeeping (this rewrite + the Commit 1.7 task-log entry) lands first, then the Scout artifacts.
+- **Commit:** **1.9 — Agent runtime: Diagnoser** (this branch: `phase-1/commit-1.9-agent-diagnoser`).
+- **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 → Commit 1.9.
+- **ADRs:** ADR-019 (prompt `version: 1` → `agentRuns.promptVersion`), ADR-003 (writes via agent API only; reads via read-only Postgres MCP — the agent surface is POST/PATCH-only, no GET), ADR-018 (`agent_runs` logging), ADR-035 (Diagnoser daily cap **30**), ADR-034 (copy-quality rubric + banned phrases — Diagnoser applies it to the diagnosis text). No ADR text changes; no schema; no app code.
+- **Status:** branch cut from `82366fd`; bookkeeping (this rewrite + the Commit 1.8 task-log entry) lands first, then the Diagnoser artifacts.
 
-## What Commit 1.8 must ship
+## What Commit 1.9 must ship
 
-Per master plan § Commit 1.8 — **prompt/config artifacts only, no application code**:
+Per master plan § Commit 1.9 — **prompt/config artifacts only**:
 
-> `agency/.claude/agents/scout.md` (frontmatter `version: 1`): input = query (niche + city); Google Maps MCP → ≤150 businesses within the city geo radius; resolve `googlePlaceId`; check existence via the agent API; if new, POST it; evaluate gap-score signals; if score ≥ 60 create a lead with status `new`; respect daily caps (150 scanned, 30 leads added); log all work via `agent_runs`. `agency/.mcp.json`: register Google Maps MCP + a read-only Postgres MCP. `agency/.claude/commands/scout.md`: `/scout` taking a query string.
+> `agency/.claude/agents/diagnoser.md` (frontmatter `version: 1`): input = a lead id with status `new`; fetch business detail, visit website (or note absence), evaluate the Diagnoser checklist (loading speed, mobile responsiveness, age signals, conversion-element presence, schema markup, indexing), write a **50-word diagnosis**, propose a tiered offer ($1.5K starter / $3.5K standard / $7.5K growth / $200-mo maintenance) based on `gap_score`, apply the ADR-034 copy rubric, update the lead via API to status `diagnosed`, log to `agent_runs`. Slash commands `/diagnose [lead_id]` and batch `/diagnose-pending` (up to today's remaining cap of 30).
 
-**Acceptance**: `claude /scout pensacola charter fishing` produces ≥10 lead rows in DB with diagnoses pending. Daily cap enforced.
+**Acceptance**: For 10 leads, Diagnoser produces 10 diagnoses. Operator review confirms ≥7/10 sound like a thoughtful human consultant.
 
 Implementation notes:
-- ADR-003 boundary: Scout **writes only through the Commit-1.5 agent API** (`POST /api/agent/agent-runs` start → `…/businesses` upsert-by-googlePlaceId → `…/leads` create → `…/agent-runs/:id/finalize`). The read-only Postgres MCP is for **dedup/cap visibility reads only**, never writes.
-- Daily caps are derived from `agent_runs` (today's scanned/added counts via the read-only Postgres MCP), not a filesystem state file — ADR-003 keeps the filesystem prompt-artifact-only.
-- `.mcp.json` uses `${VAR}` expansion (`GOOGLE_MAPS_API_KEY`, `DATABASE_URL_UNPOOLED`, `AGENT_API_KEY`, `OPS_CONSOLE_URL`) — no secrets committed.
-- Acceptance (`claude /scout …` → ≥10 leads) is runtime/operator-gated (needs the deployed agent API + Google Maps key); locally-provable parts: artifacts exist, valid YAML frontmatter with `version: 1`, `.mcp.json` is valid JSON, `/scout` references the Scout agent + the daily-cap/ADR-003 rules. No workspace code changes → `pnpm turbo` stays 48/48.
+- **Also create the two ADR-034 rubric files** `agency/.claude/rubrics/copy-quality.md` + `banned-phrases.md` (currently only `.gitkeep`). ADR-034 mandates them as the single source of truth referenced by the Diagnoser now and Checker later — Diagnoser must reference, not inline-duplicate, them.
+- Reads (lead + business detail, `new`-status leads for the batch, today's diagnosed-count for the cap) go through the **read-only Postgres MCP** (no GET API per ADR-003). Cap accounting = count `lead_status_history` rows with `to_status = 'diagnosed'` and `created_at >= date_trunc('day', now())` (authoritative) — remaining = 30 − that.
+- Write path: `PATCH ${OPS_CONSOLE_URL}/api/agent/leads/<id>` with `{ status: "diagnosed", changedBy: "diagnoser", reason, diagnosis: {…}, offer: {…} }` (the Commit-1.5 PatchLead schema — `changedBy` required; `new → diagnosed` is a valid transition; status + jsonb applied atomically; concurrent move → 409, already-diagnosed → skip). `diagnosis` must conform to the `Diagnosis` jsonb shape (gapScore/components/summary/findings/recommendedOffer/scoringVersion); `offer` to the `Offer` shape (type∈enum/headline/bullets/priceCents/expiresAt?).
+- `agent_runs`: open with `agentName: "diagnoser"`, `promptVersion: 1`, `inputLeadIds: [<id>]`; finalize `status` ∈ `succeeded|failed|aborted` with a `[diagnoser-metrics diagnosed=K]` token in `output_summary`.
+- Acceptance is operator-judged on diagnosis quality (≥7/10 human-sounding) — runtime-gated; locally-provable: artifacts exist, valid `version: 1` frontmatter, rubric files present, commands delegate correctly, `pnpm turbo` stays 48/48 (no workspace code).
 
 ## Next Commit After This
 
-- **Phase 1 / Commit 1.9 — Agent runtime: Diagnoser.**
+- **Phase 1 / Commit 1.10 — Editorial rotation foundation schema** (real `packages/db` schema + migrations + seed work — back to code).
 
 ## Handoff Notes
 
-- Master ADR + master plan are source of truth. Loop-doc/bookkeeping changes recorded in adr-log/task-log; renumber nothing.
-- CodeRabbit-advisory is standing policy — follow `RALPH-LOOP.md` 7b–7e; do not re-litigate per-PR.
-- Commit 1.8 touches no TS/workspace code (prompt + MCP + command markdown/JSON only); the local gate is artifact validity + JSON lint, and `pnpm turbo` remains 48/48 (nothing for it to rebuild).
+- Master ADR + master plan are source of truth. CodeRabbit-advisory standing; follow `RALPH-LOOP.md` 7b–7e.
+- Commits 1.8/1.9 touch no TS/workspace code (prompt + MCP + command + rubric markdown/JSON); local gate is artifact validity; `pnpm turbo` stays 48/48.
 - Operator's parked Phase-0 Storybook/Vercel WIP stays unstaged across branches.
-- Commits 1.4–1.8 device/runtime-gated acceptance all collapse onto the single `bec-ops-console` Vercel deploy + the Scout env keys in the pre-flight.
+- Commits 1.4–1.9 device/runtime-gated acceptance all collapse onto the single `bec-ops-console` Vercel deploy + the agent env keys in the pre-flight.

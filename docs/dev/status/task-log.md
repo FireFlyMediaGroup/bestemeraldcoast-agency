@@ -297,6 +297,20 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next commit queued: **Phase 1 / Commit 1.8 — Agent runtime: Scout.** Branch `phase-1/commit-1.8-agent-scout` cut from `8e4ee58`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
 - Notes: iOS Apple-touch-icon wants a raster PNG (SVG ships for Chrome/Android + favicon); generating a PNG in-loop isn't feasible, so a 180×180 `app/apple-icon.png` is an operator pre-flight item (Add-to-home-screen still works without it — glyph falls back to a page snapshot). Bottom-nav `_components` uses Next's private-folder underscore so it's non-routable. cubic NEUTRAL; CodeRabbit not consulted (advisory) — type-check + structural routing is the standing local signal for a UI-shell commit.
 
+## 2026-05-16 — Phase 1 / Commit 1.8 — Agent runtime: Scout
+
+- Branch: phase-1/commit-1.8-agent-scout
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/19
+- Merge SHA: 82366fdbf5608bc6f483c68439ad9a1868802de2
+- CodeRabbit: advisory (standing policy). cubic-dev-ai check NEUTRAL at merged HEAD.
+- CI on PR #19: `lint` + `type-check` + `unit-tests` all SUCCESS; Vercel Preview SUCCESS. Auto-merge fired on the Pass-2 natural gate.
+- ADRs touched: implements ADR-019 (prompt frontmatter `version: 1` → `agentRuns.promptVersion`), ADR-003 (writes via the Bearer agent API only; read-only Postgres MCP for cap/dedup reads; filesystem stays prompt-artifact-only), ADR-018 (`agent_runs` logging), ADR-035 (Scout caps 150/30), ADR-031 (`do_not_contact`/`is_client` exclusion). Gap-score formula transcribed from the architecture doc (weighted 0–100, `scoringVersion: 1`). No ADR text changes; no schema; no app code.
+- Acceptance evidence: master plan "`claude /scout …` → ≥10 leads, daily cap enforced" is runtime/operator-gated (needs deployed agent API + `GOOGLE_MAPS_API_KEY`). Locally-provable parts green: `.mcp.json` valid JSON, `scout.md` valid YAML frontmatter with `version: 1`, `/scout` delegates to the subagent. **All agent-API payloads were verified against the live Commit-1.5 Zod route schemas** (corrected mid-commit: `businesses` requires `slug`; `leads` create has no `status`/`changedBy` — DB-defaults to `new`; `agent-runs` uses `agentName`/`invokedBy`; `finalize` `status` enum is `succeeded|failed|aborted` and has **no** structured scanned/leads fields, so the cap-accounting metric rides in a load-bearing `[scout-metrics scanned=N leadsAdded=M]` token in `output_summary`, parsed off `agent_runs.started_at` — there is no `created_at` on that table).
+- Validation: `pnpm turbo lint type-check test:unit` → 48/48 (FULL TURBO; no workspace code touched). `jq empty agency/.mcp.json` passes.
+- Files changed: 3. `agency/.claude/agents/scout.md` (v1 prompt, full discovery→score→lead procedure), `agency/.mcp.json` (google-maps + read-only postgres MCP, `${VAR}` expansion, no secrets), `agency/.claude/commands/scout.md` (`/scout <niche> <city>`).
+- Next commit queued: **Phase 1 / Commit 1.9 — Agent runtime: Diagnoser.** Branch `phase-1/commit-1.9-agent-diagnoser` cut from `82366fd`; carries this entry + the next-step.md rewrite per the post-Pass-1 write policy.
+- Notes: The commit prompt said "fetch business detail from API" but the Commit-1.5 surface is **POST/PATCH-only (no GET)** — reads go through the read-only Postgres MCP per ADR-003 (same pattern as Scout's cap reads). Operator pre-flight gained `GOOGLE_MAPS_API_KEY` / `AGENT_API_KEY` / `OPS_CONSOLE_URL`; ADR-038 schema add for `GOOGLE_MAPS_API_KEY` deferred to when agent-runtime app code lands (1.8 ships no `@bec/config`-touching code).
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
