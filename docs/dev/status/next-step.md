@@ -14,47 +14,45 @@
 **Runbooks:** [`secrets-setup.md`](../../runbooks/secrets-setup.md) · [`storybook-deploy.md`](../../runbooks/storybook-deploy.md) · [`ops-console-deploy.md`](../../runbooks/ops-console-deploy.md)
 
 - [x] Phase 0 ADR-035 gate passed; 1Password + Vercel Pro + Storybook + Neon/Turbo GH secrets done.
-- [x] Commit 1.1/1.2 live-verified; Pass-2 branch protection LIVE; CodeRabbit-advisory proven across PRs #17–#20.
+- [x] Commit 1.1/1.2 live-verified; Pass-2 LIVE; CodeRabbit-advisory proven across PRs #17–#21.
 - [ ] **Rotate Neon password** (security action above).
-- [ ] **Run `db:migrate` + `db:seed` for the Commit 1.10 editorial-rotation tables** against the Neon dev branch (operator-gated like the Commit 1.1/1.2 verification — local `next build`/DB writes are env-guarded by ADR-038; CI runs the migration test on an ephemeral branch). The seed's tail asserts `getSeasonalWeight('charter_fishing', 2026-06-15) === 1.5` (Commit 1.10 acceptance) — capture that line as evidence.
-- [ ] **Deploy `bec-ops-console` to Vercel + verify Resend domain** — unblocks device/runtime-gated acceptance for Commits 1.4–1.9.
+- [ ] **Run `db:migrate` + `db:seed` for the editorial-rotation tables** (Commit 1.10) against the Neon dev branch — operator-gated (ADR-038). The seed tail prints `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5` — capture as evidence.
+- [ ] **Deploy `bec-ops-console` to Vercel + verify Resend domain** — unblocks device/runtime acceptance for Commits 1.4–1.11 (incl. the new `/api/agent/pipeline-signals` endpoint Scout/Diagnoser POST to).
 - [ ] **Provision Upstash Redis** + set `UPSTASH_REDIS_REST_URL` / `_TOKEN`.
-- [ ] **Set `GOOGLE_MAPS_API_KEY` / `AGENT_API_KEY` / `OPS_CONSOLE_URL` / `DATABASE_URL_UNPOOLED`** in the agent runtime env (Scout 1.8 + Diagnoser 1.9).
+- [ ] **Set `GOOGLE_MAPS_API_KEY` / `AGENT_API_KEY` / `OPS_CONSOLE_URL` / `DATABASE_URL_UNPOOLED`** in the agent runtime env.
 - [ ] Add a 180×180 `apps/ops-console/app/apple-icon.png` (1.7 follow-up; non-blocking).
 - [ ] (Optional) Promote `CodeRabbit` to a required check only if reliability is fixed.
 
 ## Current Step
 
 - **Phase:** 1 — Database, Ops Console, Lead Pipeline.
-- **Commit:** **1.10 — Editorial rotation foundation schema** (this branch: `phase-1/commit-1.10-editorial-rotation-schema`).
-- **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 → Commit 1.10 + § Editorial Rotation Specification (ADR-040).
-- **ADRs:** ADR-040 (editorial-pipeline coupling + niche rotation — the schema + seed data come straight from its spec tables), ADR-002/003 (Postgres source of truth; Drizzle migrations), ADR-038 (prod-write guard on the migrate/seed scripts — unchanged). **Back to real `packages/db` code** (schema + migration + seed), not prompt artifacts.
-- **Status:** branch cut from `33a1e7b`; bookkeeping (this rewrite + the Commit 1.9 task-log entry) lands first, then the schema/migration/seed/helper.
+- **Commit:** **1.11 — Pipeline signal capture** (this branch: `phase-1/commit-1.11-pipeline-signal-capture`).
+- **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 → Commit 1.11 + § Pipeline signal capture / signal-weight table (ADR-040).
+- **ADRs:** ADR-040 (pipeline_signals event log feeds the Curator), ADR-003 (agents write only via the Bearer agent API), ADR-017 (the new endpoint inherits the shared rate-limiter via `agentRoute`), ADR-018 (unchanged). No ADR text changes.
+- **Status:** branch cut from `3a693f5`; bookkeeping (this rewrite + the Commit 1.10 task-log entry) lands first, then the endpoint + agent-prompt updates.
 
-## What Commit 1.10 must ship
+## What Commit 1.11 must ship
 
-Per master plan § Commit 1.10:
+Per master plan § Commit 1.11:
 
-> Add `packages/db/schema/editorial-rotation.ts`: `niches`, `niche_category_map`, `season_weights`, `season_events`, `pipeline_signals`. Generate migrations. Update `packages/db/seed.ts` to seed the **10 priority niches** (commercial/editorial values per the profile table), the **30 niche-category-archetype mappings** (3 archetypes × 10 niches), the **120 monthly season weights** (10 niches × 12 months), and the **8 named season events**. Add `minimumWeeklyArticles` (default 2) + `maximumWeeklyArticles` (default 3) to the `sites` table.
+> Update Scout + Diagnoser (and prepare hooks for Builder/Filmer/Pitcher/inbound — Phase 2-5) to write `pipeline_signals` rows alongside their work. Add agent-API `POST /pipeline-signals` and `GET /pipeline-signals?niche=&city=&since=`. Signal types + strengths per the spec table.
 
-**Acceptance**: All tables created. Seeded data is queryable. `getSeasonalWeight('charter_fishing', new Date('2026-06-15'))` returns **1.5** with the "Wedding peak" event active (it boosts other niches, not charter, so charter returns its June base 1.5).
+**Acceptance**: Running Scout on a sample query produces matching `pipeline_signals` rows. The trailing-14-day query returns expected signals. Pipeline data accumulates through Phase 1→5; Curator (Phase 6) launches against 8-12 weeks of real data.
 
 Implementation notes:
-- New schema file `packages/db/src/schema/editorial-rotation.ts`; add to the `schema/index.ts` barrel; add the 2 integer columns to `sites.ts`.
-- `season_events` gets a `uniqueIndex` on `name` (a deliberate, spec-compatible addition) so the seed can `onConflictDoNothing` and stay idempotent — same pattern as every other seeded table. Document the rationale inline.
-- Migration via `pnpm --filter @bec/db db:generate` (offline schema diff → `migrations/0003_*.sql`; drizzle-kit `generate` needs no DB connection per `drizzle.config.ts`).
-- `getSeasonalWeight` helper: pure core `computeSeasonalWeight(weights, events, nicheId, date)` (monthly base; an active named event whose `boostedNicheIds` includes the niche overrides with its multiplier — take the max if several) + a thin DB wrapper `getSeasonalWeight(nicheId, date)`. Export from the package entry.
-- The seed-tail asserts the acceptance example (`charter_fishing` @ 2026-06-15 → 1.5) and logs it — the live verification runs under the existing operator/CI-gated `db:seed` flow (matches the Commit 1.1/1.2 precedent; no new test infra, `@bec/db` has no vitest).
-- `test-migrations.ts`: bump `EXPECTED_TABLES` 27 → **32** (the 5 new tables; no new enums) so the canonical-schema assertion stays loud-on-drift.
-- Local gate: `pnpm turbo lint type-check test:unit` (type-check covers the new schema + helper). Live migrate/seed is operator-gated (ADR-038), captured in the pre-flight.
+- New `apps/ops-console/app/api/agent/pipeline-signals/route.ts` — `POST` + `GET`, both wrapped by the shared `agentRoute` (Bearer auth + ADR-017 limiter + ADR-012 error capture), identical pattern to the other agent endpoints.
+- **Strength is canonical/server-side** (`SIGNAL_STRENGTHS` map = the spec table) — the client only names the `signalType`; a misbehaving agent can't poison Curator scoring. The enum already includes the future Builder/Filmer/Pitcher/inbound/Calendly signal types, so the "prepare hooks" ask = those agents just POST the same endpoint when they land (no schema change later).
+- `GET` requires `niche`; `city` + `since` optional; `since` is the Curator's trailing-window cursor (typically now−14d). Returns `{ signals, count }`.
+- Scout (`5b`) + Diagnoser (`6b`) prompts: after the lead create / diagnosis, POST one signal (`lead_added`/`diagnosis_done`), resolving the free-text niche to a real `niches.id` via `mcp__postgres-ro` (FK-constrained — skip the signal, never the lead, if the niche isn't one of the 10). Signal failure must not fail the primary work.
+- Live acceptance (Scout run → signal rows; trailing-14d GET) is operator/runtime-gated (deployed agent API + DB); locally-provable: route type-checks under `agentRoute`, prompts reference the endpoint correctly, `pnpm turbo` 48/48.
 
 ## Next Commit After This
 
-- **Phase 1 / Commit 1.11 — Pipeline signal capture** (Scout/Diagnoser write `pipeline_signals`; `POST/GET /pipeline-signals` agent-API endpoints).
+- **Phase 1 quality gate (ADR-035)** — the Phase 1 acceptance checklist must be 100% green before Phase 2 opens. (Several boxes are operator/deploy-gated; the gate entry will record status + any deferrals.)
 
 ## Handoff Notes
 
 - Master ADR + master plan are source of truth. CodeRabbit-advisory standing; follow `RALPH-LOOP.md` 7b–7e.
-- Commit 1.10 is the first code-bearing commit since 1.7 — `type-check` is the load-bearing local gate; `next build` Vercel-authoritative; live DB migrate/seed is ADR-038-guarded + operator-gated (CI runs the migration test on an ephemeral Neon branch).
+- Commit 1.11 mixes app code (the endpoint — `type-check` is the load-bearing local gate) + prompt edits. `next build` Vercel-authoritative.
+- After 1.11 the next loop step is the **Phase 1 ADR-035 quality gate**, not a Commit 1.12 — read the gate checklist in the project plan and record it in `task-log.md` as a `PHASE 1 GATE` entry (do not skip per ADR-035; deferrable items get explicit operator-gated notes).
 - Operator's parked Phase-0 Storybook/Vercel WIP stays unstaged across branches.
-- Commits 1.4–1.10 device/runtime/DB-gated acceptance collapse onto the Vercel deploy + the agent env keys + the dev-branch migrate/seed run in the pre-flight.
