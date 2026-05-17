@@ -13,10 +13,20 @@ const nextConfig: NextConfig = {
   // @bec/ui's TSX + @bec/db / @bec/logger / @bec/config without each
   // shipping a separate browser build.
   transpilePackages: ["@bec/ui", "@bec/db", "@bec/logger", "@bec/config"],
-  // @bec/db pulls @neondatabase/serverless (ws transport). Keep it external
-  // to the server bundle. (Stable key in Next 16 — formerly
-  // experimental.serverComponentsExternalPackages.)
-  serverExternalPackages: ["@neondatabase/serverless", "ws"],
+  // Keep these out of the server bundle (run as native Node CJS):
+  // - @neondatabase/serverless + ws: @bec/db's ws transport.
+  // - @sentry/nextjs: its Node/OpenTelemetry stack (import-in-the-middle)
+  //   references `__dirname`. This app is `"type": "module"`, so Next
+  //   bundles the server as ESM where `__dirname` is undefined — bundling
+  //   Sentry made `instrumentation.register()` throw `ReferenceError:
+  //   __dirname is not defined` at boot, 500-ing every route. Externalized
+  //   so it loads as CJS where `__dirname` exists.
+  // (Stable key in Next 16 — formerly experimental.serverComponentsExternalPackages.)
+  serverExternalPackages: [
+    "@neondatabase/serverless",
+    "ws",
+    "@sentry/nextjs",
+  ],
   turbopack: {
     root: workspaceRoot,
     // @bec/ui's internal imports use `.js` specifiers against `.ts`/`.tsx`
