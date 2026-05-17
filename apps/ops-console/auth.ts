@@ -10,8 +10,10 @@
 // - Session: JWT strategy so route guards can check the session at the edge
 //   without a DB round-trip. The adapter is still required for the email
 //   provider's verification-token flow even under JWT sessions.
-// - All secrets come from @bec/config's validated serverEnv (ADR-038); we
-//   never read process.env directly here.
+// - Edge middleware uses `auth.config.ts` only (JWT slice, `process.env`);
+//   see middleware.ts + https://authjs.dev/guides/edge-compatibility.
+// - This file keeps Route / RSC `auth` + handlers on Drizzle + `serverEnv`
+//   (ADR-038); never import it from middleware or the Edge bundle pulls pg.
 // - Build-time inertness (Auth.js v5): the config is an **async factory**,
 //   and `@bec/config` + `@bec/db` are **dynamically imported inside it** —
 //   never at module scope. This matters: `@bec/config`'s `index.ts` runs
@@ -21,15 +23,18 @@
 //   `next build` imports this file under NODE_ENV=production, with no
 //   app-level .env present → build boot-fail. (A lazy NextAuth factory alone
 //   does NOT fix this; the import statements themselves are the trigger.)
-//   Keeping only `next-auth` + `@auth/drizzle-adapter` (env-free) at module
-//   scope and deferring the env-touching packages into the per-request async
-//   factory makes the module genuinely inert at build time. Flagged by cubic
-//   (P1, confidence 9); this is the complete fix.
-// - All secrets come from @bec/config's validated serverEnv (ADR-038).
+//   Keeping only `next-auth` + `@auth/drizzle-adapter` + `./auth.config`
+//   (no `@bec/*`) at module scope and deferring the env-touching packages
+//   into the per-request async factory makes the module genuinely inert at
+//   build time.
+// - Route / handlers use validated `serverEnv` for secrets; middleware uses
+//   `auth.config.ts` + `process.env` for JWT only (ADR-038 on Node routes).
 
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth, { type NextAuthResult } from "next-auth";
 import Resend from "next-auth/providers/resend";
+
+import authConfig from "./auth.config";
 
 const result = NextAuth(async () => {
   // Dynamic — runs per-request, not at module load / `next build`.
@@ -39,15 +44,14 @@ const result = NextAuth(async () => {
   const operatorEmail = serverEnv.OPERATOR_EMAIL?.toLowerCase();
 
   return {
+    ...authConfig,
     adapter: DrizzleAdapter(getDb(), {
       usersTable: schema.users,
       accountsTable: schema.accounts,
       sessionsTable: schema.sessions,
       verificationTokensTable: schema.verificationTokens,
     }),
-    session: { strategy: "jwt" },
     secret: serverEnv.NEXTAUTH_SECRET,
-    trustHost: true,
     providers: [
       Resend({
         apiKey: serverEnv.RESEND_API_KEY,
@@ -57,15 +61,10 @@ const result = NextAuth(async () => {
         from: "ops@bestemeraldcoast.com",
       }),
     ],
-    pages: {
-      signIn: "/login",
-      verifyRequest: "/login?check=1",
-      error: "/login?error=1",
-    },
     callbacks: {
-      // Hard allow-list. Even though Resend only mails the address the user
-      // typed, the token is verifiable by anyone who receives it — so we
-      // gate on the resolved email here, server-side, on every sign-in.
+      ...authConfig.callbacks,
+      // Hard allow-list via validated env (ADR-038). Mirrors auth.config
+      // (middleware/edge) but uses serverEnv after parseEnv.
       signIn({ user }) {
         const email = user.email?.toLowerCase();
         if (!email || !operatorEmail) return false;

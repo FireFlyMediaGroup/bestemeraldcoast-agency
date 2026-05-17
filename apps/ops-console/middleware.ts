@@ -1,10 +1,13 @@
-// Edge auth guard. Auth.js v5's `auth` export doubles as middleware: it
-// populates `req.auth` from the JWT session. Any request into the protected
-// surface without a session is redirected to /login. The matcher excludes
-// the auth API, the login page, and Next internals so the redirect can't
-// loop and static assets stay public.
+// Edge auth guard. Import only `auth.config` + a minimal NextAuth instance —
+// not `@/auth`. The full `auth.ts` pulls DrizzleAdapter + `@bec/db` into the
+// middleware bundle and Vercel Edge rejects it. JWT sessions only need this
+// edge-safe slice. See auth.config.ts + https://authjs.dev/guides/edge-compatibility
 
-import { auth } from "@/auth";
+import NextAuth from "next-auth";
+
+import authConfig from "./auth.config";
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const isAuthed = Boolean(req.auth);

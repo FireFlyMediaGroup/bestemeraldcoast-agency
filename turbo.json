@@ -1,12 +1,40 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env", ".env.local", ".nvmrc"],
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "DATABASE_URL_UNPOOLED",
+    "NEXTAUTH_URL",
+    "NEXTAUTH_SECRET",
+    "RESEND_API_KEY",
+    "SENTRY_DSN",
+    "SENTRY_AUTH_TOKEN",
+    "OPERATOR_EMAIL",
+    "NEXT_PUBLIC_SENTRY_DSN",
+    "AGENT_API_KEY",
+    "OPS_CONSOLE_URL",
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "GOOGLE_MAPS_API_KEY"
+  ],
   "concurrency": "20",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-      "env": ["NODE_ENV", "VERCEL_ENV", "DATABASE_URL"]
+      "env": [
+        "NODE_ENV",
+        "VERCEL_ENV",
+        "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
+        "NEXTAUTH_URL",
+        "NEXTAUTH_SECRET",
+        "RESEND_API_KEY",
+        "SENTRY_DSN",
+        "SENTRY_AUTH_TOKEN",
+        "OPERATOR_EMAIL",
+        "NEXT_PUBLIC_SENTRY_DSN"
+      ]
     },
     "build-storybook": {
       "dependsOn": ["^build"],
