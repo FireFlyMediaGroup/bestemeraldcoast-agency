@@ -15,17 +15,23 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@bec/ui", "@bec/db", "@bec/logger", "@bec/config"],
   // Keep these out of the server bundle (run as native Node CJS):
   // - @neondatabase/serverless + ws: @bec/db's ws transport.
-  // - @sentry/nextjs: its Node/OpenTelemetry stack (import-in-the-middle)
-  //   references `__dirname`. This app is `"type": "module"`, so Next
-  //   bundles the server as ESM where `__dirname` is undefined — bundling
-  //   Sentry made `instrumentation.register()` throw `ReferenceError:
-  //   __dirname is not defined` at boot, 500-ing every route. Externalized
-  //   so it loads as CJS where `__dirname` exists.
+  // - @sentry/nextjs + its OpenTelemetry instrumentation deps
+  //   `import-in-the-middle` / `require-in-the-middle`: these reference the
+  //   CJS-only `__dirname`. This app is `"type": "module"`, so Next bundles
+  //   the server as ESM where `__dirname` is undefined — bundling them made
+  //   loading `instrumentation.ts` (which imports @sentry/nextjs) throw
+  //   `ReferenceError: __dirname is not defined` at function boot, 500-ing
+  //   every route. Externalizing @sentry/nextjs alone is NOT enough — Next
+  //   still bundles the nested `*-in-the-middle` packages; they must be
+  //   externalized by name (per Sentry's Next.js troubleshooting guide) so
+  //   they load as native CJS where `__dirname` exists.
   // (Stable key in Next 16 — formerly experimental.serverComponentsExternalPackages.)
   serverExternalPackages: [
     "@neondatabase/serverless",
     "ws",
     "@sentry/nextjs",
+    "import-in-the-middle",
+    "require-in-the-middle",
   ],
   turbopack: {
     root: workspaceRoot,
