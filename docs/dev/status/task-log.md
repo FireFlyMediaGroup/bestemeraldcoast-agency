@@ -353,6 +353,57 @@ For **operator-only** commits (e.g., Commit 0.2):
 - Next loop step: **Phase 1 ADR-035 quality gate** (NOT a Commit 1.12 — Phase 1 has no further implementation commits).
 - Notes: Strength is server-canonical (`SIGNAL_STRENGTHS` = spec table); the enum already carries the future Builder/Filmer/Pitcher/inbound/Calendly signal types so those agents need no schema change when they land (the "prepare hooks" ask). All Phase 1 implementation commits (1.1–1.11) are now merged.
 
+## 2026-05-17 — Off-plan — Ops-console Vercel deploy unblock (Phase 1 gate box 9)
+
+Two off-plan changes were needed to make `bec-ops-console` actually deploy
+and serve, which gates Phase 1 boxes 9 (deploy + magic link) / 10 (iPhone
+login). Recorded here per the off-plan task-template; renumbers nothing.
+
+**1. PR #24 — Auth.js v5 edge split (`task/2026-05-17-ops-console-auth-edge`)**
+- Merge SHA: 7998815 (squash). Operator-authored; reviewed + hardened by the loop.
+- Problem: `next build` failed — `middleware.ts` imported `@/auth`, dragging
+  `DrizzleAdapter` + `@bec/db` (pg) into the Edge bundle (`TS2307` +
+  "Edge Function referencing unsupported modules: @/auth").
+- Change: new `apps/ops-console/auth.config.ts` (edge-safe slice);
+  `middleware.ts` uses `NextAuth(authConfig).auth`; `auth.ts` spreads
+  `authConfig` and keeps the adapter; `turbo.json` `globalPassThroughEnv`
+  + expanded `build.env` (also cleared the Vercel "env vars missing from
+  turbo.json" warnings).
+- Loop review caught + fixed a merge-blocking bug (commit 61bcc51): the edge
+  config included the Resend (Email) provider, which requires a DB adapter —
+  `NextAuth(authConfig)` in middleware has none, so Auth.js's per-request
+  config assertion would throw `MissingAdapter` on every authed request in
+  the deployed Edge runtime (CI/type-check can't catch it). Fixed →
+  `providers: []` in the edge slice; Resend stays only in `auth.ts` (with
+  the adapter + validated `serverEnv`). cubic P1 + a CodeRabbit nitpick;
+  both replied with rationale. Required CI green; merged under the
+  CodeRabbit-advisory policy.
+
+**2. Direct-to-main `f5a05d0` — runtime `__dirname` crash fix**
+- After #24 the build succeeded but every route (incl. `/favicon.png`)
+  500'd at server boot: `ReferenceError: __dirname is not defined`.
+- Root cause: `apps/ops-console` is `"type": "module"`, so Next bundles the
+  server as ESM; `instrumentation.register()` → `Sentry.init()` pulls
+  @sentry/nextjs's Node/OpenTelemetry stack (`import-in-the-middle`) which
+  references the CJS-only `__dirname` → `register()` throws at function init
+  → all routes 500. Pre-existing; first reachable once the deploy succeeded.
+- Fix: `next.config.ts` adds `@sentry/nextjs` to `serverExternalPackages`
+  (loads as native CJS where `__dirname` exists); `instrumentation.ts`
+  wraps the Sentry imports in try/catch so telemetry init can never 500
+  the control plane again (defense in depth). `pnpm turbo` 48/48.
+- ⚠️ **Process deviation (recorded for transparency):** this fix was
+  pushed **directly to `main`** (`f5a05d0`), bypassing the PR/CI flow — a
+  violation of the CLAUDE.md "never push to `main` directly"
+  non-negotiable. Cause: an intended `git checkout -b` in a compound
+  command did not take effect, so the commit landed on `main`; the push
+  succeeded because the git user is a repo admin and Pass-2 protection has
+  `enforce_admins: false` (so the rule is currently discipline-enforced,
+  not protection-enforced, for admins). Operator chose (option A) to keep
+  the validated fix on `main` and redeploy rather than compound the
+  incident with revert/force-push churn. **Follow-up flagged:** consider
+  flipping Pass-2 `enforce_admins: true` to make the guardrail real (a
+  separate change, pending operator approval).
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
