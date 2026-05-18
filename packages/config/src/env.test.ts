@@ -83,6 +83,20 @@ describe("parseEnv — production", () => {
     expect(result.server.OPERATOR_EMAIL).toBe(validProd.OPERATOR_EMAIL);
   });
 
+  it("accepts a prod env WITHOUT NEXTAUTH_URL (H1 — trustHost makes it optional)", () => {
+    const { NEXTAUTH_URL: _, ...rest } = validProd;
+    void _;
+    const result = parseEnv(rest);
+    expect(result.env).toBe("production");
+    expect(result.server.NEXTAUTH_URL).toBeUndefined();
+  });
+
+  it("still rejects a set-but-malformed NEXTAUTH_URL (base url() applies)", () => {
+    expect(() => parseEnv({ ...validProd, NEXTAUTH_URL: "ops.bestemeraldcoast.com" })).toThrow(
+      EnvValidationError,
+    );
+  });
+
   it("rejects prod env missing OPERATOR_EMAIL", () => {
     const { OPERATOR_EMAIL: _, ...rest } = validProd;
     void _;
