@@ -14,10 +14,16 @@
 
 1. Vercel dashboard → **Add New… → Project** → import `FireFlyMediaGroup/bestemeraldcoast-agency`.
 2. **Project Name**: `bec-ops-console`.
-3. **Framework Preset**: *Next.js* (auto-detected).
-4. **Root Directory**: `apps/ops-console` — use the **Edit** button; Vercel defaults to the repo root. (Same gotcha as `bec-storybook`.)
-5. Leave Build/Install/Output at the Next.js defaults. Vercel's build infra has ample memory, so the Turbopack OOM seen on the constrained dev machine does not occur here (same situation as the Storybook build).
-6. **Do not deploy yet** — set the environment variables (§3) first, or the first production build fails `@bec/config`'s `productionRequired` validation (ADR-038, by design).
+3. **Framework Preset**: **Next.js**. Set this explicitly — do not leave it on *Other*. If a `bec-ops-console` project was cloned/copied from `bec-storybook`, its Framework + Build/Output overrides will be Storybook's (`pnpm turbo run build-storybook`, output `storybook-static`); that silently deploys Storybook to `ops.bestemeraldcoast.com` in ~8s instead of the app. The Next.js preset gives the correct serverless build + output handling.
+4. **Root Directory**: `apps/ops-console` — use the **Edit** button; Vercel defaults to the repo root. (Same gotcha as `bec-storybook`.) Keep **"Include source files outside of the Root Directory"** *enabled* — the monorepo workspace deps live above it.
+5. **Build & Output settings** (Settings → Build and Deployment). These are **not** the Next.js defaults — a plain `next build` from `apps/ops-console` fails on Vercel for two verified reasons, so override:
+   - **Build Command** (Override ON):
+     `cd ../.. && pnpm turbo run build --filter=@bec/ops-console`
+     Why: (a) `@bec/db` / `@bec/config` / `@bec/logger` resolve their *runtime* entry to compiled `dist/` (`exports.default → ./dist/index.js`); nothing builds those on a clean Vercel checkout, so `next build` dies with `Module not found: Can't resolve '@bec/db'`. Turbo's `build` task `dependsOn: ["^build"]` builds those deps' `dist/` first. (b) The `apps/ops-console` `build` script is `next build --webpack` — **Turbopack** (Next 16's default `next build`) **deadlocks** for this app (every thread parked in `uv_cond_wait`, 0% CPU — a hang, *not* OOM; more RAM does not help). The webpack path is verified working. Because the package script carries `--webpack`, the turbo filter command above needs no extra flags. (Equivalent explicit form if you must bypass turbo: `cd ../.. && pnpm turbo run build --filter=@bec/ops-console^... && cd apps/ops-console && next build --webpack`.)
+   - **Install Command** (Override ON): `cd ../.. && pnpm install --frozen-lockfile` (monorepo install from repo root).
+   - **Output Directory**: Override **OFF** (let the Next.js preset manage `.next` + serverless packaging). Never set `storybook-static`.
+   - After changing settings, redeploy with **"Use existing Build Cache" unchecked** — a cache from a Storybook-misconfigured build poisons the corrected one.
+6. **Do not deploy yet** — set the environment variables (§3) first, or the first production build fails `@bec/config`'s `productionRequired` validation at "Collecting page data" (ADR-038, by design). All 9 prod-required vars must be present: `DATABASE_URL`, `AGENT_API_KEY`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `OPERATOR_EMAIL`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `SENTRY_DSN`, `CRON_SECRET` (see §3 — confirm `AGENT_API_KEY`, `ANTHROPIC_API_KEY`, `CRON_SECRET` are not omitted).
 
 ## 2. Attach the custom domain
 

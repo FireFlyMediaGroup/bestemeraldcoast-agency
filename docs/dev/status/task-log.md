@@ -404,6 +404,83 @@ login). Recorded here per the off-plan task-template; renumbers nothing.
   flipping Pass-2 `enforce_admins: true` to make the guardrail real (a
   separate change, pending operator approval).
 
+## 2026-05-17 — Off-plan — Ops-console route-handler types + CI typegen (Phase 1 gate box 9)
+
+Follow-on to the deploy-unblock entry above. The `bec-ops-console` Vercel
+build, once correctly running `next build --webpack` with workspace deps
+built, failed at the integrated TypeScript step — a real defect that all CI
+gates were structurally blind to. Recorded per the off-plan task-template;
+renumbers nothing; does **not** change Phase 1 gate status (gate-box-9
+defect remediation, not gate progress).
+
+- **Type:** Off-plan remediation (task-template). Triggered by operator
+  decision "use the loop and the proper CI pipeline" after the Vercel deploy
+  failed where CI was green.
+- **Branch:** `task/2026-05-17-ops-console-route-types-ci-typegen` (from
+  `origin/main` `c804d4e`).
+- **PR / Merge SHA / CodeRabbit / cubic / CI:** recorded at `/ship-task`
+  post-merge (CodeRabbit advisory per the 2026-05-16 ADR-035 loop-doc policy;
+  merge gate = Pass-2 `lint`/`type-check`/`unit-tests` green + cubic clean +
+  every posted finding triaged).
+- **Root cause:** `apps/ops-console/lib/agent-handler.ts` hardcoded
+  `RouteCtx = { params: Promise<{ id: string }> }` for *every* agent route.
+  Next 16 App Router typed-routes generate a per-route handler constraint in
+  `.next/types/**`: non-dynamic routes get `params: Promise<{}>`. The
+  hardcoded `{ id: string }` is not satisfiable by `{}` → `next build` fails
+  ("Property 'id' is missing in type '{}'") for `agent-runs`, `businesses`,
+  `leads`, `pipeline-signals`. CI ran a bare `tsc --noEmit` with no
+  `.next/types` present, so the constraint did not exist at CI time — green
+  CI, broken Vercel.
+- **Fix (code):** `agent-handler.ts` `agentRoute` / `RouteCtx` / `Handler`
+  made generic over the params object, default `Record<never, never>`
+  (matches Next's non-dynamic `Promise<{}>`). The four dynamic `[id]`
+  routes — `agent-runs/[id]/finalize`, `leads/[id]/lock`,
+  `leads/[id]/release`, `leads/[id]` (PATCH) — call
+  `agentRoute<{ id: string }>(…)` so `id` stays a concrete `string`.
+- **Fix (CI pipeline — the "proper CI pipeline" the operator asked for):**
+  `apps/ops-console` `type-check` script `tsc --noEmit` →
+  `next typegen && tsc --noEmit` (Next 16.2.6 `next typegen` generates
+  route types without a full build); turbo `type-check` task `dependsOn`
+  `["^type-check"]` → `["^build"]` so `@bec/db`/`@bec/config`/`@bec/logger`
+  `dist/` exists for `next typegen`/`tsc` runtime-condition resolution. The
+  existing CI `type-check` job now fails on any route-handler/route-path
+  signature mismatch — the gap that hid this bug is closed. Recorded in
+  `docs/dev/adr-log.md` (`2026-05-17 — ADR-016`, clarification; no ADR text
+  change).
+- **Fix (durable build config):** `apps/ops-console` `build` script
+  `next build` → `next build --webpack` (Turbopack deadlocks for this app —
+  verified: every thread parked in `uv_cond_wait`, 0% CPU; a hang, **not**
+  OOM, so more RAM does not help). `docs/runbooks/ops-console-deploy.md` §1
+  rewritten: the prior "leave Build/Output at Next.js defaults; ample memory
+  so Turbopack OOM does not occur" guidance was wrong and *caused* the
+  Storybook-misconfig + Turbopack-hang failures; replaced with the verified
+  Vercel project config (Framework Next.js; Root `apps/ops-console`; Build
+  Command `cd ../.. && pnpm turbo run build --filter=@bec/ops-console`;
+  Install `cd ../.. && pnpm install --frozen-lockfile`; Output override
+  OFF; 9 prod-required env vars incl. the often-omitted `AGENT_API_KEY` /
+  `ANTHROPIC_API_KEY` / `CRON_SECRET`).
+- **Validation:** `pnpm turbo run type-check --filter=@bec/ops-console` →
+  `Tasks: 7 successful, 7 total`, `next typegen` `✓ Types generated
+  successfully`, `tsc --noEmit` clean, `EXIT_CODE=0` (this is the exact CI
+  path and the exact Vercel failure point — decisive). `pnpm --filter
+  @bec/ops-console exec next build --webpack` compiles; it stops at
+  "Collecting page data" on missing *local* env (`@bec/config`
+  `productionRequired`, ADR-038) — expected and out of scope here; Vercel
+  has the env. CI `lint`/`type-check`/`unit-tests` to be confirmed green on
+  the PR at `/ship-task`.
+- **Files changed:** `apps/ops-console/lib/agent-handler.ts`;
+  `apps/ops-console/app/api/agent/agent-runs/[id]/finalize/route.ts`,
+  `…/leads/[id]/lock/route.ts`, `…/leads/[id]/release/route.ts`,
+  `…/leads/[id]/route.ts`; `apps/ops-console/package.json`; `turbo.json`;
+  `docs/dev/adr-log.md`; `docs/runbooks/ops-console-deploy.md`;
+  `docs/dev/status/task-log.md`; `docs/dev/status/next-step.md`.
+- **Not in scope (flagged for a later task):** the Next 16
+  `middleware`→`proxy` deprecation warning and the optional
+  `global-error.js` Sentry handler. Phase 1 gate status unchanged
+  (`PHASE 1 GATE — STATUS: NOT PASSED`); the operator action list still
+  governs the gate. This task only makes gate box 9's ops-console build
+  succeed on Vercel.
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:

@@ -6,16 +6,31 @@
 import { agentKeyId, requireAgentAuth } from "./agent-auth.js";
 import { checkRateLimit, tooManyRequests } from "./ratelimit.js";
 
-// Next 16 dynamic-segment params arrive as a Promise. Typed as a concrete
-// object (not Record<string,string>) so `id` is `string` — a Record index
-// access would be `string | undefined` under noUncheckedIndexedAccess and
-// every `eq(col, id)` would reject the `undefined`. Routes with no dynamic
-// segment simply ignore `ctx`.
-export type RouteCtx = { params: Promise<{ id: string }> };
+// Next 16 dynamic-segment params arrive as a Promise. The wrapper is generic
+// over the params shape so each route's exported handler matches Next's
+// generated typed-route constraint: a `[id]` route's context is
+// `Promise<{ id: string }>`; a non-dynamic route's is `Promise<{}>`. A single
+// hardcoded `{ id: string }` made every non-dynamic agent route fail
+// `next build` ("Property 'id' is missing in type '{}'"). That error only
+// surfaces in `next build` / `next typegen` (the `.next/types` route
+// constraints don't exist under a bare `tsc --noEmit`), so it passed CI and
+// only broke on Vercel.
+//
+// Default `Record<never, never>` (lint-safe empty object) matches Next's
+// non-dynamic `Promise<{}>`. Dynamic routes call `agentRoute<{ id: string }>`
+// so `id` stays a concrete `string` — a Record index access would be
+// `string | undefined` under noUncheckedIndexedAccess and every
+// `eq(col, id)` would reject the `undefined`.
+export type RouteCtx<P = Record<never, never>> = { params: Promise<P> };
 
-type Handler = (req: Request, ctx: RouteCtx) => Promise<Response>;
+type Handler<P = Record<never, never>> = (
+  req: Request,
+  ctx: RouteCtx<P>,
+) => Promise<Response>;
 
-export function agentRoute(handler: Handler): Handler {
+export function agentRoute<P = Record<never, never>>(
+  handler: Handler<P>,
+): Handler<P> {
   return async (req, ctx) => {
     // The try spans auth + rate-limit + handler so a throw from ANY of them
     // is logged + converted to 500 (not just handler throws).
