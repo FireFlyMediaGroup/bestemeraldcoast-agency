@@ -37,13 +37,20 @@ Set these in **Settings → Environment Variables**, scoped to **Production** an
 
 | Variable | Value | Notes |
 |---|---|---|
-| `DATABASE_URL` | Neon pooled connection URL | If the Neon password is rotated, update here too |
-| `DATABASE_URL_UNPOOLED` | Neon direct connection URL | |
-| `NEXTAUTH_SECRET` | 32+ char secret | `openssl rand -hex 32` if generating fresh |
-| `NEXTAUTH_URL` | `https://ops.bestemeraldcoast.com` | Must match the attached domain exactly |
-| `OPERATOR_EMAIL` | the single allow-listed login address | The NextAuth `signIn` callback rejects every other address |
-| `RESEND_API_KEY` | `re_…` | Magic-link delivery (ADR-013) |
-| `SENTRY_DSN` | ops/server Sentry DSN | Server + edge error capture (ADR-012) |
+The first nine rows are the **exact `@bec/config` `productionRequired` set** — every one must be present or the build fails at `@bec/config` validation during "Collecting page data" (ADR-038). They match the §1 step-6 list one-for-one.
+
+| Variable | Value | Notes |
+|---|---|---|
+| `DATABASE_URL` | Neon pooled connection URL | **Required.** If the Neon password is rotated, update here too |
+| `NEXTAUTH_URL` | `https://ops.bestemeraldcoast.com` | **Required.** Must match the attached domain exactly |
+| `NEXTAUTH_SECRET` | 32+ char secret | **Required.** `openssl rand -hex 32` if generating fresh |
+| `OPERATOR_EMAIL` | the single allow-listed login address | **Required.** The NextAuth `signIn` callback rejects every other address |
+| `AGENT_API_KEY` | Bearer token for the agent API | **Required.** Scout/Diagnoser authenticate to the ops-console agent endpoints with this |
+| `ANTHROPIC_API_KEY` | `sk-ant-…` | **Required.** Agent runtime (Scout/Diagnoser prompts), ADR-004/ADR-018 |
+| `RESEND_API_KEY` | `re_…` | **Required.** Magic-link delivery (ADR-013) |
+| `SENTRY_DSN` | ops/server Sentry DSN | **Required.** Server + edge error capture (ADR-012) |
+| `CRON_SECRET` | secret for scheduled-job endpoint auth | **Required.** Secures the cron-triggered agent jobs |
+| `DATABASE_URL_UNPOOLED` | Neon direct connection URL | Not in `@bec/config`'s nine, but the agent runtime + `db:*` tooling use the direct (unpooled) URL — set it for full function |
 | `SENTRY_AUTH_TOKEN` | Sentry source-map upload token | Optional but recommended; build skips upload if absent |
 | `NEXT_PUBLIC_SENTRY_DSN` | client Sentry DSN | Optional; client Sentry no-ops if omitted |
 
