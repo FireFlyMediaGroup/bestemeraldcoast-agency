@@ -35,8 +35,6 @@
 
 Set these in **Settings → Environment Variables**, scoped to **Production** and **Preview**. Source every value from the `BEC-Production` 1Password vault (`docs/runbooks/secrets-setup.md`).
 
-| Variable | Value | Notes |
-|---|---|---|
 The first nine rows are the **exact `@bec/config` `productionRequired` set** — every one must be present or the build fails at `@bec/config` validation during "Collecting page data" (ADR-038). They match the §1 step-6 list one-for-one.
 
 | Variable | Value | Notes |
