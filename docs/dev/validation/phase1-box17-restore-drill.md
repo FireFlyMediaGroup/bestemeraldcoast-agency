@@ -23,14 +23,16 @@
 
 Pick a restore point inside the retention window (e.g. "now − 1 hour", or a labeled backup).
 
-CLI:
+CLI — `--parent` takes the restore point directly. It accepts a branch
+name/ID, an **ISO-8601 timestamp**, or an **LSN**; for PITR pass the
+timestamp (there is no separate `--parent-timestamp` flag). The parent
+branch is the project's default unless the timestamp is qualified:
 ```bash
 # t0: branch-create issued
 neonctl branches create \
   --project-id "<PROJECT_ID>" \
   --name "dr-drill-2026-05-18" \
-  --parent "<PROD_BRANCH>" \
-  --parent-timestamp "<ISO8601 restore point>"
+  --parent "<ISO8601 restore point>"   # e.g. 2026-05-18T18:00:00Z (or an LSN)
 # record t1: branch ready
 ```
 (Console path: Branches → New branch → "Include data up to" a past time → Create.)
