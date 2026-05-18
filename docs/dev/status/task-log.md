@@ -683,30 +683,46 @@ isolating the fault to the lead status-transition path. Off-plan
 - Type: off-plan gate-remediation (RALPH-LOOP §103).
 - Branch: `task/2026-05-18-fix-lead-transition-fetch-tx`
 - PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/36
-- Merge SHA: _pending — auto-merge deliberately NOT enabled; operator
-  reviews before merge/deploy (operator instruction overrides
-  RALPH-LOOP §7b auto-merge norm for this task)._
+- Merge SHA: `1d5373cd1e5cc42ab932c6356b4350b5c2ddfd03` (squash, 2026-05-18
+  19:59:52Z). Auto-merge deliberately NOT enabled — operator reviewed
+  (PR approved + all required checks green) then authorized the squash
+  (operator instruction overrode the RALPH-LOOP §7b auto-merge norm for
+  this task; §7e gate verified green pre-merge, 0 posted findings).
 - CodeRabbit/cubic: advisory (RALPH-LOOP §7b); required CI checks
   `lint`+`type-check`+`unit-tests` gate the squash-merge.
 - Files changed: `apps/ops-console/lib/lead-transitions.ts`,
   `apps/ops-console/app/api/agent/leads/[id]/route.ts`,
   `apps/ops-console/app/(app)/leads/actions.ts` (3).
 - Validation: `lint` (noop) ✓ · `type-check` (`next typegen && tsc
-  --noEmit`) ✓ · `test:unit` (noop) ✓. **End-to-end acceptance still
-  owed (operator):** the bug only manifests on the deployed Neon fetch
-  transport — after ops-console redeploys off `main`, re-run the
-  Diagnoser on the two still-`new` leads
-  (`64eaecc1-…`, `87a75672-…`) and confirm they reach `diagnosed` with
-  matching `lead_status_history` rows and correct ADR-035 cap
-  accounting.
-- **Gate impact:** boxes 13–14 were marked 🔴 *"code complete,
-  runtime-gated"* after #33 — that was still incomplete: this deeper
-  `@bec/db` transport regression also blocked Diagnoser persistence.
-  With #36 the code path is genuinely complete; boxes remain 🔴 pending
-  the operator deploy + live Diagnoser re-run. Also clean up stray
-  `agent_runs` row `2b1fe09f-…` (stuck `running` from a Diagnoser
-  API sanity-check POST). **Phase 1 gate status unchanged — NOT
-  PASSED.**
+  --noEmit`) ✓ · `test:unit` (noop) ✓.
+- **End-to-end acceptance: DONE (2026-05-18, post-deploy).** ops-console
+  redeployed off `main` (Vercel `bec-ops-console` `success`). Diagnoser
+  re-run on the two `beach chair rentals` leads: both `PATCH
+  /api/agent/leads/:id` → **HTTP 200 `transitioned:true`** (the exact
+  path that 500×4 before the fix). Postgres source-of-truth check:
+  `64eaecc1` + `87a75672` → `diagnosed`; 2 `lead_status_history`
+  `new→diagnosed` rows whose `created_at` equals each lead's
+  `updated_at` to the microsecond — direct evidence the atomic CTE
+  wrote the UPDATE + history INSERT in **one statement**, no
+  interactive transaction; ADR-035 cap accounting correct. A second
+  canonical-niche run (`charter fishing`, niche `charter_fishing`) then
+  exercised the full pipeline: Scout 7 leads + 7 `lead_added`
+  `pipeline_signals` (run `fa9b1fe0-…`); Diagnoser 7/7 diagnosed, all
+  `PATCH` 200, 7 `diagnosis_done` `pipeline_signals` written. DB
+  verify: 7 charter `diagnosed`, 0 `new`, `pipeline_signals` 14d
+  window = 7 `lead_added` + 7 `diagnosis_done`, `diagnosed_today=9`.
+- **Gate impact:** boxes 11–14 are now **GREEN** — live Scout
+  (boxes 11/12) and live Diagnoser (boxes 13/14) both proven against
+  the deployed app with canonical-niche `pipeline_signals` in the
+  ADR-040 trailing-query window. #33 fixed the auth-middleware bypass;
+  #36 fixed this deeper `@bec/db` fetch-transport regression that also
+  blocked Diagnoser persistence — together the agent code path is
+  genuinely complete and runtime-verified. **Phase 1 gate as a whole
+  still NOT PASSED** (residual: box 10 iPhone-Safari 🟡, box 15 blind
+  validation, box 17 restore drill). Follow-up still owed: clean up
+  stray `agent_runs` row `2b1fe09f-…` (stuck `running` from a
+  Diagnoser API sanity-check POST; prod finalize write was blocked by
+  the harness auto-mode classifier — operator action).
 
 ## Phase Gates
 
