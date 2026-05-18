@@ -651,6 +651,63 @@ boxes 11–14. Off-plan (task-template); no commit reorders.
   must be exported into the `claude` session so `postgres-ro` MCP
   connects). **Phase 1 gate status unchanged — NOT PASSED.**
 
+## 2026-05-18 — Off-plan — Lead-transition fetch-transaction 500 (Phase 1 gate boxes 13–14 unblock)
+
+Discovered during the operator's live Diagnoser run (gate boxes 13, 14),
+immediately after the #33 middleware fix. The Diagnoser produced
+rubric-passing diagnoses for both `new` leads but every
+`PATCH https://ops.bestemeraldcoast.com/api/agent/leads/:id` returned
+**HTTP 500**; 0 leads advanced. `agent-runs` POST/finalize were healthy,
+isolating the fault to the lead status-transition path. Off-plan
+(task-template); no commit reorders.
+
+- **Root cause:** PR #28 (`0d64819`) set `neonConfig.poolQueryViaFetch =
+  true` (`packages/db/src/client.ts`) for Vercel serverless auth
+  stability. Every Neon `pool.query()` is then a stateless HTTP request,
+  so Drizzle's `db.transaction()` (interactive `BEGIN…COMMIT`) has no
+  session affinity and throws → `agentRoute` → hard 500. The lead
+  status-transition path is the only `db.transaction()` the Diagnoser
+  hits; single-statement calls work over fetch — exactly the observed
+  pass/fail split. Confirmed by code trace + git bisect to #28 + a
+  natural A/B in the live run (same client/deploy: transaction 500×4,
+  single-statement 200).
+- **Fix (code, PR #36):** replace both `db.transaction()` call sites
+  with one atomic CTE statement (`UPDATE…RETURNING` feeding
+  `INSERT…SELECT` into `lead_status_history`). A single statement is
+  atomic in Postgres and needs no interactive session, so it is
+  transport-independent (fetch OR websocket) without reverting #28's
+  auth fix. New shared `applyLeadTransition()` helper in
+  `apps/ops-console/lib/lead-transitions.ts`. Race-safety preserved
+  exactly (UPDATE conditional on `status=from`; concurrent move → 0 rows
+  → `transitioned:false` → 409, no orphan history row). ADR-003 intact.
+- Type: off-plan gate-remediation (RALPH-LOOP §103).
+- Branch: `task/2026-05-18-fix-lead-transition-fetch-tx`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/36
+- Merge SHA: _pending — auto-merge deliberately NOT enabled; operator
+  reviews before merge/deploy (operator instruction overrides
+  RALPH-LOOP §7b auto-merge norm for this task)._
+- CodeRabbit/cubic: advisory (RALPH-LOOP §7b); required CI checks
+  `lint`+`type-check`+`unit-tests` gate the squash-merge.
+- Files changed: `apps/ops-console/lib/lead-transitions.ts`,
+  `apps/ops-console/app/api/agent/leads/[id]/route.ts`,
+  `apps/ops-console/app/(app)/leads/actions.ts` (3).
+- Validation: `lint` (noop) ✓ · `type-check` (`next typegen && tsc
+  --noEmit`) ✓ · `test:unit` (noop) ✓. **End-to-end acceptance still
+  owed (operator):** the bug only manifests on the deployed Neon fetch
+  transport — after ops-console redeploys off `main`, re-run the
+  Diagnoser on the two still-`new` leads
+  (`64eaecc1-…`, `87a75672-…`) and confirm they reach `diagnosed` with
+  matching `lead_status_history` rows and correct ADR-035 cap
+  accounting.
+- **Gate impact:** boxes 13–14 were marked 🔴 *"code complete,
+  runtime-gated"* after #33 — that was still incomplete: this deeper
+  `@bec/db` transport regression also blocked Diagnoser persistence.
+  With #36 the code path is genuinely complete; boxes remain 🔴 pending
+  the operator deploy + live Diagnoser re-run. Also clean up stray
+  `agent_runs` row `2b1fe09f-…` (stuck `running` from a Diagnoser
+  API sanity-check POST). **Phase 1 gate status unchanged — NOT
+  PASSED.**
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
