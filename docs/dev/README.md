@@ -23,8 +23,12 @@ This folder contains the master ADR, master project plan, Claude Code operating 
 - `task-template.md` — standard task card format
 - `validation-checklist.md` — repeatable QA checks per commit
 
+### Repo tooling
+- `scripts/dev-session.sh` — the **only** supported way to start an agent-runtime session. Loads the root `.env` safely (first-`=` split so `&` can't truncate `DATABASE_URL_UNPOOLED`), validates Scout env vars, and launches Claude scoped to `agency/` so the MCP servers, `/scout` command, and subagents load. Plain `claude` from the repo root silently loses all three. Details: `claude/CLAUDE.md` § Session Launch.
+- `scripts/seed-1password-vault.sh` — one-time: seed the 1Password vault with placeholder items for `.env.tpl`.
+
 ## Operating Rule
-Always read the master ADR and master project plan (or at minimum the relevant Phase + cited ADRs) before starting a new task. The state file `status/next-step.md` tells the loop what to execute next.
+Always read the master ADR and master project plan (or at minimum the relevant Phase + cited ADRs) before starting a new task. The state file `status/next-step.md` tells the loop what to execute next. Start every session via `./scripts/dev-session.sh` (see `claude/CLAUDE.md` § Session Launch) — a misscoped launch makes the agent runtime silently non-functional.
 
 ## Git Workflow (summary)
 - One branch per Ralph commit: `phase-<N>/commit-<N>.<M>-<slug>`.
