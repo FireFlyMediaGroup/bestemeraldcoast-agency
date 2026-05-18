@@ -20,7 +20,7 @@ const PatchLead = z.object({
   offer: z.record(z.unknown()).optional(),
 });
 
-export const PATCH = agentRoute(async (req, ctx) => {
+export const PATCH = agentRoute<{ id: string }>(async (req, ctx) => {
   const { id: rawId } = await ctx.params;
   const id = requireUuid(rawId);
   if (id instanceof Response) return id;

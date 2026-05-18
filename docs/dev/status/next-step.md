@@ -17,6 +17,28 @@ cannot be done or self-certified by the loop. Gate status detail is the
 
 - **Rotate the Neon `neondb_owner` password.** A shell `.env` sourcing during the Commit 1.4 DB verification echoed the connection string. Rotate in Neon → update `.env` (`DATABASE_URL` + `DATABASE_URL_UNPOOLED`) → update the `BEC-Production` 1Password item.
 
+## ✅ Off-plan gate-box-9 remediation SHIPPED (2026-05-17)
+
+`task/2026-05-17-ops-console-route-types-ci-typegen` is done — see its
+`task-log.md` entry. It fixed the real defect that made `bec-ops-console`'s
+Vercel `next build` fail where CI was green: `agent-handler.ts`'s `RouteCtx`
+hardcoded `{ id: string }` for every agent route (Next 16 typed-routes
+rejects that for non-dynamic routes). The wrapper is now generic; the four
+`[id]` routes pass `<{ id: string }>`; `apps/ops-console` `type-check` now
+runs `next typegen && tsc --noEmit` (turbo `type-check` `dependsOn: ["^build"]`)
+so CI catches this class of bug; `build` is pinned to `next build --webpack`
+(Turbopack deadlocks); `runbooks/ops-console-deploy.md` §1 corrected to the
+verified Vercel config; `adr-log.md` carries the ADR-016 clarification.
+
+**This did NOT change the Phase 1 gate.** It only makes operator action-list
+item 3's ops-console build succeed on Vercel. Control returns to the
+operator-gated wait below. **Operator next:** apply the corrected
+`runbooks/ops-console-deploy.md` §1 Vercel settings (Build Command
+`cd ../.. && pnpm turbo run build --filter=@bec/ops-console`, Framework
+Next.js, Output override OFF), set all 9 prod-required env vars, redeploy
+without cache. Still-deferred (later task, not blocking): the
+`middleware`→`proxy` deprecation and optional `global-error.js`.
+
 ## Operator action list to clear the Phase 1 gate
 
 Ordered so each step unblocks the next:
@@ -37,7 +59,7 @@ the loop resumes.
 
 ## Current Step
 
-- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — blocked on the operator action list above.**
+- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — blocked on the operator action list above.** The 2026-05-17 route-types/CI-typegen task shipped but is gate-box-9 *defect remediation*, not gate progress.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 quality gate.
 - **Do NOT:** start Phase 2 / Commit 2.1, or mark the gate passed, until the operator closes the items and records `PHASE 1 GATE PASSED`.
 

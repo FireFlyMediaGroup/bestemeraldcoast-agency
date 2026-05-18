@@ -12,7 +12,7 @@ import { agentRoute, readJson, requireUuid } from "@/lib/agent-handler";
 
 const Lock = z.object({ lockedBy: z.string().min(1) });
 
-export const POST = agentRoute(async (req, ctx) => {
+export const POST = agentRoute<{ id: string }>(async (req, ctx) => {
   const { id: rawId } = await ctx.params;
   const id = requireUuid(rawId);
   if (id instanceof Response) return id;
