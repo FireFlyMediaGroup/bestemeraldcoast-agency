@@ -634,11 +634,15 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
   green on every PR (@bec/logger 20/20 + @bec/config 16/16 are the real
   suites; @bec/db / @bec/ops-console test:unit are intentional noops).
 - ✅ **Schema: all 32 tables creatable** — proven by the migration test.
-- 🟡 **Seed completeness (code, not live run)** — `seed.ts` is complete +
-  idempotent for 8 sites, 10 niches, 30 niche-category mappings, 120
-  season weights, 8 season events, authors, 9 agent budgets, and asserts
-  `getSeasonalWeight('charter_fishing', 2026-06-15) === 1.5`. The **live
-  `db:seed` run is operator-gated** (ADR-038) — pending evidence capture.
+- ✅ **Seed + live DB bring-up (operator-run 2026-05-18, prod Neon)** —
+  `db:migrate` applied 0000–0003 cleanly; `PROD_DB_ALLOWED=true … db:seed`
+  (ADR-038 process-scoped opt-in; `.env` default untouched) succeeded
+  idempotently. Captured evidence: `sites: 8`, `categories: 48`,
+  `authors: 2`, `agent_budgets: 9`, `niches: 10`, `niche_category_map: 30`,
+  `season_weights: 120`, `season_events: 8`, and the acceptance assertion
+  `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5`. Closes the
+  "all tables created and seeded" + the 8-sites/10-niches/30-mappings/
+  120-weights/8-events gate boxes.
 - ✅ **Neon provisioned via Vercel; prod+preview branches verified** — reconfigured 2026-05-18; functionally verified by the successful end-to-end magic-link sign-in (exercises the Drizzle adapter + Auth.js tables on production Neon).
 - ✅ **Ops-console deployed to ops.bestemeraldcoast.com + magic link** — PRs #24/#26/#27/#29 + Neon reconfig + Vercel env fix (CLI, correct project/scope); operator-confirmed end-to-end sign-in 2026-05-18. See the 2026-05-18 off-plan entry.
 - 🟡 **Operator login on iPhone Safari** — login mechanism verified end-to-end; iPhone-Safari + add-to-home-screen device confirmation still pending (blocker removed — quick device check only).
@@ -649,15 +653,16 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
 - 🔴 **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study.
 - 🔴 **One restore drill (ADR-006)** — operator-run DR exercise.
 
-Summary (updated 2026-05-18): **5 green** (migrations, unit tests, schema,
-Neon-verified, deploy+magic-link), **2 yellow** (live `db:seed` evidence;
-iPhone-Safari device confirmation), **6 red** (Scout ≥10, Scout
-pipeline_signals, Diagnoser 50-word, Diagnoser pipeline_signals, blind
-validation, restore drill). The deploy/login blocker is cleared; the
-remaining items are operator-run live agents + human eval + DR. The loop
-is still **correctly blocked here** — proceeding into Phase 2 would
-violate the ADR-035 non-negotiable. See `next-step.md` for the residual
-operator action list.
+Summary (updated 2026-05-18, post live seed): **6 green** (migrations,
+unit tests, schema, Neon-verified, deploy+magic-link, **live seed**),
+**1 yellow** (iPhone-Safari device confirmation), **6 red** (Scout ≥10,
+Scout pipeline_signals, Diagnoser 50-word, Diagnoser pipeline_signals,
+blind validation, restore drill). DB + deploy + login are all closed; the
+only remaining items are operator-run **live agents** (Scout, Diagnoser),
+the **iPhone device check**, the **blind validation**, and the **restore
+drill**. The loop is still **correctly blocked here** — proceeding into
+Phase 2 would violate the ADR-035 non-negotiable. See `next-step.md` for
+the residual operator action list.
 
 <!-- Replace with `## YYYY-MM-DD — PHASE 1 GATE PASSED` once the operator
 closes the 🔴/🟡 items and pastes the fully-checked checklist. -->
