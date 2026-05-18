@@ -42,7 +42,7 @@ Repo: local `main` == `origin/main` == `814fb38`; no open PRs.
 Ordered so each step unblocks the next:
 
 1. ✅ **DONE — Provision Neon via Vercel; verify prod + preview** (gate box 1). Neon reconfigured 2026-05-18; verified by the successful end-to-end magic-link sign-in.
-2. **Run the live DB bring-up** (gate boxes 3–8): `pnpm --filter @bec/db db:migrate` then `pnpm --filter @bec/db db:seed`. Capture the seed tail line `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5` and the per-table "rows attempted" counts (8 sites / 10 niches / 30 mappings / 120 weights / 8 events) as gate evidence. **(Still open — 🟡; sign-in proves the Auth.js tables exist on prod Neon but NOT the full seed.)**
+2. ✅ **DONE — live DB bring-up** (gate boxes 3–8). `db:migrate` applied 0000–0003; `PROD_DB_ALLOWED=true … db:seed` (process-scoped ADR-038 opt-in) succeeded idempotently against prod Neon: 8 sites / 48 categories / 2 authors / 9 agent_budgets / 10 niches / 30 mappings / 120 season_weights / 8 season_events; acceptance `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5`. Evidence recorded in the PHASE 1 GATE — STATUS entry.
 3. ✅ **DONE — Deploy `bec-ops-console` + magic link** (gate box 9). Deployed to `ops.bestemeraldcoast.com`; Resend `noreply@ops.bestemeraldcoast.com` subdomain verified; env set via Vercel CLI on the correctly-linked project; operator-confirmed sign-in 2026-05-18.
 4. **Log in on iPhone Safari** (gate box 10 — 🟡, blocker removed): repeat the now-working sign-in on iPhone Safari, confirm no bugs, add to Home Screen, confirm chrome-less standalone launch (closes Commit 1.4 + 1.7 device acceptance). *(Optional: drop a 180×180 `apps/ops-console/app/apple-icon.png` for a branded glyph.)*
 5. **Run Scout**: `claude /scout pensacola charter fishing` (agent env: `GOOGLE_MAPS_API_KEY`, `AGENT_API_KEY`, `OPS_CONSOLE_URL`, `DATABASE_URL_UNPOOLED`). Confirm ≥10 `leads` rows + matching `pipeline_signals` (`lead_added`) rows; daily cap respected (gate boxes 11, 12).
@@ -57,7 +57,7 @@ the loop resumes.
 
 ## Current Step
 
-- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — but materially advanced (2026-05-18): deploy + magic-link login working; 5/13 boxes green, 2 yellow.** Residual blockers are the live DB seed-evidence, live Scout/Diagnoser runs, blind validation, and the restore drill (operator action list above).
+- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — but materially advanced (2026-05-18): DB + deploy + login all closed; 6/13 boxes green, 1 yellow.** Residual blockers: live Scout run, live Diagnoser run, iPhone-Safari device check, blind validation, restore drill (operator action list above).
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 quality gate.
 - **Do NOT:** start Phase 2 / Commit 2.1, or mark the gate passed, until the operator closes the items and records `PHASE 1 GATE PASSED`.
 
