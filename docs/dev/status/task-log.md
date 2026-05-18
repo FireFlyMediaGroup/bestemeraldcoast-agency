@@ -606,6 +606,51 @@ progress).
 - Validation: `pnpm turbo lint type-check test:unit` → 48/48
   (`@bec/config` 18/18, `@bec/logger` 20/20).
 
+## 2026-05-18 — Off-plan — Agent API middleware bypass (Phase 1 gate boxes 11–14 unblock)
+
+Discovered while preparing the operator's live Scout run (gate boxes 11,
+12). `POST https://ops.bestemeraldcoast.com/api/agent/agent-runs`
+returned **302 → /login** even with an `Authorization: Bearer` header —
+the entire agent write path (agent-runs, businesses, leads,
+pipeline-signals) was unreachable to Scout/Diagnoser, hard-blocking gate
+boxes 11–14. Off-plan (task-template); no commit reorders.
+
+- **Root cause:** `apps/ops-console/middleware.ts` matcher excluded
+  `api/auth` but not `api/agent`, so the NextAuth edge guard intercepted
+  `/api/agent/*`, found no session cookie (machine clients send a Bearer
+  token), and redirected to `/login` before the route handler ran.
+- **Fix (code, PR #33):** added `api/agent` to the matcher
+  negative-lookahead (one line; parallels the existing `api/auth`
+  exclusion). Agent routes carry their own complete Bearer
+  `AGENT_API_KEY` boundary via `agentRoute()`
+  (`lib/agent-handler.ts` → 401 + ADR-017 rate limit; ADR-003/ADR-018),
+  so they must not sit under the session middleware. Operator UI
+  (`/dashboard`) stays guarded.
+- Type: off-plan gate-remediation (RALPH-LOOP §103).
+- Branch: `task/2026-05-18-agent-api-middleware-bypass`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/33
+- Merge SHA: 96ce5c900e2c85e43a552ad2207e0c3ff99024e7
+- CodeRabbit: pass (advisory). cubic: pending at merge (advisory; CI
+  required checks `lint`+`type-check`+`unit-tests` all green gated the
+  squash-merge).
+- Files changed: `apps/ops-console/middleware.ts` (1).
+- Validation: `lint` (noop) ✓ · `type-check` (`next typegen && tsc
+  --noEmit`) ✓ · `test:unit` (noop) ✓. Matcher regex assertion:
+  `/api/agent/*` now bypasses the redirect, `/dashboard` stays GUARDED,
+  `/api/auth` + `/login` unchanged. **Post-deploy live check still owed
+  (operator):** after ops-console redeploys off `main`,
+  `POST /api/agent/agent-runs` without a bearer must return **401**, not
+  302.
+- **Gate impact:** the Scout/Diagnoser boxes (11–14) were previously
+  marked 🔴 *"code complete, runtime-gated"* — that was incomplete: a
+  code defect in the auth middleware also blocked them. With #33 merged
+  the code path is now genuinely complete; the boxes remain 🔴 pending
+  the operator running the live agents, which additionally needs the
+  ops-console redeploy + the Scout launch env (`OPS_CONSOLE_URL` is
+  defined nowhere — not in `.env`/`.env.example`; `DATABASE_URL_UNPOOLED`
+  must be exported into the `claude` session so `postgres-ro` MCP
+  connects). **Phase 1 gate status unchanged — NOT PASSED.**
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
@@ -646,10 +691,10 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
 - ✅ **Neon provisioned via Vercel; prod+preview branches verified** — reconfigured 2026-05-18; functionally verified by the successful end-to-end magic-link sign-in (exercises the Drizzle adapter + Auth.js tables on production Neon).
 - ✅ **Ops-console deployed to ops.bestemeraldcoast.com + magic link** — PRs #24/#26/#27/#29 + Neon reconfig + Vercel env fix (CLI, correct project/scope); operator-confirmed end-to-end sign-in 2026-05-18. See the 2026-05-18 off-plan entry.
 - 🟡 **Operator login on iPhone Safari** — login mechanism verified end-to-end; iPhone-Safari + add-to-home-screen device confirmation still pending (blocker removed — quick device check only).
-- 🔴 **Scout writes ≥10 leads on a sample query** — operator/runtime (needs deploy + `GOOGLE_MAPS_API_KEY` + `AGENT_API_KEY`). Code complete (Commit 1.8).
-- 🔴 **Scout writes pipeline_signals** — runtime-gated; code complete (1.11).
-- 🔴 **Diagnoser 50-word diagnosis per lead** — runtime-gated; code complete (1.9).
-- 🔴 **Diagnoser writes pipeline_signals** — runtime-gated; code complete (1.11).
+- 🔴 **Scout writes ≥10 leads on a sample query** — operator/runtime. Code complete (Commit 1.8) **+ agent-API middleware bypass fixed (PR #33, 2026-05-18)** — the agent API was 302→/login behind the session guard; that code blocker is now closed. Still needs: ops-console redeploy off `main` + Scout launch env (`OPS_CONSOLE_URL`, `AGENT_API_KEY`, `GOOGLE_MAPS_API_KEY`, `DATABASE_URL_UNPOOLED` exported so `postgres-ro` MCP connects).
+- 🔴 **Scout writes pipeline_signals** — runtime-gated; code complete (1.11) + PR #33.
+- 🔴 **Diagnoser 50-word diagnosis per lead** — runtime-gated; code complete (1.9) + PR #33.
+- 🔴 **Diagnoser writes pipeline_signals** — runtime-gated; code complete (1.11) + PR #33.
 - 🔴 **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study.
 - 🔴 **One restore drill (ADR-006)** — operator-run DR exercise.
 
