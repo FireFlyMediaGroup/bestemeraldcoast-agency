@@ -55,10 +55,9 @@ const result = NextAuth(async () => {
     providers: [
       Resend({
         apiKey: serverEnv.RESEND_API_KEY,
-        // Verified sending domain is configured in Resend + DNS (ADR-013).
-        // `from` falls back to Resend's onboarding sender if unset so local
-        // dev doesn't hard-fail before the domain is verified.
-        from: "ops@bestemeraldcoast.com",
+        // Resend `From` must use a verified domain. Production verifies
+        // `ops.bestemeraldcoast.com` in Resend — not the apex `bestemeraldcoast.com`.
+        from: "noreply@ops.bestemeraldcoast.com",
       }),
     ],
     callbacks: {
