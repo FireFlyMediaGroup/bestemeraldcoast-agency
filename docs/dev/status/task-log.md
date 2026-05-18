@@ -572,6 +572,40 @@ protection-enforced, not discipline-only); H1 (drop `NEXTAUTH_URL` from
 required-but-wrong value is a footgun); H2 (app-scoped `productionRequired`
 so ops-console needn't carry unused `ANTHROPIC_API_KEY`/`CRON_SECRET`).
 
+## 2026-05-18 — Off-plan — H1: NEXTAUTH_URL no longer production-required + Pass-2 enforce_admins
+
+Operator-approved post-deploy-incident hardening. Two of the three
+follow-ups above actioned (H2 still deferred). Off-plan (task-template);
+no commit reorders; **Phase 1 gate status unchanged** (hardening, not gate
+progress).
+
+- **H1 (code, PR):** `packages/config/src/env.ts` — removed
+  `NEXTAUTH_URL` from `productionRequired`; it stays
+  `z.string().url().optional()` in the base schema (set-but-malformed
+  still rejected; unset now allowed in production). Rationale: Auth.js v5
+  `trustHost:true` derives the origin from the request, so the var is
+  unnecessary on Vercel, and a required-but-malformed value was the root
+  cause of the 2026-05-17/18 deploy incident. `env.test.ts` +2 tests
+  (prod-without-NEXTAUTH_URL parses; set-but-malformed still rejects) →
+  `@bec/config` 18/18. `adr-log.md` carries the 2026-05-18 ADR-038
+  clarification (no ADR text change). Branch
+  `task/2026-05-18-h1-nextauth-url-optional`; PR/merge SHA recorded at
+  `/ship-task`. `NEXTAUTH_SECRET` deliberately untouched (Auth.js JWT
+  signing — stays required).
+- **Pass-2 `enforce_admins: true` (infra, gh api):** branch protection on
+  `main` updated so required checks + PR flow are enforced for admins too
+  — closes the gap that let `f5a05d0` reach `main` directly (2026-05-17
+  process deviation). Does not affect the PR + auto-merge loop (auto-merge
+  on required-checks-green still works); it only removes admin *bypass* of
+  protection / direct pushes. Applied via the dedicated
+  `…/branches/main/protection/enforce_admins` endpoint (surgical — no
+  other protection settings touched).
+- **Still deferred:** H2 (app-scoped `productionRequired` so ops-console
+  needn't carry unused `ANTHROPIC_API_KEY`/`CRON_SECRET`) — scoped as a
+  later task, not yet started.
+- Validation: `pnpm turbo lint type-check test:unit` → 48/48
+  (`@bec/config` 18/18, `@bec/logger` 20/20).
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:

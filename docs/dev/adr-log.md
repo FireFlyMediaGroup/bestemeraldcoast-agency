@@ -65,3 +65,12 @@ Append-only log of amendments to `MASTER-bec-architecture-decisions.md`. Every c
 - **Triggered by:** Operator decision — "use the loop and the proper CI pipeline" (off-plan task `task/2026-05-17-ops-console-route-types-ci-typegen`, gate-box-9 deploy-unblock remediation). Surfaced by the `bec-ops-console` Vercel deploy failing where CI was green.
 - **Project-plan impact:** none (no commit reorders; Phase 1 gate status unchanged — this is gate-box-9 defect remediation, not gate progress).
 - **Loop-doc impact:** none (no loop-operating-rule change; `validation-checklist.md` § Tests "`pnpm turbo test:unit` / type-check passes" is now genuinely Next-route-aware via the script change, no checklist edit needed).
+
+## 2026-05-18 — ADR-038 — NEXTAUTH_URL dropped from production-required env (H1)
+
+- **Change type:** Clarification (production-required env set narrowed by one var; no ADR-038 text change — env-validation discipline unchanged in intent)
+- **From → To:** `productionRequired` in `packages/config/src/env.ts` included `NEXTAUTH_URL: z.string().url()` (forced + url-validated whenever env=production) → `NEXTAUTH_URL` removed from `productionRequired`; it remains `z.string().url().optional()` in the base schema (when set it must still be a valid URL; production no longer forces it).
+- **Rationale:** Auth.js v5 with `trustHost: true` (`apps/ops-console/auth.config.ts`) derives the request origin from headers, so `NEXTAUTH_URL` is unnecessary on Vercel. Worse, a *required-but-malformed* value is an active footgun: an empty/garbage `NEXTAUTH_URL` made `@bec/config` reject the whole prod env AND made next-auth `new URL()` throw at the Edge — the root cause of the multi-day 2026-05-17/18 ops-console deploy incident. Making it optional removes a whole failure class and an unneeded operator step; the recommended posture is to leave it unset. `NEXTAUTH_SECRET` (Auth.js JWT signing) stays production-required — H1 does not touch it.
+- **Triggered by:** Operator decision (post-deploy-incident hardening) — approved alongside the `enforce_admins: true` change, 2026-05-18. Off-plan task `task/2026-05-18-h1-nextauth-url-optional`.
+- **Project-plan impact:** none (no commit reorders; Phase 1 gate status unchanged).
+- **Loop-doc impact:** none. `env.test.ts` gains coverage (prod env without NEXTAUTH_URL parses; a set-but-malformed NEXTAUTH_URL still rejects via the base `url()`).

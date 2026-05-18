@@ -111,7 +111,14 @@ const clientSchema = z.object({
 const productionRequired = z.object({
   DATABASE_URL: z.string().url(),
   AGENT_API_KEY: z.string().min(1),
-  NEXTAUTH_URL: z.string().url(),
+  // NEXTAUTH_URL is deliberately NOT production-required (H1, 2026-05-18;
+  // adr-log ADR-038 clarification). Auth.js v5 with `trustHost: true`
+  // (apps/ops-console/auth.config.ts) derives the origin from the request,
+  // so the var is unnecessary on Vercel — and a *required-but-malformed*
+  // value actively crashes Auth.js at the edge (`new URL()` throws). It
+  // stays optional+url-validated in the base schema (when set it must be a
+  // valid URL); production no longer forces it. Leaving it unset is the
+  // recommended posture.
   NEXTAUTH_SECRET: z.string().min(32),
   OPERATOR_EMAIL: z.string().email(),
   ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-"),
