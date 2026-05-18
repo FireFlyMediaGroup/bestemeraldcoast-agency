@@ -497,6 +497,81 @@ defect remediation, not gate progress).
   governs the gate. This task only makes gate box 9's ops-console build
   succeed on Vercel.
 
+## 2026-05-18 — Off-plan — Ops-console deploy GREEN; operator login working (Phase 1 gate box 9 ✅)
+
+Closes the deploy-remediation arc. `bec-ops-console` now deploys cleanly to
+`ops.bestemeraldcoast.com` and operator magic-link sign-in works end-to-end.
+Off-plan (task-template); renumbers nothing. **Materially advances the
+Phase 1 gate** (boxes 9 + Neon-verify closed; box 10 device-confirmation
+pending) but the gate stays **NOT PASSED** per ADR-035 (Scout/Diagnoser
+live runs, blind validation, restore drill, live-seed evidence still open).
+
+**Code arc (all via PR, CodeRabbit-advisory, Pass-2 required CI green):**
+
+- **PR #26 — hardened `__dirname` runtime fix.** Branch
+  `task/2026-05-17-ops-console-dirname-hardened` → squash `c804d4e`.
+  Externalized `@sentry/nextjs` + `import-in-the-middle` +
+  `require-in-the-middle`; removed the top-level `import * as Sentry` from
+  `instrumentation.ts` (deferred to guarded dynamic imports). Root cause:
+  app is `"type":"module"` → ESM server bundle; Sentry/OTEL
+  `*-in-the-middle` reference the CJS-only `__dirname`. The earlier
+  `f5a05d0` partial fix (the recorded direct-to-`main` process deviation,
+  2026-05-17 deploy-unblock entry) was insufficient because the top-level
+  Sentry import crashed boot *outside* the `register()` try/catch. **PR #26
+  properly superseded `f5a05d0` through the PR flow.**
+- **PR #27 — route-handler types + CI typegen.** Recorded in the
+  2026-05-17 route-types entry above (cross-ref); part of this arc.
+- **PR #29 — Resend `From` → verified subdomain.** Branch
+  `task/2026-05-18-resend-from-ops-subdomain` → squash `814fb38`.
+  `apps/ops-console/auth.ts` `from: "ops@bestemeraldcoast.com"` →
+  `"noreply@ops.bestemeraldcoast.com"`. Resend verifies the
+  `ops.bestemeraldcoast.com` **subdomain**, not the apex; magic-link
+  delivery fails until `From` matches a verified domain.
+  `docs/runbooks/ops-console-deploy.md` §4 updated to match.
+
+**Operator infra actions (not code) that closed the loop:**
+
+- **Neon reconfigured.** DB connectivity restored. Functionally verified by
+  the successful end-to-end magic-link sign-in: Auth.js's Resend (Email)
+  provider requires the Drizzle adapter to persist + consume the
+  verification token and create user/session rows, so a working sign-in
+  proves production Neon + the Auth.js tables (migration 0001) are live.
+  (This does **not** prove the full seed — see gate box "live db:seed".)
+- **Vercel env root cause (operationally important).** `NEXTAUTH_URL` was
+  an empty string and `NEXTAUTH_SECRET` a 2-char value (literal `""`) on
+  the **`bec-ops-console` Production scope**, untouched for 2 days —
+  confirmed objectively via `vercel env ls` (`created` 2d-ago, unchanged)
+  + `vercel env pull --environment=production` (showed `NEXTAUTH_URL=""`,
+  secret length 2). Prior dashboard edits had not landed on the correct
+  project/scope (Vercel masks encrypted values in the edit field → easy to
+  re-save empty; and earlier `vercel --prod` had targeted `bec-storybook`
+  because the repo `.vercel` link pointed there). Resolved by setting the
+  vars via the Vercel **CLI** against the explicitly-linked
+  `bec-ops-console` project (`vercel env rm`/`add` piped with `printf`,
+  no trailing newline), Production + Preview. `ANTHROPIC_API_KEY` set
+  (a `sk-ant-` placeholder is schema-valid since ops-console never calls
+  Anthropic — the H2 "app-scoped productionRequired" follow-up is still
+  open).
+- **Verification:** operator confirmed successful sign-in to the ops
+  console (2026-05-18). `GET /` → `/login` 200; magic-link POST succeeds;
+  no `EnvValidationError`, no `TypeError: Invalid URL`.
+
+**Repo state:** local `main` == `origin/main` == `814fb38`; no open PRs;
+the deploy-arc code is fully merged. Only the operator's long-parked
+Phase-0 Storybook/Vercel WIP remains intentionally unstaged.
+
+**Still open for the gate:** live `db:seed` evidence (🟡), iPhone-Safari +
+add-to-home-screen device confirmation (🟡 — blocker removed, quick check),
+Scout live run (boxes 11/12), Diagnoser live run (boxes 13/14), external
+blind validation (15), restore drill (17). **Gate remains NOT PASSED.**
+
+**Process follow-ups (pending operator approval, recorded 2026-05-17):**
+Pass-2 `enforce_admins: true` (so "no direct push to `main`" is
+protection-enforced, not discipline-only); H1 (drop `NEXTAUTH_URL` from
+`productionRequired` — `trustHost:true` makes it unnecessary and a
+required-but-wrong value is a footgun); H2 (app-scoped `productionRequired`
+so ops-console needn't carry unused `ANTHROPIC_API_KEY`/`CRON_SECRET`).
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
@@ -530,9 +605,9 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
   season weights, 8 season events, authors, 9 agent budgets, and asserts
   `getSeasonalWeight('charter_fishing', 2026-06-15) === 1.5`. The **live
   `db:seed` run is operator-gated** (ADR-038) — pending evidence capture.
-- 🔴 **Neon provisioned via Vercel; prod+preview branches verified** — operator infra.
-- 🔴 **Ops-console deployed to ops.bestemeraldcoast.com + magic link** — operator (Vercel + Resend domain).
-- 🔴 **Operator login on iPhone Safari** — operator/device.
+- ✅ **Neon provisioned via Vercel; prod+preview branches verified** — reconfigured 2026-05-18; functionally verified by the successful end-to-end magic-link sign-in (exercises the Drizzle adapter + Auth.js tables on production Neon).
+- ✅ **Ops-console deployed to ops.bestemeraldcoast.com + magic link** — PRs #24/#26/#27/#29 + Neon reconfig + Vercel env fix (CLI, correct project/scope); operator-confirmed end-to-end sign-in 2026-05-18. See the 2026-05-18 off-plan entry.
+- 🟡 **Operator login on iPhone Safari** — login mechanism verified end-to-end; iPhone-Safari + add-to-home-screen device confirmation still pending (blocker removed — quick device check only).
 - 🔴 **Scout writes ≥10 leads on a sample query** — operator/runtime (needs deploy + `GOOGLE_MAPS_API_KEY` + `AGENT_API_KEY`). Code complete (Commit 1.8).
 - 🔴 **Scout writes pipeline_signals** — runtime-gated; code complete (1.11).
 - 🔴 **Diagnoser 50-word diagnosis per lead** — runtime-gated; code complete (1.9).
@@ -540,10 +615,15 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
 - 🔴 **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study.
 - 🔴 **One restore drill (ADR-006)** — operator-run DR exercise.
 
-Summary: 3 boxes fully green (CI-proven), 1 yellow (seed code complete,
-live run operator-gated), the rest red and operator-gated. The loop is
-**correctly blocked here** — proceeding into Phase 2 would violate the
-ADR-035 non-negotiable. See `next-step.md` for the operator action list.
+Summary (updated 2026-05-18): **5 green** (migrations, unit tests, schema,
+Neon-verified, deploy+magic-link), **2 yellow** (live `db:seed` evidence;
+iPhone-Safari device confirmation), **6 red** (Scout ≥10, Scout
+pipeline_signals, Diagnoser 50-word, Diagnoser pipeline_signals, blind
+validation, restore drill). The deploy/login blocker is cleared; the
+remaining items are operator-run live agents + human eval + DR. The loop
+is still **correctly blocked here** — proceeding into Phase 2 would
+violate the ADR-035 non-negotiable. See `next-step.md` for the residual
+operator action list.
 
 <!-- Replace with `## YYYY-MM-DD — PHASE 1 GATE PASSED` once the operator
 closes the 🔴/🟡 items and pastes the fully-checked checklist. -->

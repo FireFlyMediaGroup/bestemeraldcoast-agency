@@ -15,38 +15,36 @@ cannot be done or self-certified by the loop. Gate status detail is the
 
 ## 🔴 Security action (do this first; still open)
 
-- **Rotate the Neon `neondb_owner` password.** A shell `.env` sourcing during the Commit 1.4 DB verification echoed the connection string. Rotate in Neon → update `.env` (`DATABASE_URL` + `DATABASE_URL_UNPOOLED`) → update the `BEC-Production` 1Password item.
+- **Rotate the Neon `neondb_owner` password.** A shell `.env` sourcing during the Commit 1.4 DB verification echoed the connection string. Rotate in Neon → update `.env` (`DATABASE_URL` + `DATABASE_URL_UNPOOLED`) → update the `BEC-Production` 1Password item. **Note (2026-05-18):** Neon was *reconfigured* during the deploy fix — operator to confirm whether that reconfiguration already rotated the credential (closing this item) or if the principle-rotation is still outstanding.
 
-## ✅ Off-plan gate-box-9 remediation SHIPPED (2026-05-17)
+## ✅ Ops-console deploy GREEN — operator login working (2026-05-18)
 
-`task/2026-05-17-ops-console-route-types-ci-typegen` is done — see its
-`task-log.md` entry. It fixed the real defect that made `bec-ops-console`'s
-Vercel `next build` fail where CI was green: `agent-handler.ts`'s `RouteCtx`
-hardcoded `{ id: string }` for every agent route (Next 16 typed-routes
-rejects that for non-dynamic routes). The wrapper is now generic; the four
-`[id]` routes pass `<{ id: string }>`; `apps/ops-console` `type-check` now
-runs `next typegen && tsc --noEmit` (turbo `type-check` `dependsOn: ["^build"]`)
-so CI catches this class of bug; `build` is pinned to `next build --webpack`
-(Turbopack deadlocks); `runbooks/ops-console-deploy.md` §1 corrected to the
-verified Vercel config; `adr-log.md` carries the ADR-016 clarification.
+The full deploy-remediation arc is done — see the **2026-05-18 off-plan
+entry** in `task-log.md`. `bec-ops-console` deploys cleanly to
+`ops.bestemeraldcoast.com` and operator magic-link sign-in works
+end-to-end (operator-confirmed). The arc: PR #24 (auth edge split) →
+PR #26 (hardened `__dirname`: externalize Sentry/OTEL, defer instrumentation
+imports — properly superseded the `f5a05d0` direct-to-`main` deviation) →
+PR #27 (generic route types + CI `next typegen`) → PR #29 (Resend `From`
+→ verified `noreply@ops.bestemeraldcoast.com` subdomain) → operator: Neon
+reconfigured + the Vercel env root cause fixed (`NEXTAUTH_URL`/
+`NEXTAUTH_SECRET` were empty on the `bec-ops-console` Production scope;
+set via Vercel CLI on the correctly-linked project).
 
-**This did NOT change the Phase 1 gate.** It only makes operator action-list
-item 3's ops-console build succeed on Vercel. Control returns to the
-operator-gated wait below. **Operator next:** apply the corrected
-`runbooks/ops-console-deploy.md` §1 Vercel settings (Build Command
-`cd ../.. && pnpm turbo run build --filter=@bec/ops-console`, Framework
-Next.js, Output override OFF), set all 9 prod-required env vars, redeploy
-without cache. Still-deferred (later task, not blocking): the
-`middleware`→`proxy` deprecation and optional `global-error.js`.
+**Gate impact:** boxes 9 (deploy + magic link) and Neon-verify are now
+✅; box 10 (iPhone-Safari) is 🟡 (login proven; device confirmation +
+add-to-home-screen still pending — quick check, blocker removed). The gate
+is still **NOT PASSED** (ADR-035): live agents + human eval + DR remain.
+Repo: local `main` == `origin/main` == `814fb38`; no open PRs.
 
 ## Operator action list to clear the Phase 1 gate
 
 Ordered so each step unblocks the next:
 
-1. **Provision Neon via Vercel; verify prod + preview branches** (gate box 1). Confirm `DATABASE_URL` / `DATABASE_URL_UNPOOLED` for each environment land in `.env` + 1Password (`BEC-Production`).
-2. **Run the live DB bring-up against the Neon dev branch** (gate boxes 3–8): `pnpm --filter @bec/db db:migrate` then `pnpm --filter @bec/db db:seed`. Capture the seed tail line `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5` and the per-table "rows attempted" counts (8 sites / 10 niches / 30 mappings / 120 weights / 8 events) as gate evidence. (ADR-038: needs `PROD_DB_ALLOWED`-style opt-in only if pointing at non-dev; dev branch is fine.)
-3. **Deploy `bec-ops-console` to `ops.bestemeraldcoast.com`** per `runbooks/ops-console-deploy.md`; verify the Resend sending domain; set Vercel env: `OPERATOR_EMAIL`, `AGENT_API_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `GOOGLE_MAPS_API_KEY`, `OPS_CONSOLE_URL` (= the deployed URL), DB URLs. (Gate boxes 9.)
-4. **Log in on iPhone Safari** via the magic link; confirm no bugs; add to Home Screen and confirm chrome-less standalone launch (closes Commit 1.4 + 1.7 device acceptance; gate box 10). *(Drop a 180×180 `apps/ops-console/app/apple-icon.png` first if you want a branded glyph — optional.)*
+1. ✅ **DONE — Provision Neon via Vercel; verify prod + preview** (gate box 1). Neon reconfigured 2026-05-18; verified by the successful end-to-end magic-link sign-in.
+2. **Run the live DB bring-up** (gate boxes 3–8): `pnpm --filter @bec/db db:migrate` then `pnpm --filter @bec/db db:seed`. Capture the seed tail line `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5` and the per-table "rows attempted" counts (8 sites / 10 niches / 30 mappings / 120 weights / 8 events) as gate evidence. **(Still open — 🟡; sign-in proves the Auth.js tables exist on prod Neon but NOT the full seed.)**
+3. ✅ **DONE — Deploy `bec-ops-console` + magic link** (gate box 9). Deployed to `ops.bestemeraldcoast.com`; Resend `noreply@ops.bestemeraldcoast.com` subdomain verified; env set via Vercel CLI on the correctly-linked project; operator-confirmed sign-in 2026-05-18.
+4. **Log in on iPhone Safari** (gate box 10 — 🟡, blocker removed): repeat the now-working sign-in on iPhone Safari, confirm no bugs, add to Home Screen, confirm chrome-less standalone launch (closes Commit 1.4 + 1.7 device acceptance). *(Optional: drop a 180×180 `apps/ops-console/app/apple-icon.png` for a branded glyph.)*
 5. **Run Scout**: `claude /scout pensacola charter fishing` (agent env: `GOOGLE_MAPS_API_KEY`, `AGENT_API_KEY`, `OPS_CONSOLE_URL`, `DATABASE_URL_UNPOOLED`). Confirm ≥10 `leads` rows + matching `pipeline_signals` (`lead_added`) rows; daily cap respected (gate boxes 11, 12).
 6. **Run Diagnoser**: `/diagnose-pending`. Confirm a ~50-word diagnosis per lead + `pipeline_signals` (`diagnosis_done`) rows; spot-check the `GET /api/agent/pipeline-signals?niche=charter_fishing&since=<14d-ago>` trailing query (gate boxes 13, 14).
 7. **External blind validation** (gate box 15): show 3 peers 5 random Diagnoser `summary` outputs blind; record ≥3/5 "human". If it fails, that is a Diagnoser-prompt iteration (ADR-019 `version: 2` + adr-log note) — a real loop task, *not* a gate skip.
@@ -59,7 +57,7 @@ the loop resumes.
 
 ## Current Step
 
-- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — blocked on the operator action list above.** The 2026-05-17 route-types/CI-typegen task shipped but is gate-box-9 *defect remediation*, not gate progress.
+- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — but materially advanced (2026-05-18): deploy + magic-link login working; 5/13 boxes green, 2 yellow.** Residual blockers are the live DB seed-evidence, live Scout/Diagnoser runs, blind validation, and the restore drill (operator action list above).
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 quality gate.
 - **Do NOT:** start Phase 2 / Commit 2.1, or mark the gate passed, until the operator closes the items and records `PHASE 1 GATE PASSED`.
 
