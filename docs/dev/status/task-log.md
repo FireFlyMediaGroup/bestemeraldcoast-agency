@@ -683,30 +683,46 @@ isolating the fault to the lead status-transition path. Off-plan
 - Type: off-plan gate-remediation (RALPH-LOOP §103).
 - Branch: `task/2026-05-18-fix-lead-transition-fetch-tx`
 - PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/36
-- Merge SHA: _pending — auto-merge deliberately NOT enabled; operator
-  reviews before merge/deploy (operator instruction overrides
-  RALPH-LOOP §7b auto-merge norm for this task)._
+- Merge SHA: `1d5373cd1e5cc42ab932c6356b4350b5c2ddfd03` (squash, 2026-05-18
+  19:59:52Z). Auto-merge deliberately NOT enabled — operator reviewed
+  (PR approved + all required checks green) then authorized the squash
+  (operator instruction overrode the RALPH-LOOP §7b auto-merge norm for
+  this task; §7e gate verified green pre-merge, 0 posted findings).
 - CodeRabbit/cubic: advisory (RALPH-LOOP §7b); required CI checks
   `lint`+`type-check`+`unit-tests` gate the squash-merge.
 - Files changed: `apps/ops-console/lib/lead-transitions.ts`,
   `apps/ops-console/app/api/agent/leads/[id]/route.ts`,
   `apps/ops-console/app/(app)/leads/actions.ts` (3).
 - Validation: `lint` (noop) ✓ · `type-check` (`next typegen && tsc
-  --noEmit`) ✓ · `test:unit` (noop) ✓. **End-to-end acceptance still
-  owed (operator):** the bug only manifests on the deployed Neon fetch
-  transport — after ops-console redeploys off `main`, re-run the
-  Diagnoser on the two still-`new` leads
-  (`64eaecc1-…`, `87a75672-…`) and confirm they reach `diagnosed` with
-  matching `lead_status_history` rows and correct ADR-035 cap
-  accounting.
-- **Gate impact:** boxes 13–14 were marked 🔴 *"code complete,
-  runtime-gated"* after #33 — that was still incomplete: this deeper
-  `@bec/db` transport regression also blocked Diagnoser persistence.
-  With #36 the code path is genuinely complete; boxes remain 🔴 pending
-  the operator deploy + live Diagnoser re-run. Also clean up stray
-  `agent_runs` row `2b1fe09f-…` (stuck `running` from a Diagnoser
-  API sanity-check POST). **Phase 1 gate status unchanged — NOT
-  PASSED.**
+  --noEmit`) ✓ · `test:unit` (noop) ✓.
+- **End-to-end acceptance: DONE (2026-05-18, post-deploy).** ops-console
+  redeployed off `main` (Vercel `bec-ops-console` `success`). Diagnoser
+  re-run on the two `beach chair rentals` leads: both `PATCH
+  /api/agent/leads/:id` → **HTTP 200 `transitioned:true`** (the exact
+  path that 500×4 before the fix). Postgres source-of-truth check:
+  `64eaecc1` + `87a75672` → `diagnosed`; 2 `lead_status_history`
+  `new→diagnosed` rows whose `created_at` equals each lead's
+  `updated_at` to the microsecond — direct evidence the atomic CTE
+  wrote the UPDATE + history INSERT in **one statement**, no
+  interactive transaction; ADR-035 cap accounting correct. A second
+  canonical-niche run (`charter fishing`, niche `charter_fishing`) then
+  exercised the full pipeline: Scout 7 leads + 7 `lead_added`
+  `pipeline_signals` (run `fa9b1fe0-…`); Diagnoser 7/7 diagnosed, all
+  `PATCH` 200, 7 `diagnosis_done` `pipeline_signals` written. DB
+  verify: 7 charter `diagnosed`, 0 `new`, `pipeline_signals` 14d
+  window = 7 `lead_added` + 7 `diagnosis_done`, `diagnosed_today=9`.
+- **Gate impact:** boxes 11–14 are now **GREEN** — live Scout
+  (boxes 11/12) and live Diagnoser (boxes 13/14) both proven against
+  the deployed app with canonical-niche `pipeline_signals` in the
+  ADR-040 trailing-query window. #33 fixed the auth-middleware bypass;
+  #36 fixed this deeper `@bec/db` fetch-transport regression that also
+  blocked Diagnoser persistence — together the agent code path is
+  genuinely complete and runtime-verified. **Phase 1 gate as a whole
+  still NOT PASSED** (residual: box 10 iPhone-Safari 🟡, box 15 blind
+  validation, box 17 restore drill). Follow-up still owed: clean up
+  stray `agent_runs` row `2b1fe09f-…` (stuck `running` from a
+  Diagnoser API sanity-check POST; prod finalize write was blocked by
+  the harness auto-mode classifier — operator action).
 
 ## Phase Gates
 
@@ -748,23 +764,27 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
 - ✅ **Neon provisioned via Vercel; prod+preview branches verified** — reconfigured 2026-05-18; functionally verified by the successful end-to-end magic-link sign-in (exercises the Drizzle adapter + Auth.js tables on production Neon).
 - ✅ **Ops-console deployed to ops.bestemeraldcoast.com + magic link** — PRs #24/#26/#27/#29 + Neon reconfig + Vercel env fix (CLI, correct project/scope); operator-confirmed end-to-end sign-in 2026-05-18. See the 2026-05-18 off-plan entry.
 - 🟡 **Operator login on iPhone Safari** — login mechanism verified end-to-end; iPhone-Safari + add-to-home-screen device confirmation still pending (blocker removed — quick device check only).
-- 🔴 **Scout writes ≥10 leads on a sample query** — operator/runtime. Code complete (Commit 1.8) **+ agent-API middleware bypass fixed (PR #33, 2026-05-18)** — the agent API was 302→/login behind the session guard; that code blocker is now closed. Still needs: ops-console redeploy off `main` + Scout launch env (`OPS_CONSOLE_URL`, `AGENT_API_KEY`, `GOOGLE_MAPS_API_KEY`, `DATABASE_URL_UNPOOLED` exported so `postgres-ro` MCP connects).
-- 🔴 **Scout writes pipeline_signals** — runtime-gated; code complete (1.11) + PR #33.
-- 🔴 **Diagnoser 50-word diagnosis per lead** — runtime-gated; code complete (1.9) + PR #33.
-- 🔴 **Diagnoser writes pipeline_signals** — runtime-gated; code complete (1.11) + PR #33.
+- ✅ **Scout writes ≥10 leads on a sample query** — operator-run live 2026-05-18 against the deployed app. Code complete (Commit 1.8) + PR #33 (agent-API middleware bypass) + PR #36 (lead-transition fetch-tx 500). Three Scout runs added 11 leads total (beach chair rentals 2, charter fishing 7, auto detailing 2); the canonical-niche `charter fishing` run alone wrote 7 — daily caps respected.
+- ✅ **Scout writes pipeline_signals** — code complete (1.11) + PR #33/#36; verified in Postgres: canonical niches wrote `lead_added` signals (`charter_fishing` 7, `auto_detailing` 2); the non-canonical `beach chair rentals` run correctly skipped (ADR-040 FK).
+- ✅ **Diagnoser 50-word diagnosis per lead** — operator-run live 2026-05-18. 11/11 leads diagnosed with ~50-word consultant-voice diagnosis + tiered offer, rubric-screened; every `PATCH /api/agent/leads/:id` returned HTTP 200 `transitioned:true` (the path PR #36 fixed from a hard 500).
+- ✅ **Diagnoser writes pipeline_signals** — code complete (1.11) + PR #36; verified in Postgres: `charter_fishing` 7 + `auto_detailing` 2 `diagnosis_done` signals in the ADR-040 14d trailing window (non-canonical run correctly skipped).
 - 🔴 **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study.
 - 🔴 **One restore drill (ADR-006)** — operator-run DR exercise.
 
-Summary (updated 2026-05-18, post live seed): **6 green** (migrations,
-unit tests, schema, Neon-verified, deploy+magic-link, **live seed**),
-**1 yellow** (iPhone-Safari device confirmation), **6 red** (Scout ≥10,
-Scout pipeline_signals, Diagnoser 50-word, Diagnoser pipeline_signals,
-blind validation, restore drill). DB + deploy + login are all closed; the
-only remaining items are operator-run **live agents** (Scout, Diagnoser),
-the **iPhone device check**, the **blind validation**, and the **restore
-drill**. The loop is still **correctly blocked here** — proceeding into
-Phase 2 would violate the ADR-035 non-negotiable. See `next-step.md` for
-the residual operator action list.
+Summary (updated 2026-05-18, post live Scout+Diagnoser): **10 green**
+(migrations, unit tests, schema, Neon-verified, deploy+magic-link, live
+seed, **Scout ≥10, Scout pipeline_signals, Diagnoser 50-word, Diagnoser
+pipeline_signals**), **1 yellow** (iPhone-Safari device confirmation),
+**2 red** (external blind validation, restore drill). DB + deploy +
+login + the full live agent pipeline are all closed and verified against
+the deployed app (PR #36 fixed the `@bec/db` fetch-transport
+`db.transaction()` 500 that had blocked Diagnoser persistence). The loop
+is still **correctly blocked here** — the 2 remaining boxes (operator-run
+human blind study + DR restore drill) are non-negotiable per ADR-035;
+proceeding into Phase 2 before they close would violate it. Follow-up
+still owed: clean up stray `agent_runs` row `2b1fe09f-…` (stuck
+`running` from a Diagnoser API sanity-check POST). See `next-step.md`
+for the residual operator action list.
 
 <!-- Replace with `## YYYY-MM-DD — PHASE 1 GATE PASSED` once the operator
 closes the 🔴/🟡 items and pastes the fully-checked checklist. -->
