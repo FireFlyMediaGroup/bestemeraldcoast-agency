@@ -26,9 +26,12 @@ export default auth((req) => {
 
 export const config = {
   // Guard everything except: Next internals, the auth API (must stay
-  // reachable for the magic-link callback), the login page itself, and
+  // reachable for the magic-link callback), the agent API (ADR-003 — its
+  // own Bearer AGENT_API_KEY boundary via agentRoute(); a session redirect
+  // here 302s machine clients to /login and makes the entire agent write
+  // path unreachable to Scout/Diagnoser), the login page itself, and
   // common static files.
   matcher: [
-    "/((?!api/auth|login|_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
+    "/((?!api/auth|api/agent|login|_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
   ],
 };
