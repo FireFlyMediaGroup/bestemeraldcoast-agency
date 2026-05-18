@@ -23,11 +23,20 @@ import { serverEnv } from "@bec/config";
 
 import * as schema from "./schema/index.js";
 
-// The Pool driver connects to Neon's proxy over a WebSocket. Node 22+ has a
-// global `WebSocket`, but set it explicitly via the `ws` package so behavior
-// is identical on the operator's Node 20 local, CI's Node 22, and the Vercel
-// runtime. Module-scope assignment is safe — it's a config write, not a
-// connection (those are still deferred to the first `getDb()` call).
+// The Pool driver can speak WebSockets (session/interactive tx) or — when
+// `poolQueryViaFetch` is true — send each `Pool.query()` over HTTP fetch.
+//
+// On Vercel serverless we reuse a module-scoped Pool across invocations;
+// Neon tears down idle WebSocket legs, so the next Auth.js adapter query
+// surfaces as "Connection terminated unexpectedly". Fetch-backed queries
+// avoid long-lived WS state and match Neon's serverless guidance (see Neon
+// serverless CONFIG.md: `poolQueryViaFetch`). Drizzle's neon-serverless
+// session calls `pool.query(...)`, which honors this flag.
+neonConfig.poolQueryViaFetch = true;
+//
+// Still set WebSocket for code paths that don't use fetch (e.g. tooling that
+// attaches session listeners). Node 22+ has a global `WebSocket`; `ws` keeps
+// behavior identical on Node 20 local, CI, and Vercel.
 neonConfig.webSocketConstructor = ws;
 
 export type Database = NeonDatabase<typeof schema>;

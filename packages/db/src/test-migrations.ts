@@ -50,9 +50,9 @@ const { drizzle } = await import("drizzle-orm/neon-serverless");
 const { migrate } = await import("drizzle-orm/neon-serverless/migrator");
 const { assertProdDbAccessible } = await import("@bec/config");
 
-// The Pool driver connects to Neon's proxy over a WebSocket. Node 22+ has a
-// global `WebSocket`, but set it explicitly with the `ws` package so this
-// works the same on the operator's Node 20 local and on CI's Node 22.
+// Match `client.ts`: fetch-backed Pool queries avoid flaky WS reuse across
+// CI / serverless-style runs; WS constructor remains for non-fetch paths.
+neonConfig.poolQueryViaFetch = true;
 neonConfig.webSocketConstructor = ws;
 
 // packages/db/src/ → packages/db/migrations

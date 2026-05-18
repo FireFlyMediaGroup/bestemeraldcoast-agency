@@ -418,10 +418,26 @@ defect remediation, not gate progress).
   failed where CI was green.
 - **Branch:** `task/2026-05-17-ops-console-route-types-ci-typegen` (from
   `origin/main` `c804d4e`).
-- **PR / Merge SHA / CodeRabbit / cubic / CI:** recorded at `/ship-task`
-  post-merge (CodeRabbit advisory per the 2026-05-16 ADR-035 loop-doc policy;
-  merge gate = Pass-2 `lint`/`type-check`/`unit-tests` green + cubic clean +
-  every posted finding triaged).
+- **PR:** https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/27
+- **Merge SHA:** `d4b0f992450d32f8568a50c9d39cc50c8a44b682` (squash of
+  `e995219` + `f707bba` + `2a5fa89`, merged 2026-05-18T03:18:08Z,
+  `mergeStateStatus: CLEAN`).
+- **CI at merged HEAD `2a5fa89`:** `lint` + `type-check` + `unit-tests` all
+  SUCCESS. `Vercel – bec-ops-console` preview deploy **passed end-to-end** —
+  deps built → webpack compile → TypeScript step (the exact pre-fix Vercel
+  failure) now green → page-data collection (Vercel env present) → deployed.
+  This is the gate-box-9 objective met on real Vercel infra.
+- **CodeRabbit (advisory per the 2026-05-16 ADR-035 loop-doc policy):** 1
+  Critical finding — the `runbooks/ops-console-deploy.md` §3 env table was
+  missing `AGENT_API_KEY`/`ANTHROPIC_API_KEY`/`CRON_SECRET` (a real defect in
+  the §1 edit). **Fixed** in `f707bba`; CodeRabbit re-reviewed → **APPROVED**.
+- **cubic:** clean (check = pass at merged HEAD). 2 findings: P2 (line-26 vs
+  §3 mismatch) — cubic self-marked "✅ Addressed in `f707bba`"; P3 (the
+  `f707bba` env-table fix left a duplicated Markdown table header) — **fixed**
+  in `2a5fa89`. No findings open at merge.
+- Bookkeeping note: this finalization (PR/SHA/review outcomes) is carried on
+  the next loop branch per the post-Pass-1 write policy; the loop returns to
+  the operator-gated Phase 1 wait immediately after.
 - **Root cause:** `apps/ops-console/lib/agent-handler.ts` hardcoded
   `RouteCtx = { params: Promise<{ id: string }> }` for *every* agent route.
   Next 16 App Router typed-routes generate a per-route handler constraint in
