@@ -6,7 +6,11 @@
 import { z } from "zod";
 
 import { agentRoute, readJson, requireUuid } from "@/lib/agent-handler";
-import { isLeadStatus, isValidTransition } from "@/lib/lead-transitions";
+import {
+  applyLeadTransition,
+  isLeadStatus,
+  isValidTransition,
+} from "@/lib/lead-transitions";
 
 const PatchLead = z.object({
   status: z.string().optional(),
@@ -50,23 +54,21 @@ export const PATCH = agentRoute<{ id: string }>(async (req, ctx) => {
     .where(eq(schema.leads.id, id));
   if (!lead) return Response.json({ error: "not_found" }, { status: 404 });
 
-  const fieldUpdate = {
+  const fields = {
     notes: d.notes,
     mockupUrl: d.mockupUrl,
     videoUrl: d.videoUrl,
     gapScoreSnapshot: d.gapScoreSnapshot,
-    diagnosis: d.diagnosis as never,
-    offer: d.offer as never,
-    updatedAt: new Date(),
+    diagnosis: d.diagnosis,
+    offer: d.offer,
   };
 
   if (d.status !== undefined && d.status !== lead.status) {
     // `lead.status` (from the select) is already the drizzle enum type.
     // `d.status` was narrowed to LeadStatus by isLeadStatus() above. The
-    // string sets are identical; cast to the schema enum type at the write
-    // sites so drizzle's column types line up (the local LeadStatus union
-    // and the pgEnum union are nominally distinct to tsc).
-    type StatusCol = (typeof schema.leadStatus.enumValues)[number];
+    // string sets are identical (the local LeadStatus union and the pgEnum
+    // union are nominally distinct to tsc); applyLeadTransition casts to the
+    // `lead_status` enum at the write site.
     const from = lead.status;
     const to = d.status;
     if (
@@ -80,35 +82,24 @@ export const PATCH = agentRoute<{ id: string }>(async (req, ctx) => {
         { status: 422 },
       );
     }
-    // Critical: the status update is conditional on the row STILL being in
-    // `from` (the value we validated against). A concurrent transition that
-    // already moved the lead makes this UPDATE affect 0 rows → we abort the
-    // transaction and 409, instead of writing a history row for a
-    // transition that never legitimately happened (read-validate-write is
-    // now atomic at the DB, not just within the JS function).
-    const { and } = await import("@bec/db");
-    let raced = false;
-    await db.transaction(async (tx) => {
-      const moved = await tx
-        .update(schema.leads)
-        .set({ ...fieldUpdate, status: to as StatusCol })
-        .where(
-          and(eq(schema.leads.id, id), eq(schema.leads.status, from as StatusCol)),
-        )
-        .returning({ id: schema.leads.id });
-      if (moved.length === 0) {
-        raced = true;
-        return;
-      }
-      await tx.insert(schema.leadStatusHistory).values({
-        leadId: id,
-        fromStatus: from as StatusCol,
-        toStatus: to as StatusCol,
-        changedBy: d.changedBy,
-        reason: d.reason,
-      });
+    // Atomic conditional transition + history insert as ONE statement (a
+    // CTE). The status UPDATE is conditional on the row STILL being in
+    // `from`; a concurrent transition that already moved the lead makes it
+    // match 0 rows → `transitioned: false` → 409, instead of writing a
+    // history row for a transition that never legitimately happened. A
+    // single statement is atomic in Postgres and needs no interactive
+    // transaction, so it survives the Neon fetch transport (db.transaction()
+    // does NOT — PR #28 regression; see applyLeadTransition()).
+    const { transitioned } = await applyLeadTransition({
+      db,
+      id,
+      from: from as Parameters<typeof isValidTransition>[0],
+      to: to as Parameters<typeof isValidTransition>[1],
+      changedBy: d.changedBy,
+      reason: d.reason,
+      fields,
     });
-    if (raced) {
+    if (!transitioned) {
       return Response.json(
         { error: "status_changed_concurrently" },
         { status: 409 },
@@ -117,6 +108,19 @@ export const PATCH = agentRoute<{ id: string }>(async (req, ctx) => {
     return Response.json({ lead: { id, status: to }, transitioned: true });
   }
 
-  await db.update(schema.leads).set(fieldUpdate).where(eq(schema.leads.id, id));
+  // No status change: a plain field update is a single statement and is
+  // already fetch-transport safe.
+  await db
+    .update(schema.leads)
+    .set({
+      notes: d.notes,
+      mockupUrl: d.mockupUrl,
+      videoUrl: d.videoUrl,
+      gapScoreSnapshot: d.gapScoreSnapshot,
+      diagnosis: d.diagnosis as never,
+      offer: d.offer as never,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.leads.id, id));
   return Response.json({ lead: { id, status: lead.status }, transitioned: false });
 });

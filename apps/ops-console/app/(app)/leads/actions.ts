@@ -14,6 +14,7 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
 import {
+  applyLeadTransition,
   isLeadStatus,
   isValidTransition,
   type LeadStatus,
@@ -39,7 +40,7 @@ export async function transitionLead(
   if (!isLeadStatus(toStatus)) return { ok: false, error: "unknown_status" };
   const to: LeadStatus = toStatus;
 
-  const { getDb, schema, eq, and } = await import("@bec/db");
+  const { getDb, schema, eq } = await import("@bec/db");
   const db = getDb();
 
   const [lead] = await db
@@ -54,38 +55,25 @@ export async function transitionLead(
     return { ok: false, error: "invalid_transition" };
   }
 
-  // Local LeadStatus union and the drizzle pgEnum union are nominally
-  // distinct to tsc though their string sets are identical — cast at the
-  // write sites so the column types line up (same pattern as the agent route).
-  type StatusCol = (typeof schema.leadStatus.enumValues)[number];
   const trimmedReason = reason?.trim();
 
-  let raced = false;
-  await db.transaction(async (tx) => {
-    const moved = await tx
-      .update(schema.leads)
-      .set({ status: to as StatusCol, updatedAt: new Date() })
-      .where(
-        and(
-          eq(schema.leads.id, leadId),
-          eq(schema.leads.status, from as StatusCol),
-        ),
-      )
-      .returning({ id: schema.leads.id });
-    if (moved.length === 0) {
-      raced = true;
-      return;
-    }
-    await tx.insert(schema.leadStatusHistory).values({
-      leadId,
-      fromStatus: from as StatusCol,
-      toStatus: to as StatusCol,
-      changedBy: operator,
-      reason: trimmedReason ? trimmedReason : null,
-    });
+  // Atomic conditional transition + history insert as ONE statement (a CTE),
+  // not db.transaction(): interactive transactions do not survive the Neon
+  // fetch transport (PR #28 regression — see applyLeadTransition()). Race
+  // semantics are preserved: a concurrent move makes the conditional UPDATE
+  // match 0 rows → transitioned:false → we report the race, no history row.
+  const { transitioned } = await applyLeadTransition({
+    db,
+    id: leadId,
+    from,
+    to,
+    changedBy: operator,
+    reason: trimmedReason ? trimmedReason : null,
   });
 
-  if (raced) return { ok: false, error: "status_changed_concurrently" };
+  if (!transitioned) {
+    return { ok: false, error: "status_changed_concurrently" };
+  }
 
   revalidatePath("/leads");
   revalidatePath(`/leads/${leadId}`);
