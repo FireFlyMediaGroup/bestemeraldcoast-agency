@@ -56,9 +56,9 @@ The first nine rows are the **exact `@bec/config` `productionRequired` set** —
 
 ## 4. Resend sending domain (separate from the Vercel domain)
 
-Magic-link email won't deliver until Resend can send as `ops@bestemeraldcoast.com`:
+Magic-link email won't deliver until Resend can send from your verified domain (`noreply@ops.bestemeraldcoast.com` matches a Resend-verified `ops.bestemeraldcoast.com` zone; use `@bestemeraldcoast.com` only after the apex is verified there):
 
-1. Resend dashboard → **Domains → Add Domain** → `bestemeraldcoast.com` (or a subdomain).
+1. Resend dashboard → **Domains → Add Domain** → the hostname you will send from (`ops.bestemeraldcoast.com` or apex `bestemeraldcoast.com`). The verified hostname must match the domain part of `From`.
 2. Add the DKIM + SPF + return-path DNS records Resend provides at the registrar.
 3. Wait for Resend to mark the domain *Verified*.
 
