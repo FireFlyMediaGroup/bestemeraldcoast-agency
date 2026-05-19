@@ -23,12 +23,15 @@ const UNKNOWN_HOST = "/__unknown_host__";
 
 function isSkippable(pathname: string): boolean {
   if (pathname.startsWith("/_next/")) return true;
-  if (pathname.startsWith("/opengraph-image")) return true;
-  return (
-    pathname === "/favicon.ico" ||
-    pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml"
-  );
+  // NOTE: `/robots.txt` and `/sitemap.xml` are intentionally NOT skipped
+  // (Commit 2.4). They are per-domain (ADR-009) and their route handlers
+  // need the proxy-resolved site context, so the host→site headers must be
+  // injected for them too (the resolve is Upstash-cached, so crawler hits
+  // are cheap). Only truly site-agnostic static endpoints are skipped.
+  // The root `/opengraph-image*` is skipped; the per-article
+  // `[category]/[slug]/opengraph-image` is NOT (it needs site + article).
+  if (/^\/opengraph-image\b/.test(pathname)) return true;
+  return pathname === "/favicon.ico";
 }
 
 export default async function proxy(request: NextRequest): Promise<NextResponse> {
