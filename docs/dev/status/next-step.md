@@ -4,14 +4,20 @@
 
 ---
 
-## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.6 merged, 2.7 next
+## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.7 merged, 2.8 next
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
 **2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
 `2663d3d`), **2.3** Article + structured data (#47 `a751016`), **2.4**
 Sitemap/robots/OG (#49 `9d591e5`), **2.5** Coastal + Premium (#51
-`02e2e29`), **2.6** Editor agent (#53 `304512f`) — see their
-`task-log.md` entries. Loop advances to **Commit 2.7**.
+`02e2e29`), **2.6** Editor agent (#53 `304512f`), **2.7** Editorial
+composer (#55 `84985c2`) — see their `task-log.md` entries. Loop
+advances to **Commit 2.8**.
+
+End-to-end editorial path is now code-complete: Editor `/draft-article`
+→ composer review/edit → publish (+ ADR-020 feedback). Publishing one
+draft via the deployed ops-console clears the *data*-gated half of
+2.3/2.4 acceptance.
 
 ⚠️ **Working copy moved:** the loop now runs from
 `~/dev/bestemeraldcoast-agency`. The original `~/Desktop/...` copy was
@@ -20,28 +26,26 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 / Commit 2.7 — Editorial composer (ops-console).** Read
-  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.7 + the ADRs it
-  cites (ADR-022 required alt-text, ADR-020 feedback on publish, ADR-029
-  HIG mobile), then run the loop normally (`/adr-plan` → execute →
-  validate → `/ship-task`). Build `apps/ops-console/(app)/editorial/`:
-  list view (drafts/scheduled/published), detail view with markdown
-  editor + live preview + business linker (search → `article_businesses`)
-  + image picker with a **hard required-alt-text gate** (ADR-022) +
-  category dropdown + sponsored toggle + a **split publish button**
-  (`Publish` / `Publish + Note feedback` → writes an `editorial_feedback`
-  row, ADR-020). HIG desktop + mobile.
-  - **Why this is the highest-leverage next commit:** it's the
-    operator UI that **completes Commit 2.6's deferred acceptance**
-    (publish + feedback capture) and, fed by `/draft-article` drafts,
-    produces the first *published* articles → **clears the data-gated
-    half of 2.3/2.4 acceptance**. It's `apps/ops-console` (which already
-    deploys), so it does **not** need the owed editorial Vercel project.
-  - Note (ADR-003): publish is an operator action in this UI; it
-    transitions `articles.status` and writes `editorial_feedback` —
-    this is operator/ops-console code, not an agent path. Reuse the
-    PR #36 atomic-CTE pattern (no `db.transaction()`) for the
-    publish+feedback write if it spans tables.
+- **Phase 2 / Commit 2.8 — Checker agent.** Read
+  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.8 + ADR-034 (copy
+  quality / banned phrases), then run the loop normally (`/adr-plan` →
+  execute → validate → `/ship-task`). Write
+  `agency/.claude/agents/checker.md` v1: input a draft outreach message
+  + lead context; output pass/fail + score 0–12 + per-dimension scores
+  + notes; **≥9/12 with no zero passes**; updates
+  `outreachMessages.checkerScore` / `checkerNotes`.
+  - **Heads-up (verify in /adr-plan, don't rebuild):** the rubrics the
+    plan says to "create from ADR-034" — `agency/.claude/rubrics/
+    copy-quality.md` + `banned-phrases.md` — **already exist** (Phase 1;
+    used by Diagnoser + referenced by Editor 2.6). 2.8 = the Checker
+    agent doc that *loads* them, not re-authoring the rubrics.
+  - **Open question for /adr-plan:** does `outreach_messages` exist in
+    `@bec/db` schema with `checker_score`/`checker_notes` columns? If
+    not, 2.8 needs either a schema migration (STOP → adr-log if it
+    changes a decision) or the columns are part of a later Phase-2/3
+    outreach commit — resolve the dependency before coding. Checker
+    reads via the read-only Postgres MCP and writes via the agent API
+    (ADR-003), mirroring Scout/Diagnoser/Editor.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 2.
 - **Build env note:** local sandbox cannot `next build` any app here
   (clean `main`/ops-console fails identically — React-19 RSC prerender

@@ -1091,3 +1091,48 @@ this needed a new agent-API endpoint (real app code), not just Markdown.
   on **Commit 2.7's composer**; once drafts are produced + published
   (2.7), the *data*-gated half of 2.3/2.4 acceptance clears.
 
+## 2026-05-19 — Phase 2 / Commit 2.7: Editorial composer (ops-console)
+
+The operator publish UI — turns Editor drafts into published articles
+and captures ADR-020 feedback.
+
+- **`lib/article-transitions.ts` `publishArticle`** — ONE atomic CTE
+  (no `db.transaction()`, PR #28/#36 lesson): `status→published` +
+  `published_at` AND the ADR-020 `editorial_feedback` row in the same
+  statement; a `cur` CTE snapshots the pre-publish body so
+  `draft_body`(=`original_draft_body`) vs `final_body` is the real
+  training diff. Race-safe (UPDATE guarded on draft/review/scheduled →
+  0 rows → 409, no dup feedback).
+- **`lib/articles-data.ts`** — server-only list + `getArticleForEdit`
+  (categories/images/business-link state); dynamic @bec/db import.
+- **`lib/markdown.tsx`** — zero-dep preview renderer (operator-chosen;
+  no react-markdown). React elements only (no dangerouslySetInnerHTML);
+  `safeHref` scheme allowlist (no `javascript:`/`data:`).
+- **`(app)/editorial/`** — status-filtered list + detail composer
+  (markdown editor + live preview, business linker w/ rank, category,
+  sponsored toggle, ADR-022 image picker that blocks alt-less images,
+  ADR-020 split publish button). HIG 44px/desktop+mobile. Operator-auth
+  server actions; ADR-022 alt gate enforced client + server, save +
+  publish.
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.7-editorial-composer`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/55
+- Merge SHA: `84985c2ab5e927f46d9fff9926382dfef30b3cd4`
+- Review: 6 CodeRabbit findings — **all fixed + replied (§7d), none
+  dismissed** (XSS `safeHref` allowlist; linked-business data-loss
+  preservation; bounded image fetch; `saveArticle` `not_found`; local
+  `published` state; 44px chip). Stale `CHANGES_REQUESTED` (pre-fix
+  commit; CodeRabbit didn't re-review within §7c) → operator dismissed
+  per §7b; armed auto-merge then landed it. Required CI green.
+- Files: `lib/article-transitions.ts`, `lib/articles-data.ts`,
+  `lib/markdown.tsx`, `(app)/editorial/page.tsx`,
+  `(app)/editorial/[id]/{page,composer,actions}.tsx`.
+- Validation: type-check `@bec/db` + `@bec/ops-console` clean (Node 22).
+  **Acceptance is operator-run on the DEPLOYED ops-console** (deploys
+  via Vercel `bec-ops-console` — NOT gated on the owed editorial Vercel
+  project): edit/link/set hero+alt/publish; alt gate blocks; an
+  `editorial_feedback` row written on publish. Publishing a Commit 2.6
+  `/draft-article` draft here **clears the data-gated half of 2.3/2.4
+  acceptance**. Local `next build` sandbox-impossible — CI/Vercel
+  authoritative.
+
