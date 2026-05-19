@@ -53,3 +53,19 @@ map results back. **This file (the one you are reading) is the one to print
 or share with the 3 peers** — it contains no answers.
 
 On completion, record the PASS/FAIL + tally in `docs/dev/status/task-log.md` (box 15 line of the canonical `PHASE 1 GATE — STATUS` checklist) via a bookkeeping PR. On FAIL, open the ADR-019 Diagnoser `version: 2` iteration task instead of recording a pass.
+
+---
+
+## Run log
+
+### 2026-05-19 — PASS (operator-attested)
+
+- 3 peers blind-rated the 5 summaries in this handout; answer key kept
+  separate (`phase1-box15-blind-validation.answer-key.md`).
+- Operator-confirmed tally: **3 of 5 judged human → PASS** (meets the
+  ADR-019 ≥3/5 threshold; minimum-bar pass, no margin).
+- Recorded from operator attestation of the tally (loop did not and
+  cannot self-certify a human study, per ADR-035).
+- Gate effect: closes Phase 1 box 15 → `## 2026-05-19 — PHASE 1 GATE
+  PASSED` in `docs/dev/status/task-log.md`. Optional follow-up: ADR-019
+  Diagnoser `version: 2` quality iteration (not gate-required).
