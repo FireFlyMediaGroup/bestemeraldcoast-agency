@@ -1044,3 +1044,50 @@ ADR-032 conformance fix.
   their assigned archetype" needs the owed `bec-editorial` Vercel
   project; the Storybook-matrix + axe half is locally proven.
 
+## 2026-05-19 — Phase 2 / Commit 2.6: Editor agent
+
+First content-generation agent. /ralph-next scope correction confirmed:
+this needed a new agent-API endpoint (real app code), not just Markdown.
+
+- **NEW `POST /api/agent/articles`** (`apps/ops-console`) — `agentRoute()`
+  Bearer+zod create-DRAFT (siteId, slug, title, subtitle, bodyMdx,
+  originalDraftBody, contentType, author/reviewer, categoryId, tags,
+  businesses[]). **Status server-forced `draft`** — agents cannot
+  publish (ADR-003; publish = operator composer, Commit 2.7). Article +
+  `article_businesses` written as ONE atomic CTE (`jsonb_to_recordset`
+  fan-in), NOT `db.transaction()` (Neon fetch-transport — PR #36
+  lesson; same technique as `lib/lead-transitions.ts`). Slug unique per
+  site → `ON CONFLICT DO NOTHING` → empty → **409** (never overwrite a
+  draft). No `/api/agent/articles` existed before — new surface within
+  ADR-003's boundary (mirrors Commit 1.5's businesses/leads endpoints).
+- **`agency/.claude/agents/editor.md` v1** — mirrors Scout/Diagnoser:
+  brief input; reads site voice/`theme_tokens`/taxonomy + verified
+  non-delisted businesses + the ADR-021 weekly calendar via read-only
+  Postgres MCP; drafts to the ADR-034 `banned-phrases`/`copy-quality`
+  rubrics in the archetype voice; writes via the endpoint with
+  `originalDraftBody == bodyMdx` (ADR-020 baseline); `agent_runs`
+  lifecycle + `[editor-metrics drafts=N]`, `promptVersion 1` (ADR-019);
+  respects `sites.minimum/maximum_weekly_articles`.
+- **`/draft-article`** (explicit brief OR pull next-needed from the
+  ADR-021 calendar queue) + **`/refine-editor`** (≥20-published gate;
+  reads `editorial_feedback`; proposes an ADR-019 `version: 2` prompt
+  diff — proposal only, operator applies, like the Diagnoser-v2 path).
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.6-editor-agent`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/53
+- Merge SHA: `304512f6bfaa7ffa086d62bbe733542801496ea7`
+- CodeRabbit SUCCESS, cubic running at merge (advisory §7b); **0 posted
+  findings**; required CI green.
+- Files: `apps/ops-console/app/api/agent/articles/route.ts`,
+  `agency/.claude/agents/editor.md`,
+  `agency/.claude/commands/{draft-article,refine-editor}.md`.
+- Validation: type-check `@bec/db` + `@bec/ops-console` clean (Node 22;
+  new typed route satisfies `next typegen`); schema verified vs
+  ADR-021/020/015 (no migration/`adr-log`). **Acceptance split:**
+  "Editor produces 3 drafts" is provable now (agent + endpoint + DB run
+  **locally**, like Scout/Diagnoser — first Phase-2 commit NOT gated on
+  the editorial Vercel project). "Operator publishes after editing +
+  `editorial_feedback` captured" and `/refine-editor` end-to-end depend
+  on **Commit 2.7's composer**; once drafts are produced + published
+  (2.7), the *data*-gated half of 2.3/2.4 acceptance clears.
+
