@@ -956,3 +956,44 @@ drift, no migration, no `adr-log` amendment.
   = Commit 2.6); the route correctly `notFound()`s with no data. JSON-LD
   shapes locally proven by the pure serializers.
 
+## 2026-05-19 — Phase 2 / Commit 2.4: Sitemap, robots, OG image generation
+
+ADR-009 SEO foundation, per-domain.
+
+- **`proxy.ts`** — removed `/robots.txt` + `/sitemap.xml` from the skip
+  set so host→site headers inject (per-domain per ADR-009;
+  Upstash-cached → cheap for crawlers). Root OG skip tightened to an
+  exact match (`/opengraph-image`, `/opengraph-image.png`) after a
+  CodeRabbit Major (the `\b` regex over-matched `/opengraph-image/foo`);
+  nested `[category]/[slug]/opengraph-image` is never skipped (needs
+  site + article). Implementation wiring, not an ADR change.
+- **`lib/seo.ts`** — `buildRobotsTxt(domain)` (pure) +
+  `buildSitemapXml(site)` (static + categories + published articles +
+  listable businesses [`primarySiteId`, not delisted] + events;
+  absolute, deduped, XML-escaped; four reads via `Promise.all` after a
+  CodeRabbit nitpick; valid with zero content).
+- **`app/(site)/robots.txt/route.ts`** + **`sitemap.xml/route.ts`** —
+  per-domain GET handlers (force-dynamic), 404 on unknown host, 1h
+  cache-control.
+- **`app/(site)/[category]/[slug]/opengraph-image.tsx`** — Next
+  `ImageResponse` 1200×630, per-archetype card; Satori lacks `oklch()`
+  so OG cards use a fixed per-archetype hex approximation (deliberate,
+  isolated to the social card); branded fallback when no article.
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.4-sitemap-robots-og`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/49
+- Merge SHA: `9d591e53246d9d4f394c107416f35aa16d601bb2`
+- Review: 2 CodeRabbit findings (proxy OG over-match [Major];
+  serialized sitemap reads [nitpick]) — both fixed + replied (§7d), not
+  dismissed; CodeRabbit cleared; merged with required CI green.
+- Files: `apps/editorial/proxy.ts`, `lib/seo.ts`,
+  `app/(site)/robots.txt/route.ts`, `app/(site)/sitemap.xml/route.ts`,
+  `app/(site)/[category]/[slug]/opengraph-image.tsx`.
+- Validation: type-check `@bec/editorial` + `@bec/db` clean (Node 22);
+  pure `buildRobotsTxt`/sitemap renderer = local gate. **Acceptance
+  DEFERRED — deploy-gated:** `/sitemap.xml` validates, `/robots.txt`
+  matches ADR-009, OG cards on iMessage/Twitter all need the owed
+  `bec-editorial` Vercel deploy; sitemap article entries additionally
+  data-gated on the Editor agent (Commit 2.6). Empty-data sitemap valid
+  by design.
+
