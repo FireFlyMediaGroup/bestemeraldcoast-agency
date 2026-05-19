@@ -36,11 +36,12 @@ set via Vercel CLI on the correctly-linked project).
 end-to-end against the deployed app with canonical-niche
 `pipeline_signals` (PR #33 fixed the auth-middleware bypass, PR #36 the
 `@bec/db` fetch-transport `db.transaction()` 500; both merged +
-deployed off `main`). Box 10 (iPhone-Safari) 🟡 (login proven; device
-confirmation + add-to-home-screen pending — quick check). The gate is
-still **NOT PASSED** (ADR-035): box 15 blind validation + box 17
-restore drill remain. Repo: local `main` == `origin/main` ==
-`1d5373c`; PR for this status record open (`task/2026-05-18-gate-1314-record`).
+deployed off `main`). **Box 10 (iPhone-Safari) ✅ (operator-confirmed
+2026-05-18)** — sign-in works on iPhone Safari, add-to-home-screen
+launches chrome-less standalone. **15 of 17 boxes green.** The gate is
+still **NOT PASSED** (ADR-035): only box 15 (external blind validation,
+ADR-019) + box 17 (restore drill, ADR-006) remain. Repo: local `main`
+== `origin/main` == `e664236`.
 
 ## Operator action list to clear the Phase 1 gate
 
@@ -49,7 +50,7 @@ Ordered so each step unblocks the next:
 1. ✅ **DONE — Provision Neon via Vercel; verify prod + preview** (gate box 1). Neon reconfigured 2026-05-18; verified by the successful end-to-end magic-link sign-in.
 2. ✅ **DONE — live DB bring-up** (gate boxes 3–8). `db:migrate` applied 0000–0003; `PROD_DB_ALLOWED=true … db:seed` (process-scoped ADR-038 opt-in) succeeded idempotently against prod Neon: 8 sites / 48 categories / 2 authors / 9 agent_budgets / 10 niches / 30 mappings / 120 season_weights / 8 season_events; acceptance `getSeasonalWeight('charter_fishing', 2026-06-15) = 1.5`. Evidence recorded in the PHASE 1 GATE — STATUS entry.
 3. ✅ **DONE — Deploy `bec-ops-console` + magic link** (gate box 9). Deployed to `ops.bestemeraldcoast.com`; Resend `noreply@ops.bestemeraldcoast.com` subdomain verified; env set via Vercel CLI on the correctly-linked project; operator-confirmed sign-in 2026-05-18.
-4. **Log in on iPhone Safari** (gate box 10 — 🟡, blocker removed): repeat the now-working sign-in on iPhone Safari, confirm no bugs, add to Home Screen, confirm chrome-less standalone launch (closes Commit 1.4 + 1.7 device acceptance). *(Optional: drop a 180×180 `apps/ops-console/app/apple-icon.png` for a branded glyph.)*
+4. ✅ **DONE — Log in on iPhone Safari** (gate box 10). Operator-confirmed 2026-05-18: sign-in works on iPhone Safari; added to Home Screen; chrome-less standalone launch confirmed (closes Commit 1.4 + 1.7 device acceptance).
 5. ✅ **DONE — Run Scout** (gate boxes 11, 12). Prereqs all closed: PR #33 (agent-API middleware bypass, SHA `96ce5c9`) **and** PR #36 (lead-transition fetch-tx 500, SHA `1d5373c`) both merged + deployed off `main`; `POST /api/agent/agent-runs` (no bearer) returns **401**. Live `/scout pensacola charter fishing` run `fa9b1fe0-…`: 20 scanned, **7 `charter_fishing` leads created + 7 `lead_added` `pipeline_signals`**, daily caps respected. (An earlier `beach chair rentals` run added 2 leads — non-canonical niche, signals correctly skipped.)
 6. ✅ **DONE — Run Diagnoser** (gate boxes 13, 14). `/diagnose-pending` on the 7 `charter_fishing` leads: **7/7 diagnosed**, every `PATCH /api/agent/leads/:id` → HTTP 200 `transitioned:true`, ~50-word consultant-voice diagnosis + tiered offer per lead (rubric-screened), **7 `diagnosis_done` `pipeline_signals`** written. ADR-040 trailing window verified in Postgres: `charter_fishing` 14d = 7 `lead_added` + 7 `diagnosis_done`; `diagnosed_today=9`; 0 leads left `new`. (The 2 `beach chair rentals` leads were also diagnosed as the post-#36-deploy fix verification.)
 7. **External blind validation** (gate box 15): show 3 peers 5 random Diagnoser `summary` outputs blind; record ≥3/5 "human". If it fails, that is a Diagnoser-prompt iteration (ADR-019 `version: 2` + adr-log note) — a real loop task, *not* a gate skip.
@@ -62,7 +63,7 @@ the loop resumes.
 
 ## Current Step
 
-- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — but materially advanced (2026-05-18): DB + deploy + login + live Scout + live Diagnoser all closed; boxes 11–14 green; 1 yellow (box 10).** Residual blockers: iPhone-Safari device check (box 10 🟡), external blind validation (box 15), restore drill (box 17) — operator action list above.
+- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — 15 of 17 boxes green (2026-05-18): DB + deploy + login (incl. iPhone-Safari) + live Scout + live Diagnoser all closed.** Only 2 residual blockers, both operator-run and non-negotiable per ADR-035: external blind validation (box 15, ADR-019) and restore drill (box 17, ADR-006) — see operator action list above.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 quality gate.
 - **Do NOT:** start Phase 2 / Commit 2.1, or mark the gate passed, until the operator closes the items and records `PHASE 1 GATE PASSED`.
 
