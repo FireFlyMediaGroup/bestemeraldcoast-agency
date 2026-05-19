@@ -87,7 +87,7 @@ export async function listArticles(
 export async function getArticleForEdit(
   id: string,
 ): Promise<ArticleForEdit | null> {
-  const { getDb, schema, eq, and } = await import("@bec/db");
+  const { getDb, schema, eq, and, desc, inArray } = await import("@bec/db");
   const db = getDb();
 
   const [a] = await db
@@ -114,13 +114,19 @@ export async function getArticleForEdit(
       .select({ id: schema.categories.id, name: schema.categories.name })
       .from(schema.categories)
       .where(eq(schema.categories.siteId, a.siteId)),
+    // Bounded: the most recent images, not the whole library (the `images`
+    // table has no site scope — ADR-022 central store). A search-backed /
+    // paginated picker is the proper long-term fix (follow-up); 60 keeps
+    // the editor-loader payload + latency constant for now.
     db
       .select({
         id: schema.images.id,
         altText: schema.images.altText,
         blobUrl: schema.images.blobUrl,
       })
-      .from(schema.images),
+      .from(schema.images)
+      .orderBy(desc(schema.images.uploadedAt))
+      .limit(60),
     db
       .select({
         businessId: schema.articleBusinesses.businessId,
@@ -144,7 +150,28 @@ export async function getArticleForEdit(
   ]);
 
   const linkRank = new Map(linked.map((l) => [l.businessId, l.rank]));
-  const businesses: ComposerBusiness[] = siteBiz
+
+  // Already-linked businesses must survive even if they no longer match the
+  // eligibility filter (delisted, or primarySiteId moved). Without this they
+  // vanish from the edit payload and the save path's delete+insert would
+  // silently DROP the links. Fetch any linked business missing from siteBiz
+  // and fold it in (still flagged linked).
+  const siteBizIds = new Set(siteBiz.map((b) => b.id));
+  const missingLinkedIds = [...linkRank.keys()].filter(
+    (bid) => !siteBizIds.has(bid),
+  );
+  const orphanLinked = missingLinkedIds.length
+    ? await db
+        .select({
+          id: schema.businesses.id,
+          name: schema.businesses.name,
+          city: schema.businesses.city,
+        })
+        .from(schema.businesses)
+        .where(inArray(schema.businesses.id, missingLinkedIds))
+    : [];
+
+  const businesses: ComposerBusiness[] = [...siteBiz, ...orphanLinked]
     .map((b) => ({
       id: b.id,
       name: b.name,

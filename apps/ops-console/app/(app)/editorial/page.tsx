@@ -22,7 +22,7 @@ function Chip({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex min-h-[36px] items-center rounded-(--radius-sm) border px-3 text-sm capitalize transition-colors ${
+      className={`inline-flex min-h-[44px] items-center rounded-(--radius-sm) border px-3 text-sm capitalize transition-colors ${
         active
           ? "border-transparent bg-primary text-primary-fg"
           : "border-border text-muted-fg hover:text-foreground"

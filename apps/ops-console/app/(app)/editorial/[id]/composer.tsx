@@ -43,7 +43,9 @@ export function Composer({ article }: { article: ArticleForEdit }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const published = article.status === "published";
+  const [published, setPublished] = useState(
+    article.status === "published",
+  );
   const preview = useMemo(() => renderMarkdown(bodyMdx), [bodyMdx]);
   const byId = useMemo(
     () => new Map(article.businesses.map((b) => [b.id, b])),
@@ -66,11 +68,16 @@ export function Composer({ article }: { article: ArticleForEdit }) {
       businesses: linked.map((id, i) => ({ id, rank: i + 1 })),
     };
   }
-  function handle(p: Promise<ActionResult>) {
+  function handle(p: Promise<ActionResult>, isPublish = false) {
     setMsg(null);
     start(async () => {
       const r = await p;
-      setMsg(r.ok ? "Saved." : (ERR[r.error] ?? r.error));
+      if (r.ok) {
+        setMsg(isPublish ? "Published." : "Saved.");
+        if (isPublish) setPublished(true); // flip to read-only immediately
+      } else {
+        setMsg(ERR[r.error] ?? r.error);
+      }
     });
   }
 
@@ -253,7 +260,7 @@ export function Composer({ article }: { article: ArticleForEdit }) {
             type="button"
             disabled={pending || published}
             onClick={() =>
-              handle(publishArticleAction(article.id, bodyMdx))
+              handle(publishArticleAction(article.id, bodyMdx), true)
             }
             className="min-h-[44px] rounded-(--radius-sm) bg-primary px-4 text-primary-fg disabled:opacity-50"
           >
@@ -271,7 +278,9 @@ export function Composer({ article }: { article: ArticleForEdit }) {
             <span
               role="status"
               className={
-                msg === "Saved." ? "text-success" : "text-danger"
+                msg === "Saved." || msg === "Published."
+                  ? "text-success"
+                  : "text-danger"
               }
             >
               {msg}
@@ -298,6 +307,7 @@ export function Composer({ article }: { article: ArticleForEdit }) {
               onClick={() =>
                 handle(
                   publishArticleAction(article.id, bodyMdx, note),
+                  true,
                 )
               }
               className="mt-2 min-h-[44px] rounded-(--radius-sm) bg-primary px-4 text-primary-fg disabled:opacity-50"

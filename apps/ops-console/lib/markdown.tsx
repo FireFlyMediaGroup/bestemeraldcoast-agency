@@ -12,6 +12,20 @@ import { Fragment, type ReactNode } from "react";
 const INLINE =
   /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
 
+// Allowlist link schemes — markdown URL text is untrusted (a draft could
+// contain `javascript:`/`data:`). Permit http/https/mailto + site-relative;
+// reject everything else (caller renders the label as plain text).
+function safeHref(raw: string): string | null {
+  const v = raw.trim();
+  if (v.startsWith("/") || v.startsWith("#")) return v;
+  try {
+    const u = new URL(v);
+    return ["http:", "https:", "mailto:"].includes(u.protocol) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 function renderInline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
   const parts = text.split(INLINE);
@@ -33,12 +47,12 @@ function renderInline(text: string): ReactNode[] {
     } else {
       const m = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(p);
       const label = m?.[1];
-      const url = m?.[2];
-      if (label && url) {
+      const href = m?.[2] ? safeHref(m[2]) : null;
+      if (label && href) {
         out.push(
           <a
             key={i}
-            href={url}
+            href={href}
             className="text-primary underline"
             rel="noreferrer"
           >

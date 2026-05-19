@@ -57,7 +57,8 @@ export async function saveArticle(
     return { ok: false, error: "hero_image_missing_alt" };
   }
 
-  await db
+  // A UUID-valid but absent id must not silently "succeed".
+  const updated = await db
     .update(schema.articles)
     .set({
       title: patch.title,
@@ -68,7 +69,9 @@ export async function saveArticle(
       heroImageId: patch.heroImageId,
       updatedAt: new Date(),
     })
-    .where(eq(schema.articles.id, id));
+    .where(eq(schema.articles.id, id))
+    .returning({ id: schema.articles.id });
+  if (updated.length === 0) return { ok: false, error: "not_found" };
 
   // Replace the article↔business links (draft edit — low stakes; the
   // publish path is the atomic one). Delete-then-insert the provided set.
