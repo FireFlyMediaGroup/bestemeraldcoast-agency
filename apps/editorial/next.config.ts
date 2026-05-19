@@ -7,13 +7,12 @@ import type { NextConfig } from "next";
 const workspaceRoot = path.resolve(import.meta.dirname, "..", "..");
 
 const nextConfig: NextConfig = {
-  // Transpile the workspace packages we import JS from. NOTE: `@bec/ui` is
-  // deliberately NOT here. The 2.1 shell consumes only
-  // `@bec/ui/styles/globals.css` (resolved by Tailwind v4 / PostCSS, not
-  // Next's JS transpile); listing @bec/ui made Next compile the package and
-  // pull its hard `react` dependency into the build worker. Add @bec/ui back
-  // in Commit 2.2 when its components are actually imported.
-  transpilePackages: ["@bec/db", "@bec/logger", "@bec/config"],
+  // Transpile the workspace TS packages we import JS from. @bec/ui is back
+  // (Commit 2.2): editorial now imports its Magazine components, not just
+  // its CSS. (The Commit 2.1 `_not-found` build crash was later proven to
+  // be a sandbox-only env limit — clean `main` fails identically — not
+  // caused by transpiling @bec/ui; the lockfile pins react 19.1.1.)
+  transpilePackages: ["@bec/ui", "@bec/db", "@bec/logger", "@bec/config"],
   // @bec/db's Neon serverless driver + its ws transport must load as native
   // Node modules, not get bundled (proxy.ts runs on the Node runtime and
   // resolves host→site via @bec/db). Same externalization ops-console uses.
