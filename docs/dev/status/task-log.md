@@ -786,3 +786,66 @@ as a worthwhile early Phase-2 improvement candidate (a future ADR-019
 `version: 2` iteration is optional, not gate-required). Phase 2 / Commit
 2.1 is now the active step in `next-step.md`.
 
+## 2026-05-19 — Phase 2 / Commit 2.1: Editorial app shell with proxy.ts
+
+`apps/editorial` taken from placeholder to a real Next.js 16 app —
+host-based routing across all 8 domains via `proxy.ts` (Next 16
+middleware replacement).
+
+- **Implemented:** `proxy.ts` (Node runtime, in-function matcher per Next
+  16's no-`config`-export contract) resolving request host → site via
+  `lib/site-context.ts` (single `@bec/db` SELECT, fetch-transport safe;
+  Upstash 60s host→site cache w/ negative caching + graceful no-Upstash
+  fallback, mirrors ops-console `ratelimit.ts`); writes site context to
+  request headers. Route segments `/`, `/[category]`,
+  `/[category]/[slug]`, `/businesses/[slug]`, `/events`,
+  `/events/[slug]`, `/authors/[slug]`,
+  `(legal)/{privacy,terms,disclosure,cookies,editorial-standards}`.
+  Minimal **static root layout** (lets Next's internal
+  `_not-found`/`_global-error` generate) + async **`(site)`
+  route-group layout** for per-site chrome. HIG reader-side + WCAG 2.2 AA
+  baseline. Nothing hardcoded — `data-archetype` + `@bec/ui` CSS-var seam
+  for Commit 2.2.
+- **Review hardening (PR #43, 12 findings):** tightened `proxy.ts` skip
+  matcher (no `.ext$`-on-any-path host-validation bypass); added static
+  `app/__unknown_host__/page.tsx` calling `notFound()` so an unmapped
+  host reliably 404s (it was being caught by `(site)/[category]`);
+  resolver throw now degrades to the 404 path, never 500; `(site)`
+  layout fails closed via `notFound()` instead of guessing a tenant;
+  shared `lib/format.ts` `titleize()` for consistent `<title>`/`<h1>`.
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.1-editorial-app-shell`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/43
+- Merge SHA: `29f2ba0067e9801373e2bb2b0902d53474554250`
+- CodeRabbit: `CHANGES_REQUESTED` then all 12 findings fixed + replied
+  on-thread (§7d); merged after required CI green (state advisory per
+  §7b). cubic: `COMMENTED` (same findings, addressed).
+- Files changed: full `apps/editorial/` app (config, `proxy.ts`,
+  `lib/site-context.ts`, `lib/format.ts`, `app/` route tree incl.
+  `(site)` group + `__unknown_host__` + error pages,
+  `components/page-shell.tsx`) + `pnpm-lock.yaml` (editorial deps;
+  consolidated react→single 19.1.1, matching main's primary pin).
+- Validation: `lint` (noop) ✓ · `type-check` (`next typegen && tsc
+  --noEmit`, Node 22) ✓ · `test:unit` (noop) ✓ · required CI on #43
+  (lint/type-check/unit-tests) green.
+- **Acceptance DEFERRED (deploy-gated, operator infra owed):** the 2.1
+  acceptance (all 8 domains resolve to their site shell + Lighthouse
+  mobile ≥95) cannot run yet — `apps/editorial` has **no Vercel project /
+  domains wired** (no `Vercel – bec-editorial` check; directly analogous
+  to the Phase 1 ops-console Vercel setup). Additionally, full
+  `next build` is **not reproducible in the local dev sandbox**: a clean
+  checkout of `main` (ops-console, deployed) fails identically with a
+  React-19 RSC-prerender `useContext` crash under both webpack and
+  Turbopack, Node 20 and 22 — an environment limitation, not a 2.1
+  defect. CI/Vercel is the authoritative build (it ships `main`). **Owed
+  before Commit 2.1 acceptance can be closed:** operator creates the
+  `bec-editorial` Vercel project + attaches the 8 domains, deploys off
+  `main`, then the Host-header + Lighthouse acceptance is run and
+  recorded here. Commit 2.2 (theme system, `packages/ui`) may proceed in
+  parallel — it does not depend on the editorial deploy.
+- **Environment note:** the original `~/Desktop/bestemeraldcoast-agency`
+  working copy was destroyed by iCloud "Desktop & Documents" eviction
+  mid-session (git DB + files zeroed). Commit 2.1 was reconstructed
+  verbatim into a fresh clone at `~/dev/bestemeraldcoast-agency`; the
+  loop should continue from there and the Desktop copy be abandoned.
+
