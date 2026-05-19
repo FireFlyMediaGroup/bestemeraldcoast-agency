@@ -38,9 +38,13 @@ end-to-end against the deployed app with canonical-niche
 `@bec/db` fetch-transport `db.transaction()` 500; both merged +
 deployed off `main`). **Box 10 (iPhone-Safari) ✅ (operator-confirmed
 2026-05-18)** — sign-in works on iPhone Safari, add-to-home-screen
-launches chrome-less standalone. **15 of 17 boxes green.** The gate is
-still **NOT PASSED** (ADR-035): only box 15 (external blind validation,
-ADR-019) + box 17 (restore drill, ADR-006) remain. Repo: local `main`
+launches chrome-less standalone. **Box 17 (restore drill, ADR-006) ✅
+(executed 2026-05-19)** — PITR scratch branch from `2026-05-19T00:55Z`,
+static seed tables exact, functional probe = 1.5, integrity clean,
+production untouched, scratch torn down; total ≈2m19s (timed runbook in
+`docs/dev/validation/phase1-box17-restore-drill.md`). **16 of 17 boxes
+green.** The gate is still **NOT PASSED** (ADR-035): only box 15
+(external blind validation, ADR-019) remains. Repo: local `main`
 == `origin/main` == `e664236`.
 
 ## Operator action list to clear the Phase 1 gate
@@ -54,7 +58,7 @@ Ordered so each step unblocks the next:
 5. ✅ **DONE — Run Scout** (gate boxes 11, 12). Prereqs all closed: PR #33 (agent-API middleware bypass, SHA `96ce5c9`) **and** PR #36 (lead-transition fetch-tx 500, SHA `1d5373c`) both merged + deployed off `main`; `POST /api/agent/agent-runs` (no bearer) returns **401**. Live `/scout pensacola charter fishing` run `fa9b1fe0-…`: 20 scanned, **7 `charter_fishing` leads created + 7 `lead_added` `pipeline_signals`**, daily caps respected. (An earlier `beach chair rentals` run added 2 leads — non-canonical niche, signals correctly skipped.)
 6. ✅ **DONE — Run Diagnoser** (gate boxes 13, 14). `/diagnose-pending` on the 7 `charter_fishing` leads: **7/7 diagnosed**, every `PATCH /api/agent/leads/:id` → HTTP 200 `transitioned:true`, ~50-word consultant-voice diagnosis + tiered offer per lead (rubric-screened), **7 `diagnosis_done` `pipeline_signals`** written. ADR-040 trailing window verified in Postgres: `charter_fishing` 14d = 7 `lead_added` + 7 `diagnosis_done`; `diagnosed_today=9`; 0 leads left `new`. (The 2 `beach chair rentals` leads were also diagnosed as the post-#36-deploy fix verification.)
 7. **External blind validation** (gate box 15): show 3 peers 5 random Diagnoser `summary` outputs blind; record ≥3/5 "human". If it fails, that is a Diagnoser-prompt iteration (ADR-019 `version: 2` + adr-log note) — a real loop task, *not* a gate skip.
-8. **Run one restore drill** (ADR-006, gate box 17): restore the Neon backup to a scratch branch, verify row counts, document the runbook timing.
+8. ✅ **DONE — restore drill** (ADR-006, gate box 17). Operator-authorized, executed 2026-05-19: PITR scratch branch `dr-drill-2026-05-19` from `2026-05-19T00:55:00Z`; static seed tables exact (8/48/2/9/10/30/120/8); `charter_fishing` month-6 multiplier = 1.5; 0 leads missing history, 0 orphan signals, 0 rows past the PITR boundary; production never written; scratch branch torn down. Total ≈2m19s. Timed runbook + evidence: `docs/dev/validation/phase1-box17-restore-drill.md` + `task-log.md`.
 
 When all boxes are green: replace the `PHASE 1 GATE — STATUS` entry in
 `task-log.md` with `## <date> — PHASE 1 GATE PASSED` (paste the fully-checked
@@ -63,7 +67,7 @@ the loop resumes.
 
 ## Current Step
 
-- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — 15 of 17 boxes green (2026-05-18): DB + deploy + login (incl. iPhone-Safari) + live Scout + live Diagnoser all closed.** Only 2 residual blockers, both operator-run and non-negotiable per ADR-035: external blind validation (box 15, ADR-019) and restore drill (box 17, ADR-006) — see operator action list above.
+- **Phase:** 1 — quality gate (ADR-035). **Status: NOT PASSED — 16 of 17 boxes green (2026-05-19): DB + deploy + login (incl. iPhone-Safari) + live Scout + live Diagnoser + restore drill all closed.** One residual blocker, operator-run and non-negotiable per ADR-035: external blind validation (box 15, ADR-019) — see operator action list above. When box 15 passes, this is the only thing between here and `PHASE 1 GATE PASSED`.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 1 quality gate.
 - **Do NOT:** start Phase 2 / Commit 2.1, or mark the gate passed, until the operator closes the items and records `PHASE 1 GATE PASSED`.
 
