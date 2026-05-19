@@ -606,6 +606,124 @@ progress).
 - Validation: `pnpm turbo lint type-check test:unit` → 48/48
   (`@bec/config` 18/18, `@bec/logger` 20/20).
 
+## 2026-05-18 — Off-plan — Agent API middleware bypass (Phase 1 gate boxes 11–14 unblock)
+
+Discovered while preparing the operator's live Scout run (gate boxes 11,
+12). `POST https://ops.bestemeraldcoast.com/api/agent/agent-runs`
+returned **302 → /login** even with an `Authorization: Bearer` header —
+the entire agent write path (agent-runs, businesses, leads,
+pipeline-signals) was unreachable to Scout/Diagnoser, hard-blocking gate
+boxes 11–14. Off-plan (task-template); no commit reorders.
+
+- **Root cause:** `apps/ops-console/middleware.ts` matcher excluded
+  `api/auth` but not `api/agent`, so the NextAuth edge guard intercepted
+  `/api/agent/*`, found no session cookie (machine clients send a Bearer
+  token), and redirected to `/login` before the route handler ran.
+- **Fix (code, PR #33):** added `api/agent` to the matcher
+  negative-lookahead (one line; parallels the existing `api/auth`
+  exclusion). Agent routes carry their own complete Bearer
+  `AGENT_API_KEY` boundary via `agentRoute()`
+  (`lib/agent-handler.ts` → 401 + ADR-017 rate limit; ADR-003/ADR-018),
+  so they must not sit under the session middleware. Operator UI
+  (`/dashboard`) stays guarded.
+- Type: off-plan gate-remediation (RALPH-LOOP §103).
+- Branch: `task/2026-05-18-agent-api-middleware-bypass`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/33
+- Merge SHA: 96ce5c900e2c85e43a552ad2207e0c3ff99024e7
+- CodeRabbit: pass (advisory). cubic: pending at merge (advisory; CI
+  required checks `lint`+`type-check`+`unit-tests` all green gated the
+  squash-merge).
+- Files changed: `apps/ops-console/middleware.ts` (1).
+- Validation: `lint` (noop) ✓ · `type-check` (`next typegen && tsc
+  --noEmit`) ✓ · `test:unit` (noop) ✓. Matcher regex assertion:
+  `/api/agent/*` now bypasses the redirect, `/dashboard` stays GUARDED,
+  `/api/auth` + `/login` unchanged. **Post-deploy live check still owed
+  (operator):** after ops-console redeploys off `main`,
+  `POST /api/agent/agent-runs` without a bearer must return **401**, not
+  302.
+- **Gate impact:** the Scout/Diagnoser boxes (11–14) were previously
+  marked 🔴 *"code complete, runtime-gated"* — that was incomplete: a
+  code defect in the auth middleware also blocked them. With #33 merged
+  the code path is now genuinely complete; the boxes remain 🔴 pending
+  the operator running the live agents, which additionally needs the
+  ops-console redeploy + the Scout launch env (`OPS_CONSOLE_URL` is
+  defined nowhere — not in `.env`/`.env.example`; `DATABASE_URL_UNPOOLED`
+  must be exported into the `claude` session so `postgres-ro` MCP
+  connects). **Phase 1 gate status unchanged — NOT PASSED.**
+
+## 2026-05-18 — Off-plan — Lead-transition fetch-transaction 500 (Phase 1 gate boxes 13–14 unblock)
+
+Discovered during the operator's live Diagnoser run (gate boxes 13, 14),
+immediately after the #33 middleware fix. The Diagnoser produced
+rubric-passing diagnoses for both `new` leads but every
+`PATCH https://ops.bestemeraldcoast.com/api/agent/leads/:id` returned
+**HTTP 500**; 0 leads advanced. `agent-runs` POST/finalize were healthy,
+isolating the fault to the lead status-transition path. Off-plan
+(task-template); no commit reorders.
+
+- **Root cause:** PR #28 (`0d64819`) set `neonConfig.poolQueryViaFetch =
+  true` (`packages/db/src/client.ts`) for Vercel serverless auth
+  stability. Every Neon `pool.query()` is then a stateless HTTP request,
+  so Drizzle's `db.transaction()` (interactive `BEGIN…COMMIT`) has no
+  session affinity and throws → `agentRoute` → hard 500. The lead
+  status-transition path is the only `db.transaction()` the Diagnoser
+  hits; single-statement calls work over fetch — exactly the observed
+  pass/fail split. Confirmed by code trace + git bisect to #28 + a
+  natural A/B in the live run (same client/deploy: transaction 500×4,
+  single-statement 200).
+- **Fix (code, PR #36):** replace both `db.transaction()` call sites
+  with one atomic CTE statement (`UPDATE…RETURNING` feeding
+  `INSERT…SELECT` into `lead_status_history`). A single statement is
+  atomic in Postgres and needs no interactive session, so it is
+  transport-independent (fetch OR websocket) without reverting #28's
+  auth fix. New shared `applyLeadTransition()` helper in
+  `apps/ops-console/lib/lead-transitions.ts`. Race-safety preserved
+  exactly (UPDATE conditional on `status=from`; concurrent move → 0 rows
+  → `transitioned:false` → 409, no orphan history row). ADR-003 intact.
+- Type: off-plan gate-remediation (RALPH-LOOP §103).
+- Branch: `task/2026-05-18-fix-lead-transition-fetch-tx`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/36
+- Merge SHA: `1d5373cd1e5cc42ab932c6356b4350b5c2ddfd03` (squash, 2026-05-18
+  19:59:52Z). Auto-merge deliberately NOT enabled — operator reviewed
+  (PR approved + all required checks green) then authorized the squash
+  (operator instruction overrode the RALPH-LOOP §7b auto-merge norm for
+  this task; §7e gate verified green pre-merge, 0 posted findings).
+- CodeRabbit/cubic: advisory (RALPH-LOOP §7b); required CI checks
+  `lint`+`type-check`+`unit-tests` gate the squash-merge.
+- Files changed: `apps/ops-console/lib/lead-transitions.ts`,
+  `apps/ops-console/app/api/agent/leads/[id]/route.ts`,
+  `apps/ops-console/app/(app)/leads/actions.ts` (3).
+- Validation: `lint` (noop) ✓ · `type-check` (`next typegen && tsc
+  --noEmit`) ✓ · `test:unit` (noop) ✓.
+- **End-to-end acceptance: DONE (2026-05-18, post-deploy).** ops-console
+  redeployed off `main` (Vercel `bec-ops-console` `success`). Diagnoser
+  re-run on the two `beach chair rentals` leads: both `PATCH
+  /api/agent/leads/:id` → **HTTP 200 `transitioned:true`** (the exact
+  path that 500×4 before the fix). Postgres source-of-truth check:
+  `64eaecc1` + `87a75672` → `diagnosed`; 2 `lead_status_history`
+  `new→diagnosed` rows whose `created_at` equals each lead's
+  `updated_at` to the microsecond — direct evidence the atomic CTE
+  wrote the UPDATE + history INSERT in **one statement**, no
+  interactive transaction; ADR-035 cap accounting correct. A second
+  canonical-niche run (`charter fishing`, niche `charter_fishing`) then
+  exercised the full pipeline: Scout 7 leads + 7 `lead_added`
+  `pipeline_signals` (run `fa9b1fe0-…`); Diagnoser 7/7 diagnosed, all
+  `PATCH` 200, 7 `diagnosis_done` `pipeline_signals` written. DB
+  verify: 7 charter `diagnosed`, 0 `new`, `pipeline_signals` 14d
+  window = 7 `lead_added` + 7 `diagnosis_done`, `diagnosed_today=9`.
+- **Gate impact:** boxes 11–14 are now **GREEN** — live Scout
+  (boxes 11/12) and live Diagnoser (boxes 13/14) both proven against
+  the deployed app with canonical-niche `pipeline_signals` in the
+  ADR-040 trailing-query window. #33 fixed the auth-middleware bypass;
+  #36 fixed this deeper `@bec/db` fetch-transport regression that also
+  blocked Diagnoser persistence — together the agent code path is
+  genuinely complete and runtime-verified. **Phase 1 gate as a whole
+  still NOT PASSED** (residual: box 10 iPhone-Safari 🟡, box 15 blind
+  validation, box 17 restore drill). Follow-up still owed: clean up
+  stray `agent_runs` row `2b1fe09f-…` (stuck `running` from a
+  Diagnoser API sanity-check POST; prod finalize write was blocked by
+  the harness auto-mode classifier — operator action).
+
 ## Phase Gates
 
 Each phase gate (per ADR-035) is a special entry:
@@ -645,24 +763,29 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
   120-weights/8-events gate boxes.
 - ✅ **Neon provisioned via Vercel; prod+preview branches verified** — reconfigured 2026-05-18; functionally verified by the successful end-to-end magic-link sign-in (exercises the Drizzle adapter + Auth.js tables on production Neon).
 - ✅ **Ops-console deployed to ops.bestemeraldcoast.com + magic link** — PRs #24/#26/#27/#29 + Neon reconfig + Vercel env fix (CLI, correct project/scope); operator-confirmed end-to-end sign-in 2026-05-18. See the 2026-05-18 off-plan entry.
-- 🟡 **Operator login on iPhone Safari** — login mechanism verified end-to-end; iPhone-Safari + add-to-home-screen device confirmation still pending (blocker removed — quick device check only).
-- 🔴 **Scout writes ≥10 leads on a sample query** — operator/runtime (needs deploy + `GOOGLE_MAPS_API_KEY` + `AGENT_API_KEY`). Code complete (Commit 1.8).
-- 🔴 **Scout writes pipeline_signals** — runtime-gated; code complete (1.11).
-- 🔴 **Diagnoser 50-word diagnosis per lead** — runtime-gated; code complete (1.9).
-- 🔴 **Diagnoser writes pipeline_signals** — runtime-gated; code complete (1.11).
+- ✅ **Operator login on iPhone Safari** — operator-confirmed 2026-05-18: magic-link sign-in works on iPhone Safari and add-to-home-screen launches chrome-less standalone (closes Commit 1.4 + 1.7 device acceptance).
+- ✅ **Scout writes ≥10 leads on a sample query** — operator-run live 2026-05-18 against the deployed app. Code complete (Commit 1.8) + PR #33 (agent-API middleware bypass) + PR #36 (lead-transition fetch-tx 500). Three Scout runs added 11 leads total (beach chair rentals 2, charter fishing 7, auto detailing 2); the canonical-niche `charter fishing` run alone wrote 7 — daily caps respected.
+- ✅ **Scout writes pipeline_signals** — code complete (1.11) + PR #33/#36; verified in Postgres: canonical niches wrote `lead_added` signals (`charter_fishing` 7, `auto_detailing` 2); the non-canonical `beach chair rentals` run correctly skipped (ADR-040 FK).
+- ✅ **Diagnoser 50-word diagnosis per lead** — operator-run live 2026-05-18. 11/11 leads diagnosed with ~50-word consultant-voice diagnosis + tiered offer, rubric-screened; every `PATCH /api/agent/leads/:id` returned HTTP 200 `transitioned:true` (the path PR #36 fixed from a hard 500).
+- ✅ **Diagnoser writes pipeline_signals** — code complete (1.11) + PR #36; verified in Postgres: `charter_fishing` 7 + `auto_detailing` 2 `diagnosis_done` signals in the ADR-040 14d trailing window (non-canonical run correctly skipped).
 - 🔴 **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study.
 - 🔴 **One restore drill (ADR-006)** — operator-run DR exercise.
 
-Summary (updated 2026-05-18, post live seed): **6 green** (migrations,
-unit tests, schema, Neon-verified, deploy+magic-link, **live seed**),
-**1 yellow** (iPhone-Safari device confirmation), **6 red** (Scout ≥10,
-Scout pipeline_signals, Diagnoser 50-word, Diagnoser pipeline_signals,
-blind validation, restore drill). DB + deploy + login are all closed; the
-only remaining items are operator-run **live agents** (Scout, Diagnoser),
-the **iPhone device check**, the **blind validation**, and the **restore
-drill**. The loop is still **correctly blocked here** — proceeding into
-Phase 2 would violate the ADR-035 non-negotiable. See `next-step.md` for
-the residual operator action list.
+Summary (updated 2026-05-18, post iPhone-Safari confirmation): **11
+green** (migrations, unit tests, schema, Neon-verified, deploy+magic-link,
+live seed, Scout ≥10, Scout pipeline_signals, Diagnoser 50-word, Diagnoser
+pipeline_signals, **iPhone-Safari login**), **0 yellow**, **2 red**
+(external blind validation, restore drill). DB + deploy + login (incl.
+iPhone-Safari + add-to-home-screen) + the full live agent pipeline are all
+closed and verified against the deployed app (PR #36 fixed the `@bec/db`
+fetch-transport `db.transaction()` 500 that had blocked Diagnoser
+persistence). The loop is still **correctly blocked here** — the 2
+remaining boxes (operator-run human blind study, ADR-019; + DR restore
+drill, ADR-006) are non-negotiable per ADR-035; proceeding into Phase 2
+before they close would violate it. Follow-up still owed: clean up stray
+`agent_runs` row `2b1fe09f-…` (stuck `running` from a Diagnoser API
+sanity-check POST). See `next-step.md` for the residual operator action
+list.
 
 <!-- Replace with `## YYYY-MM-DD — PHASE 1 GATE PASSED` once the operator
 closes the 🔴/🟡 items and pastes the fully-checked checklist. -->
