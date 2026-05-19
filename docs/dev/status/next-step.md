@@ -4,20 +4,22 @@
 
 ---
 
-## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.7 merged, 2.8 next
+## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.8 merged, 2.9 next
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
 **2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
 `2663d3d`), **2.3** Article + structured data (#47 `a751016`), **2.4**
 Sitemap/robots/OG (#49 `9d591e5`), **2.5** Coastal + Premium (#51
 `02e2e29`), **2.6** Editor agent (#53 `304512f`), **2.7** Editorial
-composer (#55 `84985c2`) — see their `task-log.md` entries. Loop
-advances to **Commit 2.8**.
+composer (#55 `84985c2`), **2.8** Checker agent (#57 `96a9ceb`) — see
+their `task-log.md` entries. Loop advances to **Commit 2.9**.
 
-End-to-end editorial path is now code-complete: Editor `/draft-article`
-→ composer review/edit → publish (+ ADR-020 feedback). Publishing one
-draft via the deployed ops-console clears the *data*-gated half of
-2.3/2.4 acceptance.
+End-to-end editorial path is code-complete (Editor `/draft-article` →
+composer review/edit → publish + ADR-020 feedback). The outreach
+quality gate is now in place: Checker grades drafts against ADR-034
+(≥9/12, no zero, three outreach extra gates) and PATCHes the verdict;
+the PATCH boundary itself rejects self-contradictory grades. Pitcher
+(2.9) is the producer/sender that closes the outreach loop.
 
 ⚠️ **Working copy moved:** the loop now runs from
 `~/dev/bestemeraldcoast-agency`. The original `~/Desktop/...` copy was
@@ -26,26 +28,31 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 / Commit 2.8 — Checker agent.** Read
-  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.8 + ADR-034 (copy
-  quality / banned phrases), then run the loop normally (`/adr-plan` →
-  execute → validate → `/ship-task`). Write
-  `agency/.claude/agents/checker.md` v1: input a draft outreach message
-  + lead context; output pass/fail + score 0–12 + per-dimension scores
-  + notes; **≥9/12 with no zero passes**; updates
-  `outreachMessages.checkerScore` / `checkerNotes`.
-  - **Heads-up (verify in /adr-plan, don't rebuild):** the rubrics the
-    plan says to "create from ADR-034" — `agency/.claude/rubrics/
-    copy-quality.md` + `banned-phrases.md` — **already exist** (Phase 1;
-    used by Diagnoser + referenced by Editor 2.6). 2.8 = the Checker
-    agent doc that *loads* them, not re-authoring the rubrics.
-  - **Open question for /adr-plan:** does `outreach_messages` exist in
-    `@bec/db` schema with `checker_score`/`checker_notes` columns? If
-    not, 2.8 needs either a schema migration (STOP → adr-log if it
-    changes a decision) or the columns are part of a later Phase-2/3
-    outreach commit — resolve the dependency before coding. Checker
-    reads via the read-only Postgres MCP and writes via the agent API
-    (ADR-003), mirroring Scout/Diagnoser/Editor.
+- **Phase 2 / Commit 2.9 — Pitcher agent + Resend integration.** Read
+  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.9 + ADR-015 (FTC
+  sponsored disclosure) / ADR-032 (3 archetype voices), then run the
+  loop normally (`/adr-plan` → execute → validate → `/ship-task`).
+  Scope: `packages/email/templates/outreach.tsx` (React Email — three
+  variants matching the three archetypes' voice); `agency/.claude/
+  agents/pitcher.md` v1 — input a **Checker-passed** outreach message;
+  pick channel from `contactChannels` priority; render template; send
+  via Resend; write `outreachMessages.sentAt` + `sentMessageId`; attach
+  a tracking code; `agent_runs` lifecycle; **daily cap 30**. Slash
+  commands `/pitch [outreach_id]` + `/pitch-batch`.
+  - **Acceptance:** Pitcher sends to a test inbox; tracking code embeds
+    in links; daily cap enforced.
+  - **Verify in /adr-plan, don't assume:** does a `packages/email`
+    workspace exist yet (React Email + Resend SDK deps)? Are
+    `outreach_messages.sent_at` / `sent_message_id` / tracking-code
+    columns in the `@bec/db` schema (the `checker_*` columns were
+    already present at 2.8)? Is `RESEND_API_KEY` an existing env var
+    (`.env.example`)? A new package or new schema columns that change a
+    decision → STOP → adr-log before coding. Pitcher **writes via the
+    agent API** (new/existing `PATCH /api/agent/outreach-messages/[id]`
+    for `sentAt`/`sentMessageId`) and reads via the read-only Postgres
+    MCP (ADR-003), mirroring Scout/Diagnoser/Editor/Checker. The send
+    side-effect (Resend) is the one external action — keep it behind the
+    daily cap and the Checker-passed precondition.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 2.
 - **Build env note:** local sandbox cannot `next build` any app here
   (clean `main`/ops-console fails identically — React-19 RSC prerender
