@@ -52,7 +52,8 @@ export function ArticleCard({
           <img
             src={imageUrl}
             alt={imageAlt ?? ""}
-            className="aspect-[3/2] w-full object-cover"
+            className="w-full object-cover"
+            style={{ aspectRatio: "var(--bec-hero-aspect)" }}
             loading="lazy"
           />
         ) : null}

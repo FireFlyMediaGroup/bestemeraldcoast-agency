@@ -32,8 +32,10 @@ export { BusinessCard } from "./components/business-card.js";
 export type { BusinessCardProps } from "./components/business-card.js";
 export { NewsletterSignupInline } from "./components/newsletter-signup-inline.js";
 export type { NewsletterSignupInlineProps } from "./components/newsletter-signup-inline.js";
-export { FeaturedListingMagazine } from "./components/featured-listing-magazine.js";
-export type { FeaturedListingMagazineProps } from "./components/featured-listing-magazine.js";
+export { FeaturedListing } from "./components/featured-listing.js";
+export type { FeaturedListingProps } from "./components/featured-listing.js";
+export { FeaturedListingPremium } from "./components/featured-listing-premium.js";
+export type { FeaturedListingPremiumProps } from "./components/featured-listing-premium.js";
 
 export {
   ARCHETYPE_LIST,

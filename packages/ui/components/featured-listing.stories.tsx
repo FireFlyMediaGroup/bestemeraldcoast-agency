@@ -2,11 +2,11 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import { ARCHETYPE_LIST } from "../theme/index.js";
 
-import { FeaturedListingMagazine } from "./featured-listing-magazine.js";
+import { FeaturedListing } from "./featured-listing.js";
 
-const meta: Meta<typeof FeaturedListingMagazine> = {
-  title: "Magazine/FeaturedListingMagazine",
-  component: FeaturedListingMagazine,
+const meta: Meta<typeof FeaturedListing> = {
+  title: "Magazine/FeaturedListing",
+  component: FeaturedListing,
   args: {
     href: "/things-to-do/perfect-pensacola-beach-weekend",
     kicker: "The Weekender",
@@ -20,7 +20,7 @@ const meta: Meta<typeof FeaturedListingMagazine> = {
   },
 };
 export default meta;
-type Story = StoryObj<typeof FeaturedListingMagazine>;
+type Story = StoryObj<typeof FeaturedListing>;
 
 export const Default: Story = {
   decorators: [
@@ -32,6 +32,9 @@ export const Default: Story = {
   ],
 };
 
+// One archetype-agnostic component, three archetypes — proves the ADR-032
+// contract: the image aspect tracks `--bec-hero-aspect` (3/2 · 16/9 · 21/9)
+// and colors/fonts/radius track the archetype tokens, no forked code.
 export const AllArchetypes: Story = {
   parameters: { bec: { skipArchetypeWrapper: true } },
   render: (args) => (
@@ -42,7 +45,7 @@ export const AllArchetypes: Story = {
           className={`archetype-${a}`}
           style={{ background: "var(--bec-color-background)", padding: "1.5rem" }}
         >
-          <FeaturedListingMagazine {...args} />
+          <FeaturedListing {...args} />
         </div>
       ))}
     </div>
