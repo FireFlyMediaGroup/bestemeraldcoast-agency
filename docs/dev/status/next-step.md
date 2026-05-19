@@ -4,13 +4,13 @@
 
 ---
 
-## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.3 merged, 2.4 next
+## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.4 merged, 2.5 next
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
-**2.1** Editorial app shell (PR #43 `29f2ba0`), **2.2** Theme system +
-Magazine archetype (PR #45 `2663d3d`), **2.3** Article rendering +
-structured data (PR #47 `a751016`) — see their `task-log.md` entries.
-Loop advances to **Commit 2.4**.
+**2.1** Editorial app shell (#43 `29f2ba0`), **2.2** Theme system +
+Magazine (#45 `2663d3d`), **2.3** Article + structured data (#47
+`a751016`), **2.4** Sitemap/robots/OG (#49 `9d591e5`) — see their
+`task-log.md` entries. Loop advances to **Commit 2.5**.
 
 ⚠️ **Working copy moved:** the loop now runs from
 `~/dev/bestemeraldcoast-agency`. The original `~/Desktop/...` copy was
@@ -19,17 +19,22 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 / Commit 2.4 — Sitemap, robots, OG image generation.**
-  Read `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.4 for the
-  commit prompt + `**Acceptance**:` and the ADRs it cites (esp.
-  **ADR-009** robots/sitemap rules), then run the loop normally
-  (`/adr-plan` → execute → validate → `/ship-task`). 2.4 adds
-  `app/sitemap.xml/route.ts` (per-domain: articles/businesses/events/
-  static), `app/robots.txt/route.ts` (ADR-009 rules), and
-  `app/[category]/[slug]/opengraph-image.tsx` (Next Image Response,
-  per-archetype OG cards reading the 2.2 theme tokens). Note routing
-  nuance: these route handlers live under the `(site)` group so
-  proxy-resolved host/site context is available per domain.
+- **Phase 2 / Commit 2.5 — Coastal and Premium archetypes.** Read
+  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.5 + ADR-032, then
+  run the loop normally (`/adr-plan` → execute → validate →
+  `/ship-task`). **Heads-up — much pre-exists (like 2.2):**
+  `packages/ui/theme/archetypes/coastal.ts` + `premium.ts` already
+  exist; `styles/globals.css` already has the full `.archetype-coastal`
+  + `.archetype-premium` token blocks; `seed.ts` already seeds all 8
+  sites with their archetype token sets; every 2.2 component already has
+  an `AllArchetypes` Storybook story. `/adr-plan` must verify these vs
+  ADR-032 (no rebuild). Genuine new work: any **archetype-specific
+  component variants** the plan calls for (e.g.
+  `FeaturedListingCoastal`/`FeaturedListingPremium`), confirm the
+  Storybook matrix shows every component ×3 archetypes, and verify the
+  7 non-Pensacola seed rows. Acceptance: all 8 domains render in their
+  archetype (deploy-gated, like 2.1–2.4); Storybook matrix + axe pass
+  (locally provable).
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 2.
 - **Build env note:** local sandbox cannot `next build` any app here
   (clean `main`/ops-console fails identically — React-19 RSC prerender
