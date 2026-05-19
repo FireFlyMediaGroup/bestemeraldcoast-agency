@@ -35,9 +35,9 @@ export function FeaturedListingPremium({
       >
         {imageUrl ? (
           // Full-bleed: the image is intentionally edge-to-edge (no radius,
-          // no border — Premium minimal-chrome). eslint-disable-next-line
-          // @next/next/no-img-element -- @bec/ui is framework-neutral
+          // no border — Premium minimal-chrome). @bec/ui is framework-neutral
           // (ADR-037); the app supplies optimized images.
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageUrl}
             alt={imageAlt ?? ""}
