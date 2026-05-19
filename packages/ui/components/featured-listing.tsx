@@ -1,22 +1,25 @@
-// Hero/featured block — the Magazine archetype's lead unit (large image,
-// kicker, headline, dek). ADR-032 ships archetype-specific featured variants
-// (FeaturedListingCoastal/Premium come in Commit 2.5); this is the Magazine
-// one: documentary image, restrained type, generous measure. Text sits on
-// the token background (not over the image) so contrast is always WCAG 2.2
-// AA regardless of photo — no text-on-photo legibility gamble.
+// Hero/featured lead unit — the default, archetype-agnostic variant. Every
+// value is a CSS-variable token (colors, radius, fonts) and the image aspect
+// is `--bec-hero-aspect` (ADR-032 imagery.heroAspect, per-archetype), so the
+// SAME component renders correctly as Magazine / Coastal / Premium — that is
+// ADR-032's component contract (visual identity = tokens, not forked code).
+// `FeaturedListingPremium` is a separate STRUCTURAL variant (full-bleed,
+// negative space) for the Premium archetype's "selective full-bleed" vibe.
+// Text sits on the token background (never over the photo) so contrast is
+// always WCAG 2.2 AA regardless of image.
 
-export interface FeaturedListingMagazineProps {
+export interface FeaturedListingProps {
   href: string;
   title: string;
   kicker?: string;
   excerpt?: string;
   imageUrl?: string;
   /**
-   * Alt text for `imageUrl`. Not type-enforced here (this is a presentational
+   * Alt text for `imageUrl`. Not type-enforced here (presentational
    * component); ADR-022's hard "no image without alt" gate is enforced
    * upstream at the ops-console image picker. Callers MUST pass meaningful
    * alt for content images; pass `""` to mark an image explicitly
-   * decorative. Defaults to `""` (decorative) only as a safe fallback.
+   * decorative. Defaults to `""` only as a safe fallback.
    */
   imageAlt?: string;
   /** Match the surrounding outline; default h2. */
@@ -24,7 +27,7 @@ export interface FeaturedListingMagazineProps {
   className?: string;
 }
 
-export function FeaturedListingMagazine({
+export function FeaturedListing({
   href,
   title,
   kicker,
@@ -33,7 +36,7 @@ export function FeaturedListingMagazine({
   imageAlt,
   headingLevel = 2,
   className,
-}: FeaturedListingMagazineProps) {
+}: FeaturedListingProps) {
   const Heading = `h${headingLevel}` as "h2" | "h3";
   return (
     <article
@@ -54,7 +57,8 @@ export function FeaturedListingMagazine({
           <img
             src={imageUrl}
             alt={imageAlt ?? ""}
-            className="aspect-[21/9] w-full object-cover"
+            className="w-full object-cover"
+            style={{ aspectRatio: "var(--bec-hero-aspect)" }}
           />
         ) : null}
         <div className="p-6 sm:p-8">

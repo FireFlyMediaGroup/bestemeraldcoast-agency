@@ -24,7 +24,7 @@ import type { SiteTheme } from "./tokens.js";
 
 /** Ordered map of CSS custom property → value for a resolved SiteTheme. */
 export function themeToCssVars(theme: SiteTheme): Record<string, string> {
-  const { colors, radius, fonts, spacing } = theme;
+  const { colors, radius, fonts, spacing, imagery } = theme;
   const vars: Record<string, string> = {
     "--bec-color-background": colors.background,
     "--bec-color-foreground": colors.foreground,
@@ -46,6 +46,11 @@ export function themeToCssVars(theme: SiteTheme): Record<string, string> {
     "--bec-font-body": fonts.body,
     "--bec-content-max-width": spacing.contentMaxWidth,
     "--bec-section-gap": spacing.sectionGap,
+    // ADR-032 imagery.heroAspect is per-archetype (3/2, 16/9, 21/9). Exposed
+    // as a CSS var so hero/card images are archetype-correct from the token,
+    // not hardcoded (closes the Commit 2.2 conformance gap). Value is a
+    // valid CSS <ratio> (`aspect-ratio: 3/2`).
+    "--bec-hero-aspect": imagery.heroAspect,
   };
   if (fonts.mono) vars["--bec-font-mono"] = fonts.mono;
   return vars;

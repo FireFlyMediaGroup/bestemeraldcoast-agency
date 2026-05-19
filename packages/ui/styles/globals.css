@@ -55,6 +55,11 @@
 
   --bec-font-heading: Fraunces, Georgia, serif;
   --bec-font-body: Inter, system-ui, sans-serif;
+
+  /* ADR-032 imagery.heroAspect (also injected per-site by apply.ts in the
+     editorial app; declared here so Storybook + class-switching are
+     archetype-correct). */
+  --bec-hero-aspect: 3/2;
 }
 
 .archetype-coastal {
@@ -78,6 +83,8 @@
 
   --bec-font-heading: "General Sans", Inter, system-ui, sans-serif;
   --bec-font-body: Inter, system-ui, sans-serif;
+
+  --bec-hero-aspect: 16/9;
 }
 
 .archetype-premium {
@@ -101,6 +108,8 @@
 
   --bec-font-heading: "Editorial New", Fraunces, Georgia, serif;
   --bec-font-body: "Söhne", "Inter Tight", Inter, system-ui, sans-serif;
+
+  --bec-hero-aspect: 21/9;
 }
 
 body {
