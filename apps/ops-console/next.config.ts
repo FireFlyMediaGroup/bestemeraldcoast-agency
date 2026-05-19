@@ -12,7 +12,13 @@ const nextConfig: NextConfig = {
   // `default` → dist). Transpile them through Next so the app imports
   // @bec/ui's TSX + @bec/db / @bec/logger / @bec/config without each
   // shipping a separate browser build.
-  transpilePackages: ["@bec/ui", "@bec/db", "@bec/logger", "@bec/config"],
+  transpilePackages: [
+    "@bec/ui",
+    "@bec/db",
+    "@bec/email",
+    "@bec/logger",
+    "@bec/config",
+  ],
   // Keep these out of the server bundle (run as native Node CJS):
   // - @neondatabase/serverless + ws: @bec/db's ws transport.
   // - @sentry/nextjs + its OpenTelemetry instrumentation deps
