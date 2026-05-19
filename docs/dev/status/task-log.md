@@ -1136,3 +1136,57 @@ and captures ADR-020 feedback.
   acceptance**. Local `next build` sandbox-impossible — CI/Vercel
   authoritative.
 
+## 2026-05-19 — Phase 2 / Commit 2.8: Checker agent
+
+The ADR-034 copy-quality gate for outreach messages — grades a draft,
+never rewrites it.
+
+- **NEW `PATCH /api/agent/outreach-messages/[id]`** (`apps/ops-console`)
+  — `agentRoute()` Bearer + zod `PatchCheck` (`checkerPass`,
+  `checkerScore` 0–12, typed `checkerNotes` jsonb: six ADR-034
+  dimensions `0|1|2`, `notes[]`, optional `outreachGates`). Single
+  `UPDATE … returning()` — no `db.transaction()` (one statement,
+  fetch-transport safe; PR #28/#36 lesson); 404 on absent id. New
+  surface *within* ADR-003's agent-API boundary (mirrors 2.6's
+  articles endpoint — agents never write Postgres directly).
+- **Defense-in-depth grade invariant** (cubic #57 P1): the PATCH
+  boundary rejects `400 inconsistent_grade` if `checkerScore ≠ Σ
+  dimensions` (`score_ne_dimension_sum`) or if `checkerPass` disagrees
+  with the ADR-034 derivation `total≥9 && no dim==0 && (outreach gates
+  all true when supplied)` (`pass_ne_rubric`). A self-contradictory
+  grade can't be persisted regardless of agent correctness.
+- **`agency/.claude/agents/checker.md` v1** — mirrors Diagnoser: input
+  an outreach message id; reads message + lead/business context via the
+  **read-only Postgres MCP**; loads the existing Phase-1 rubrics
+  (`rubrics/copy-quality.md` + `banned-phrases.md` — *loaded, not
+  re-authored*); scores the six dimensions (0–2, quoted evidence);
+  **pass = total ≥9/12, no zero, AND the three outreach extra gates**
+  (<70 words, zero banned items ⇒ AI-markers = 2, ≥1 local reference);
+  PATCHes the grade; `agent_runs` lifecycle +
+  `[checker-metrics checked=N passed=M]`, `promptVersion 1`. Grades
+  only — never rewrites or loosens the rubric (Pitcher revises a fail).
+- **`/check-message`** command (single-id; mirrors `/diagnose`).
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.8-checker-agent`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/57
+- Merge SHA: `96a9ceba5f0e5196c1e6b5145c187b68ec70021b`
+- Review: 2 cubic P1 findings — **both valid, fixed in `97d1f66` +
+  replied on-thread (§7d), none dismissed**: (1) enforce the ADR-034
+  grade invariant at the PATCH boundary; (2) `checker.md` extra-gate 2
+  wording contradicted the no-zero rule (ADR-034's "zero in that
+  dimension" means *zero banned items* ⇒ AI-markers = 2, not value 0)
+  — reworded. CodeRabbit + cubic SUCCESS; required CI green; squash-
+  merged.
+- Files: `apps/ops-console/app/api/agent/outreach-messages/[id]/
+  route.ts`, `agency/.claude/agents/checker.md`,
+  `agency/.claude/commands/check-message.md`.
+- Validation: type-check `@bec/ops-console` clean (Node 22; the
+  `0|1|2`-union `reduce` accumulator needed an explicit `number[]`
+  cast). **Acceptance provable at 2.8** ("Checker fails messages with
+  banned phrases, passes natural ones") with a sample `outreach_
+  messages` row + lead context — operator-run agent + endpoint + DB,
+  **no editorial Vercel needed** (like Editor's "produces drafts" at
+  2.6). End-to-end (real messages flowing the gate) is **Commit
+  2.9-gated** (Pitcher produces the messages Checker grades). Local
+  `next build` sandbox-impossible — CI/Vercel authoritative.
+
