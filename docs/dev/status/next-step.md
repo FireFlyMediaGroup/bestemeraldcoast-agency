@@ -4,31 +4,51 @@
 
 ---
 
-## ✅ Loop status: PHASE 1 GATE PASSED (2026-05-19) — Phase 2 open
+## ✅ Loop status: Phase 2 in progress — Commit 2.1 merged, 2.2 next
 
-All 17 Phase 1 quality-gate boxes are green (ADR-035). The full record +
-fully-checked checklist is the `## 2026-05-19 — PHASE 1 GATE PASSED`
-entry in `task-log.md`. The loop resumes at **Phase 2 / Commit 2.1**.
+Phase 1 gate PASSED 2026-05-19 (17/17; see `## 2026-05-19 — PHASE 1 GATE
+PASSED` in `task-log.md`). **Phase 2 / Commit 2.1 (Editorial app shell
+with `proxy.ts`) merged** to `main` `29f2ba0` (PR #43) — see its
+`task-log.md` entry. Loop advances to **Commit 2.2**.
 
-How the gate closed: Phase 1 implementation (Commits 1.1–1.11, PRs
-#3–#22) → deploy-remediation arc (PRs #24/#26/#27/#29) → live-agent
-unblock (PR #33 agent-API middleware bypass, PR #36 `@bec/db`
-fetch-transport `db.transaction()` 500) → operator-run live Scout +
-Diagnoser (boxes 11–14, 11 leads, canonical `pipeline_signals`) →
-iPhone-Safari (box 10) → ADR-006 restore drill (box 17, ≈2m19s, PASS) →
-ADR-019 external blind validation (box 15, operator-confirmed 3/5 → PASS).
+⚠️ **Working copy moved:** the loop now runs from
+`~/dev/bestemeraldcoast-agency`. The original `~/Desktop/...` copy was
+destroyed by iCloud "Desktop & Documents" eviction (git DB + files
+zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 / Commit 2.1** — Outreach + Editorial Foundation
-  (Pitcher / Checker / Editor). Read `MASTER-bec-project-plan.md`
-  § Phase 2 / Commit 2.1 for the commit prompt + `**Acceptance**:` line,
-  and the ADRs it cites in `MASTER-bec-architecture-decisions.md`, then
-  run the loop normally (`/adr-plan` → execute → validate → `/ship-task`).
+- **Phase 2 / Commit 2.2 — Theme system + Magazine archetype.** Read
+  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.2 for the commit
+  prompt + `**Acceptance**:` line and the ADRs it cites (esp. ADR-032
+  theme token contract), then run the loop normally (`/adr-plan` →
+  execute → validate → `/ship-task`). 2.2 is `packages/ui` work
+  (`theme/tokens.ts`, `apply.ts`, `archetypes/magazine.ts`, Magazine
+  components + Storybook, seed Pensacola with Magazine tokens) — it does
+  NOT depend on the editorial deploy, so it proceeds in parallel with the
+  Commit 2.1 acceptance infra below.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 2.
-- **Do NOT:** treat Phase 1 as reopenable; the gate is closed and
-  recorded. New work is Phase 2 commits under the standard loop + git
-  discipline (RALPH-LOOP §69 per-commit flow).
+- **Build env note:** local sandbox cannot `next build` any app here
+  (clean `main`/ops-console fails identically — React-19 RSC prerender
+  `useContext`, both bundlers, Node 20 & 22). Local gate = `next typegen
+  && tsc --noEmit` (use Node 22 via `nvm use 22`). CI/Vercel is the
+  authoritative build.
+- **Do NOT:** treat Phase 1 as reopenable; the gate is closed. Continue
+  under the standard loop + git discipline (RALPH-LOOP §69).
+
+## ⛳ Commit 2.1 acceptance — DEFERRED (operator infra owed)
+
+Commit 2.1 code is merged but its acceptance (all 8 domains resolve to
+their site shell + Lighthouse mobile ≥95) is **not yet run** — there is
+no Vercel project for `apps/editorial` (no `Vercel – bec-editorial`
+check), exactly like the Phase 1 ops-console Vercel setup. **Owed:**
+operator creates the `bec-editorial` Vercel project, attaches the 8
+domains (`bestpensacola.com`, `bestfortwaltonbeach.com`,
+`bestemeraldcoast.com`, `bestpensacolabeach.com`, `bestdestinfl.com`,
+`bestsouthwalton.com`, `bestcr30a.com`, `best30a.life`), deploys off
+`main`, then the Host-header routing + Lighthouse acceptance is run and
+recorded in the Commit 2.1 `task-log.md` entry. This does not block
+Commit 2.2.
 
 ## Open carry-over items (not gate blockers)
 
