@@ -2,17 +2,35 @@
   "name": "@bec/editorial",
   "version": "0.0.0",
   "private": true,
-  "description": "Public editorial network across 8 domains (host routing via proxy.ts). ADR-001, ADR-010.",
+  "type": "module",
+  "description": "Public editorial network across 8 domains (host routing via proxy.ts). ADR-001, ADR-010, ADR-032.",
   "scripts": {
-    "build": "echo '(noop)'",
-    "dev": "echo '(noop)'",
+    "build": "next build --webpack",
+    "dev": "next dev --port 3002",
+    "start": "next start --port 3002",
     "lint": "echo '(noop)'",
-    "type-check": "echo '(noop)'",
+    "type-check": "next typegen && tsc --noEmit",
     "test:unit": "echo '(noop)'",
     "test:e2e": "echo '(noop)'"
   },
+  "dependencies": {
+    "@bec/config": "workspace:*",
+    "@bec/db": "workspace:*",
+    "@bec/logger": "workspace:*",
+    "@bec/ui": "workspace:*",
+    "@upstash/redis": "^1.38.0",
+    "next": "^16.2.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
     "@bec/config-eslint": "workspace:*",
-    "@bec/config-tsconfig": "workspace:*"
+    "@bec/config-tsconfig": "workspace:*",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.3"
   }
 }

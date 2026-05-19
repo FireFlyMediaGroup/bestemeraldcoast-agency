@@ -1,0 +1,80 @@
+/*
+ * editorial global styles.
+ *
+ * Pulls @bec/ui's token contract: the Tailwind v4 @theme mapping + base
+ * reset + the default Magazine `--bec-color-*` palette. The editorial app
+ * is archetype-themed PER SITE — but the per-site token injection is
+ * Commit 2.2's job (packages/ui/theme `apply.ts` writes the resolved
+ * SiteTheme as inline CSS variables on the (site) wrapper). This shell
+ * deliberately hardcodes NOTHING: every component reads `--bec-color-*` /
+ * `--bec-*` variables, so 2.2 drops the per-site palette in with zero
+ * refactor.
+ */
+
+@import "@bec/ui/styles/globals.css";
+
+/* Reader-side HIG baseline (ADR-029 reader principles, ADR-036 WCAG 2.2 AA).
+   Archetype tokens override the values; these are structural, not themed. */
+
+:root {
+  /* Comfortable measure for long-form reading (~66ch). */
+  --bec-measure: 66ch;
+}
+
+html {
+  /* Honor the OS text-size preference (Dynamic Type analog). */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bec-color-background);
+  color: var(--bec-color-foreground);
+  -webkit-font-smoothing: antialiased;
+  /* Safe-area insets so content never hides under the notch / home
+     indicator when added to home screen (HIG). */
+  padding:
+    env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Visible keyboard focus everywhere (WCAG 2.2 AA — 2.4.7 / 2.4.11). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--bec-color-primary, currentColor);
+  outline-offset: 2px;
+}
+
+/* Skip-link: visible only when focused (keyboard users land on it first). */
+.bec-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+.bec-skip-link:focus {
+  left: 0;
+  padding: 0.75rem 1rem;
+  background: var(--bec-color-background);
+  color: var(--bec-color-foreground);
+}
+
+/* Minimum 44×44px interactive targets (HIG / WCAG 2.5.8). */
+:where(a, button)[data-bec-tap] {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Respect reduced-motion globally (HIG / WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
