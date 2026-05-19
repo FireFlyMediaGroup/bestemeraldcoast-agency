@@ -769,23 +769,18 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
 - ✅ **Diagnoser 50-word diagnosis per lead** — operator-run live 2026-05-18. 11/11 leads diagnosed with ~50-word consultant-voice diagnosis + tiered offer, rubric-screened; every `PATCH /api/agent/leads/:id` returned HTTP 200 `transitioned:true` (the path PR #36 fixed from a hard 500).
 - ✅ **Diagnoser writes pipeline_signals** — code complete (1.11) + PR #36; verified in Postgres: `charter_fishing` 7 + `auto_detailing` 2 `diagnosis_done` signals in the ADR-040 14d trailing window (non-canonical run correctly skipped).
 - 🔴 **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study.
-- 🔴 **One restore drill (ADR-006)** — operator-run DR exercise.
+- ✅ **One restore drill (ADR-006)** — operator-authorized, executed 2026-05-19 against Neon project `royal-feather-07747239`. PITR scratch branch `dr-drill-2026-05-19` created from restore point `2026-05-19T00:55:00Z` (parent = default `production` branch); production never written (read-only on the clone), scratch branch torn down + confirmed gone. **Timing:** restore ≈1s, verify ≈1.5 min, teardown ≈2s, total ≈2 min 19 s (01:25:09Z→01:27:28Z). **PASS:** static seed tables exact (8/48/2/9/10/30/120/8); functional probe `charter_fishing` month-6 multiplier = 1.50 (= seed acceptance `getSeasonalWeight('charter_fishing',2026-06-15)=1.5`); integrity clean (0 leads missing history, 0 orphan `lead_added` signals, 0 rows past the PITR boundary); dynamic tables internally consistent (businesses 47 ≥ leads 11; lead_status_history 11 ≥ leads 11; pipeline_signals 18 = 9 `lead_added` + 9 `diagnosis_done`). Timed runbook: `docs/dev/validation/phase1-box17-restore-drill.md`.
 
-Summary (updated 2026-05-18, post iPhone-Safari confirmation): **11
-green** (migrations, unit tests, schema, Neon-verified, deploy+magic-link,
+Summary (updated 2026-05-19, post restore drill): **16 green**
+(migrations, unit tests, schema, Neon-verified, deploy+magic-link,
 live seed, Scout ≥10, Scout pipeline_signals, Diagnoser 50-word, Diagnoser
-pipeline_signals, **iPhone-Safari login**), **0 yellow**, **2 red**
-(external blind validation, restore drill). DB + deploy + login (incl.
-iPhone-Safari + add-to-home-screen) + the full live agent pipeline are all
-closed and verified against the deployed app (PR #36 fixed the `@bec/db`
-fetch-transport `db.transaction()` 500 that had blocked Diagnoser
-persistence). The loop is still **correctly blocked here** — the 2
-remaining boxes (operator-run human blind study, ADR-019; + DR restore
-drill, ADR-006) are non-negotiable per ADR-035; proceeding into Phase 2
-before they close would violate it. Follow-up still owed: clean up stray
-`agent_runs` row `2b1fe09f-…` (stuck `running` from a Diagnoser API
-sanity-check POST). See `next-step.md` for the residual operator action
-list.
+pipeline_signals, iPhone-Safari login, **restore drill**), **0 yellow**,
+**1 red** (external blind validation, box 15). Everything except the
+operator-run human blind study (ADR-019) is closed and verified. The loop
+remains **correctly blocked** — box 15 is non-negotiable per ADR-035;
+proceeding into Phase 2 before it closes would violate it. (Stray
+`agent_runs` row `2b1fe09f-…` was finalized `aborted` 2026-05-18.)
+See `next-step.md` for the residual operator action list.
 
 <!-- Replace with `## YYYY-MM-DD — PHASE 1 GATE PASSED` once the operator
 closes the 🔴/🟡 items and pastes the fully-checked checklist. -->

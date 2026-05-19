@@ -155,3 +155,20 @@ union all select 'agent_runs', count(*) from agent_runs
 union all select 'pipeline_signals', count(*) from pipeline_signals
 order by t;
 ```
+
+---
+
+## Run log
+
+### 2026-05-19 — PASS (operator-authorized; executed by Claude Code under direction)
+
+- Neon project: `royal-feather-07747239` (bestemeraldcoast-agency, pg17)
+- Parent: default `production` branch `br-shiny-meadow-apbwa7lk`
+- Scratch branch: `dr-drill-2026-05-19` · restore_point `2026-05-19T00:55:00Z`
+- DRILL_START `01:25:09Z` · t0 `01:25:42Z` · t1 `01:25:43Z` (**restore ≈1s**) · verify ≈1.5 min · teardown_issued `01:27:26Z` · DRILL_END `01:27:28Z` (**total ≈2m19s**)
+- Static seed (exact): sites 8 · categories 48 · authors 2 · agent_budgets 9 · niches 10 · niche_category_map 30 · season_weights 120 · season_events 8
+- Functional probe: `season_weights` `charter_fishing` month 6 multiplier = **1.50** (= seed acceptance `getSeasonalWeight('charter_fishing',2026-06-15)=1.5`)
+- Integrity: leads_missing_history **0** · orphan `lead_added` signals **0** · rows past PITR boundary **0**
+- Dynamic consistency: businesses 47 ≥ leads 11 · lead_status_history 11 ≥ leads 11 · pipeline_signals 18 (9 `lead_added` + 9 `diagnosis_done`)
+- Production: never written (read-only on the COW clone); scratch branch deleted + absence confirmed (only `production` remains)
+- **Outcome: PASS** — recorded in `docs/dev/status/task-log.md` (box 17, canonical `PHASE 1 GATE — STATUS`).
