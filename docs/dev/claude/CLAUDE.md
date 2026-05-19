@@ -2,6 +2,17 @@
 
 You are working in **bestemeraldcoast-agency** — a multi-site media + agency monorepo. This file is your operating contract.
 
+## Session Launch
+The agent runtime (Scout, Diagnoser, `/scout`, `postgres-ro`/`google-maps` MCP) is the **`agency/` subdirectory**, not the repo root. Its `agency/.mcp.json`, `agency/.claude/commands/`, and `agency/.claude/agents/` only load when Claude is launched from `agency/`. The `.env`, however, lives at the **repo root**.
+
+Always launch sessions with the helper — never plain `claude`:
+
+```bash
+./scripts/dev-session.sh    # works from any cwd inside the repo
+```
+
+It reads the root `.env` (splitting on the first `=` only — do **not** use `set -a; . .env`; the unquoted `&` in the Neon URLs truncates `DATABASE_URL_UNPOOLED`, the bug this script exists to prevent), validates the Scout vars (`DATABASE_URL_UNPOOLED`, `GOOGLE_MAPS_API_KEY`, `AGENT_API_KEY`, `OPS_CONSOLE_URL`), then `cd agency && exec claude`. If a session shows `claude mcp list` → "No MCP servers configured" or the `/scout` command is missing, it was launched wrong — exit and relaunch via the helper.
+
 ## Source of Truth
 Two files govern everything:
 - `docs/dev/MASTER-bec-architecture-decisions.md` — 41 ADRs (the *what* and *why*; hard constraints)

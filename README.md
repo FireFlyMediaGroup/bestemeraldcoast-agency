@@ -17,6 +17,22 @@ pnpm install
 pnpm turbo build
 ```
 
+## Agent runtime session
+
+To run the local Claude Code agent runtime (Scout, Diagnoser, `/scout`, etc.),
+**always launch via the helper** — never plain `claude`:
+
+```bash
+./scripts/dev-session.sh    # works from anywhere in the repo
+```
+
+It reads `.env` from the repo root (splitting on the first `=` so the `&` in
+the Neon connection strings can't truncate `DATABASE_URL_UNPOOLED`), validates
+the Scout-required vars, then launches Claude scoped to `agency/` so
+`agency/.mcp.json` (`postgres-ro`, `google-maps`), the `/scout` command, and
+the agent subagents actually load. Launching plain `claude` from the repo root
+silently loses all three. See `docs/dev/claude/CLAUDE.md` § Session Launch.
+
 ## Workspace layout
 
 - `apps/` — `editorial`, `ops-console`, `newsletter-public` (Next.js apps)
