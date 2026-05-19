@@ -849,3 +849,61 @@ middleware replacement).
   verbatim into a fresh clone at `~/dev/bestemeraldcoast-agency`; the
   loop should continue from there and the Desktop copy be abandoned.
 
+## 2026-05-19 — Phase 2 / Commit 2.2: Theme system + Magazine archetype
+
+ADR-032 theme system + the Magazine component set. Notably **much
+scaffolding pre-existed** from Phase 0/1 and was verified, not rebuilt.
+
+- **New:** `packages/ui/theme/apply.ts` — `themeToCssVars()` (React
+  style object; safe default, no `dangerouslySetInnerHTML`) +
+  `themeToCssText()` (declaration string; ADR-033 reuse). 9 Magazine
+  composition components (ADR-037) — `SiteHeader`, `SiteFooter`,
+  `BreadcrumbNav`, `ArticleLayout`, `ArticleCard`, `ListicleSection`,
+  `BusinessCard`, `NewsletterSignupInline`, `FeaturedListingMagazine` —
+  CSS-variable-token-only (ADR-032 contract), semantic + WCAG 2.2 AA
+  (ADR-036), framework-neutral; a Storybook story each incl. an
+  `AllArchetypes` tile. Exported from `packages/ui/index.ts`.
+- **Verified pre-existing (no drift → no adr-log amendment):**
+  `theme/tokens.ts` == ADR-032 == `@bec/db/schema/types.ts`;
+  `archetypes/magazine.ts` == ADR-032 Initial Magazine tokens;
+  `styles/globals.css` already maps every token via `@theme` +
+  `.archetype-*`; `seed.ts` already seeds Pensacola (+all 8) with the
+  archetype token sets — the plan's "update Pensacola's seeded row" was
+  already satisfied in Phase 1, **no seed change**.
+- **Editorial wiring:** `@bec/ui` back in `transpilePackages`; Tailwind
+  v4 `@source` for `@bec/ui` component utilities; `(site)/layout.tsx`
+  renders the real `SiteHeader`/`SiteFooter` and injects
+  `themeToCssVars(archetypes[archetype])` on the `(site)` wrapper.
+  Architecture note: ADR-032 says inject on `<html>`; Commit 2.1 keeps
+  the root layout static (so Next internal pages build) so vars are
+  injected on the `(site)` wrapper — same per-request theming, required
+  by 2.1's architecture, **not an ADR change**.
+- **Review:** cubic 1 finding (P2: `imageAlt` JSDoc over-claimed
+  "Required" vs optional type) — fixed (contract clarified on both
+  ArticleCard + FeaturedListingMagazine; ADR-022's hard alt gate is the
+  ops-console image picker, not these presentational components),
+  replied on-thread (§7d). CodeRabbit/cubic checks SUCCESS.
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.2-theme-system-magazine`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/45
+- Merge SHA: `2663d3d6b1ca6152763bb907620282e31ea4b550`
+- Files changed: `packages/ui/theme/apply.ts` + 9 components + 9
+  stories + `index.ts`/`theme/index.ts`; `apps/editorial/next.config.ts`,
+  `app/globals.css`, `app/(site)/layout.tsx`. (No `seed.ts` change.)
+- Validation: type-check `@bec/ui` + `@bec/db` (tokens↔types parity) +
+  `@bec/editorial` clean (Node 22); `pnpm --filter @bec/ui
+  build-storybook` builds; **`Vercel – bec-storybook` deploy check
+  GREEN on #45** (authoritative @bec/ui/Storybook build); required CI
+  (lint/type-check/unit-tests) green.
+- **Acceptance — split:** Storybook half PROVEN (every component +
+  `AllArchetypes` renders; Vercel storybook deploy green). axe-core
+  0-violations is Storybook-a11y-addon-gated per ADR-036 (configured;
+  verified via the a11y panel) — no headless `@storybook/test-runner`
+  in repo, so not CI-asserted; components contrast-safe by construction;
+  adding a headless axe runner is its own infra task. **"Pensacola
+  homepage renders with the Magazine archetype" is DEFERRED** — same
+  editorial-Vercel dependency as Commit 2.1 (no `bec-editorial` Vercel
+  project yet); closes when the operator stands that up.
+- Loop runs from `~/dev/bestemeraldcoast-agency` (Desktop copy abandoned,
+  iCloud); local `next build` is CI/Vercel-only (sandbox env limit).
+
