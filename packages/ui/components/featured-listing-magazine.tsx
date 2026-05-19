@@ -11,7 +11,13 @@ export interface FeaturedListingMagazineProps {
   kicker?: string;
   excerpt?: string;
   imageUrl?: string;
-  /** Required when imageUrl is set (ADR-022). "" = decorative. */
+  /**
+   * Alt text for `imageUrl`. Not type-enforced here (this is a presentational
+   * component); ADR-022's hard "no image without alt" gate is enforced
+   * upstream at the ops-console image picker. Callers MUST pass meaningful
+   * alt for content images; pass `""` to mark an image explicitly
+   * decorative. Defaults to `""` (decorative) only as a safe fallback.
+   */
   imageAlt?: string;
   /** Match the surrounding outline; default h2. */
   headingLevel?: 2 | 3;

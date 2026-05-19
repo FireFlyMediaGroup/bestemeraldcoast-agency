@@ -9,7 +9,13 @@ export interface ArticleCardProps {
   excerpt?: string;
   kicker?: string;
   imageUrl?: string;
-  /** Required when imageUrl is set (ADR-022). "" = decorative. */
+  /**
+   * Alt text for `imageUrl`. Not type-enforced here (presentational
+   * component); ADR-022's hard "no image without alt" gate is enforced
+   * upstream at the ops-console image picker. Callers MUST pass meaningful
+   * alt for content images; pass `""` to mark an image explicitly
+   * decorative. Defaults to `""` only as a safe fallback.
+   */
   imageAlt?: string;
   /** 2 | 3 | 4 — match the surrounding document outline. Default 3. */
   headingLevel?: 2 | 3 | 4;
