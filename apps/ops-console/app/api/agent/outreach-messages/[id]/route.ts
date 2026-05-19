@@ -56,6 +56,33 @@ export const PATCH = agentRoute<{ id: string }>(async (req, ctx) => {
   }
   const c = parsed.data;
 
+  // Defense-in-depth: the agent computes the grade, but the persistence
+  // boundary must not store a self-contradictory one (ADR-034). Reject if
+  // checkerScore ≠ Σ dimensions, or if checkerPass disagrees with the
+  // ADR-034 derivation (≥9/12, no dimension 0, and — when the outreach
+  // extra gates are supplied — all three true).
+  const dims: number[] = Object.values(c.checkerNotes.dimensions);
+  const total = dims.reduce((s, d) => s + d, 0);
+  if (total !== c.checkerScore) {
+    return Response.json(
+      { error: "inconsistent_grade", reason: "score_ne_dimension_sum" },
+      { status: 400 },
+    );
+  }
+  const gates = c.checkerNotes.outreachGates;
+  const derivedPass =
+    total >= 9 &&
+    !dims.includes(0) &&
+    (gates
+      ? gates.underWordCap && gates.zeroAiMarkers && gates.hasLocalReference
+      : true);
+  if (derivedPass !== c.checkerPass) {
+    return Response.json(
+      { error: "inconsistent_grade", reason: "pass_ne_rubric" },
+      { status: 400 },
+    );
+  }
+
   const { getDb, schema, eq } = await import("@bec/db");
   const db = getDb();
 

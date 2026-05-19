@@ -41,7 +41,11 @@ re-implement or loosen them:
 extra hard gates (all required to pass, regardless of total):
 
 1. Draft is **under 70 words**.
-2. **Zero** in the AI-markers dimension (i.e. zero banned words/openers).
+2. **Zero banned words/openers** — i.e. the AI-markers dimension must be a
+   clean **2** (not 0, not 1). (ADR-034's shorthand "zero in that
+   dimension" means *zero banned items*, which scores AI-markers = 2 — it
+   does **not** mean the dimension value is 0; a 0 there is always an
+   automatic fail, consistent with the no-zero rule.)
 3. At least **one** local-specific reference (real city / landmark /
    verified detail for this lead).
 
