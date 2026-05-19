@@ -907,3 +907,52 @@ scaffolding pre-existed** from Phase 0/1 and was verified, not rebuilt.
 - Loop runs from `~/dev/bestemeraldcoast-agency` (Desktop copy abandoned,
   iCloud); local `next build` is CI/Vercel-only (sandbox env limit).
 
+## 2026-05-19 — Phase 2 / Commit 2.3: Article rendering with structured data
+
+Real `(site)/[category]/[slug]` article render replacing the 2.1 shell.
+Pre-code schema gate passed: `schema/editorial.ts` verified adequate vs
+ADR-010 (`syndicatedToHub`/`hubCanonicalOverride`), ADR-027
+(`authors.isAi`/`isHumanReviewer`, `authorId`/`reviewedById`), ADR-015
+(`isSponsored`/`sponsoredByBusinessId`/`sponsorshipDisclosure`) — no
+drift, no migration, no `adr-log` amendment.
+
+- **`lib/article.ts`** — Cache Components `'use cache'` loader keyed
+  purely by (siteId, categorySlug, slug); `cacheTag(article:<siteId>:
+  <slug>)` + `cacheLife('hours')` (Commit 2.7 composer revalidates on
+  publish). Published-only; URL category must match the article's real
+  category or it 404s (no soft-canonical guessing); joins author/
+  reviewer/category/hero+og images/`articleBusinesses`→businesses
+  (ranked).
+- **`lib/structured-data.ts`** — pure ADR-009 JSON-LD builders
+  (`Article` + `BreadcrumbList` + `LocalBusiness`) with a `<`/`>`/`&`-
+  escaped `<script>` serializer. Pure/unit-testable = the real local
+  correctness gate.
+- **`page.tsx`** — renders via `@bec/ui` Magazine `ArticleLayout` +
+  `BreadcrumbNav` + `BusinessCard`. ADR-027 AI-authorship + human-
+  reviewer byline; ADR-015 FTC sponsored aside when `isSponsored`;
+  `generateMetadata` = ADR-010 city self-canonical + Open Graph +
+  Twitter card + robots index; embeds the three JSON-LD blocks.
+- **`next.config.ts`** — `cacheComponents: true` (Next 16 requirement
+  for `'use cache'`); `(site)` header-reading routes stay dynamic.
+- Scope notes (flagged, not defects): body rendered paragraph-split
+  (full MDX compile = later refinement); hub-domain "syndicated copy →
+  origin-city canonical" ADR-010 branch ships with hub syndication
+  (city sites — the 2.3 acceptance target — are correctly
+  self-canonical).
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.3-article-structured-data`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/47
+- Merge SHA: `a7510162faf68a8ebbde15f86758b1d9a7f4dcac`
+- CodeRabbit SUCCESS, cubic running at merge (advisory §7b); 0 posted
+  findings; required CI (lint/type-check/unit-tests) green.
+- Files changed: `apps/editorial/lib/article.ts`,
+  `apps/editorial/lib/structured-data.ts`,
+  `apps/editorial/app/(site)/[category]/[slug]/page.tsx`,
+  `apps/editorial/next.config.ts`.
+- Validation: type-check `@bec/editorial` + `@bec/db` clean (Node 22).
+  **Acceptance DEFERRED — deploy- AND data-gated:** Rich Results Test /
+  view-source OG+canonical / sponsored badge need editorial deployed
+  (no `bec-editorial` Vercel project) AND ≥1 real article (Editor agent
+  = Commit 2.6); the route correctly `notFound()`s with no data. JSON-LD
+  shapes locally proven by the pure serializers.
+

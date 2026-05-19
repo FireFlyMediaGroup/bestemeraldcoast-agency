@@ -4,12 +4,13 @@
 
 ---
 
-## ✅ Loop status: Phase 2 in progress — Commits 2.1 + 2.2 merged, 2.3 next
+## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.3 merged, 2.4 next
 
-Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 / **Commit 2.1**
-(Editorial app shell, PR #43 `29f2ba0`) and **Commit 2.2** (Theme system
-+ Magazine archetype, PR #45 `2663d3d`) merged to `main` — see their
-`task-log.md` entries. Loop advances to **Commit 2.3**.
+Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
+**2.1** Editorial app shell (PR #43 `29f2ba0`), **2.2** Theme system +
+Magazine archetype (PR #45 `2663d3d`), **2.3** Article rendering +
+structured data (PR #47 `a751016`) — see their `task-log.md` entries.
+Loop advances to **Commit 2.4**.
 
 ⚠️ **Working copy moved:** the loop now runs from
 `~/dev/bestemeraldcoast-agency`. The original `~/Desktop/...` copy was
@@ -18,15 +19,17 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 / Commit 2.3 — Article rendering with structured data.**
-  Read `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.3 for the
-  commit prompt + `**Acceptance**:` and the ADRs it cites, then run the
-  loop normally (`/adr-plan` → execute → validate → `/ship-task`). 2.3
-  builds the `(site)/[category]/[slug]` route on Cache Components +
-  `'use cache'`, renders via 2.2's Magazine `ArticleLayout`, embeds
-  JSON-LD (Article / BreadcrumbList / LocalBusiness), OG/Twitter meta,
-  ADR-010 canonical, ADR-027 AI-authorship byline, ADR-015 sponsored
-  disclosure. Depends on Commit 2.2's `ArticleLayout` + theme (merged).
+- **Phase 2 / Commit 2.4 — Sitemap, robots, OG image generation.**
+  Read `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.4 for the
+  commit prompt + `**Acceptance**:` and the ADRs it cites (esp.
+  **ADR-009** robots/sitemap rules), then run the loop normally
+  (`/adr-plan` → execute → validate → `/ship-task`). 2.4 adds
+  `app/sitemap.xml/route.ts` (per-domain: articles/businesses/events/
+  static), `app/robots.txt/route.ts` (ADR-009 rules), and
+  `app/[category]/[slug]/opengraph-image.tsx` (Next Image Response,
+  per-archetype OG cards reading the 2.2 theme tokens). Note routing
+  nuance: these route handlers live under the `(site)` group so
+  proxy-resolved host/site context is available per domain.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 2.
 - **Build env note:** local sandbox cannot `next build` any app here
   (clean `main`/ops-console fails identically — React-19 RSC prerender
