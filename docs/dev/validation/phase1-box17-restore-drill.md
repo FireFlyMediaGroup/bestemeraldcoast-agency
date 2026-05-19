@@ -92,16 +92,28 @@ select get_seasonal_weight('charter_fishing', date '2026-06-15');  -- expect 1.5
 | Check | Expected | Restored | OK? |
 |---|---|---|---|
 | businesses ≥ leads | true | | |
-| leads == lead_status_history (every lead has ≥1 history row; 11==11 at ref) | consistent | | |
-| pipeline_signals: each lead_added has a niche in `niches` | no orphans | | |
-| no rows with future `created_at` beyond restore_point | true | | |
+| lead_status_history ≥ leads (every lead has ≥1 history row; a lead may accrue several as it progresses) | consistent | | |
+| pipeline_signals: each `lead_added` has a niche in `niches` | no orphans | | |
+| no rows with `created_at`/`occurred_at` beyond restore_point | true | | |
 
-Orphan check:
+No lead missing history (use `≥`, not strict equality — leads accumulate
+multiple status transitions over their lifecycle):
+```sql
+select count(*) as leads_missing_history
+from leads l
+left join lead_status_history h on h.lead_id = l.id
+where h.lead_id is null;          -- expect 0
+```
+
+Orphan-signal check — scoped to `lead_added` to match the rule above
+(other signal types may legitimately omit `niche_id`, which would
+otherwise produce false FAILs):
 ```sql
 select count(*) as orphan_signals
 from pipeline_signals ps
 left join niches n on n.id = ps.niche_id
-where n.id is null;            -- expect 0
+where ps.signal_type = 'lead_added'
+  and n.id is null;               -- expect 0
 ```
 
 ## 5. Record verify time + outcome
