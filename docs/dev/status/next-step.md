@@ -4,13 +4,14 @@
 
 ---
 
-## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.4 merged, 2.5 next
+## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.5 merged, 2.6 next
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
-**2.1** Editorial app shell (#43 `29f2ba0`), **2.2** Theme system +
-Magazine (#45 `2663d3d`), **2.3** Article + structured data (#47
-`a751016`), **2.4** Sitemap/robots/OG (#49 `9d591e5`) — see their
-`task-log.md` entries. Loop advances to **Commit 2.5**.
+**2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
+`2663d3d`), **2.3** Article + structured data (#47 `a751016`), **2.4**
+Sitemap/robots/OG (#49 `9d591e5`), **2.5** Coastal + Premium (#51
+`02e2e29`) — see their `task-log.md` entries. Loop advances to
+**Commit 2.6**.
 
 ⚠️ **Working copy moved:** the loop now runs from
 `~/dev/bestemeraldcoast-agency`. The original `~/Desktop/...` copy was
@@ -19,22 +20,23 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 / Commit 2.5 — Coastal and Premium archetypes.** Read
-  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.5 + ADR-032, then
-  run the loop normally (`/adr-plan` → execute → validate →
-  `/ship-task`). **Heads-up — much pre-exists (like 2.2):**
-  `packages/ui/theme/archetypes/coastal.ts` + `premium.ts` already
-  exist; `styles/globals.css` already has the full `.archetype-coastal`
-  + `.archetype-premium` token blocks; `seed.ts` already seeds all 8
-  sites with their archetype token sets; every 2.2 component already has
-  an `AllArchetypes` Storybook story. `/adr-plan` must verify these vs
-  ADR-032 (no rebuild). Genuine new work: any **archetype-specific
-  component variants** the plan calls for (e.g.
-  `FeaturedListingCoastal`/`FeaturedListingPremium`), confirm the
-  Storybook matrix shows every component ×3 archetypes, and verify the
-  7 non-Pensacola seed rows. Acceptance: all 8 domains render in their
-  archetype (deploy-gated, like 2.1–2.4); Storybook matrix + axe pass
-  (locally provable).
+- **Phase 2 / Commit 2.6 — Editor agent.** Read
+  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.6 + the ADRs it
+  cites (ADR-021 editorial calendar, ADR-034 banned phrases, ADR-020
+  feedback loop, ADR-019 prompt-refine), then run the loop normally
+  (`/adr-plan` → execute → validate → `/ship-task`). Write
+  `agency/.claude/agents/editor.md` (version 1): input a content brief
+  (siteId, contentType, target keyword, businessIds); query site
+  voice/tone via theme tokens + verified business details via the agent
+  API; generate a draft respecting ADR-034 banned phrases + ADR-021
+  calendar; save `originalDraftBody`. Slash commands `/draft-article`
+  (brief or pull from queue) and `/refine-editor` (after 20 published,
+  reads `editorial_feedback`, proposes prompt improvements, ADR-020).
+  **Agent-prompt + slash-command work — mostly Markdown under
+  `agency/.claude/`, not app code** (mirrors the Phase-1 Scout/Diagnoser
+  agents). **Unblocks the data-gated half of 2.3/2.4 acceptance** (first
+  real articles): after 2.6, only the *deploy* half (the owed
+  `bec-editorial` Vercel project) remains on the 2.1–2.5 backlog.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 2.
 - **Build env note:** local sandbox cannot `next build` any app here
   (clean `main`/ops-console fails identically — React-19 RSC prerender

@@ -997,3 +997,50 @@ ADR-009 SEO foundation, per-domain.
   data-gated on the Editor agent (Commit 2.6). Empty-data sitemap valid
   by design.
 
+## 2026-05-19 — Phase 2 / Commit 2.5: Coastal + Premium archetypes
+
+Operator-chosen scope (AskUserQuestion): token-driven + a real Premium
+structural variant. Mostly verification (like 2.2) + one genuine
+ADR-032 conformance fix.
+
+- **Verified already-correct, no change (Phase 0–2.2):** `coastal.ts`
+  / `premium.ts` == ADR-032 Initial tokens; `styles/globals.css` has
+  full `.archetype-coastal`/`.archetype-premium` colour/radius/font
+  blocks; `seed.ts` already assigns all 8 sites archetype + themeTokens
+  (magazine×3, coastal×2, premium×3 — the plan's "update the 7 seeded
+  rows" was done in Phase 1); every component already has an
+  `AllArchetypes` story.
+- **Conformance fix (ADR-032 component contract):** image aspect was
+  hardcoded (`article-card` `aspect-[3/2]`, `featured-listing`
+  `aspect-[21/9]`) — ignored per-archetype `imagery.heroAspect`. Added
+  `--bec-hero-aspect` (apply.ts emits from `imagery.heroAspect`;
+  globals.css declares it per `.archetype-*` 3/2·16/9·21/9);
+  `article-card` + `featured-listing` now use
+  `aspect-ratio: var(--bec-hero-aspect)`.
+- **Rename:** `FeaturedListingMagazine` → `FeaturedListing` (it was
+  always token-driven/archetype-agnostic; misnamed). `git mv`, history
+  preserved (65% similarity), zero stale refs (incl. editorial).
+- **New `FeaturedListingPremium`:** structural variant (full-bleed
+  image, no card chrome, narrow measure + large negative space) for
+  ADR-032's Premium "selective full-bleed" vibe; still token-coloured.
+  Stories renamed + added (both `AllArchetypes`); `index.ts` updated.
+- Review: cubic 1 finding (P2: wrapped `eslint-disable-next-line` didn't
+  suppress the rule) — fixed (single-line directive) + replied (§7d),
+  not dismissed. CodeRabbit + cubic checks SUCCESS.
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.5-coastal-premium`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/51
+- Merge SHA: `02e2e29639362cd862a39cf4d468addc6d6ff97f`
+- Files: `theme/apply.ts`, `styles/globals.css`,
+  `components/article-card.tsx`,
+  `components/featured-listing.{tsx,stories.tsx}` (renamed),
+  `components/featured-listing-premium.{tsx,stories.tsx}` (new),
+  `index.ts`. No seed/archetype-token change.
+- Validation: type-check `@bec/db` + `@bec/ui` + `@bec/editorial`
+  clean (Node 22; editorial consumes @bec/ui so the rename propagation
+  is verified); `build-storybook` builds; **`Vercel – bec-storybook`
+  deploy GREEN on #51** (authoritative @bec/ui build); axe via the a11y
+  addon (ADR-036). **Acceptance DEFERRED:** "all 8 domains render in
+  their assigned archetype" needs the owed `bec-editorial` Vercel
+  project; the Storybook-matrix + axe half is locally proven.
+
