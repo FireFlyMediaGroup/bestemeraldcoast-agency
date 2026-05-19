@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { PageShell } from "@/components/page-shell";
+import { titleize } from "@/lib/format";
 
 export async function generateMetadata({
   params,
@@ -8,7 +9,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  return { title: slug };
+  return { title: titleize(slug) };
 }
 
 export default async function AuthorPage({
@@ -18,7 +19,7 @@ export default async function AuthorPage({
 }) {
   const { slug } = await params;
   return (
-    <PageShell kicker="Author" title={slug.replace(/-/g, " ")}>
+    <PageShell kicker="Author" title={titleize(slug)}>
       <p>
         Author profile shell. The AI-authorship + reviewer byline pattern
         (ADR-027) is wired in Commit 2.3.

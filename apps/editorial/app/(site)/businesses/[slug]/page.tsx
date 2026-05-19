@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { PageShell } from "@/components/page-shell";
+import { titleize } from "@/lib/format";
 
 export async function generateMetadata({
   params,
@@ -8,7 +9,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  return { title: slug };
+  return { title: titleize(slug) };
 }
 
 export default async function BusinessProfilePage({
@@ -18,7 +19,7 @@ export default async function BusinessProfilePage({
 }) {
   const { slug } = await params;
   return (
-    <PageShell kicker="Business" title={slug.replace(/-/g, " ")}>
+    <PageShell kicker="Business" title={titleize(slug)}>
       <p>
         Business profile shell. Verified details + LocalBusiness JSON-LD land
         in Commit 2.3.

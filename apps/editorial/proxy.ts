@@ -4,25 +4,35 @@
 // 8 domains hits this: we resolve the request host to a site row, write the
 // site context onto the forwarded request headers (so server components read
 // it via `getSiteContext()` with no extra DB hit), and let the request
-// proceed. An unmapped host is rewritten to a path with no route, which
-// renders the app's `not-found.tsx` with a 404 — we never guess a site.
+// proceed. An unmapped host is rewritten to `/__unknown_host__` — an
+// explicit static route that calls `notFound()` (HTTP 404). We never guess
+// a site.
 //
 // Next 16 contract: `proxy.ts` ALWAYS runs on the Node.js runtime and does
 // NOT accept a route-segment `config` export. Path filtering is therefore
-// done in-function: skip Next internals + static assets so the host→site
-// resolver isn't invoked for chunks/images/favicon/sitemap/robots. The Node
-// runtime is also why the resolver can import @bec/db (Neon serverless),
-// externalized in next.config.ts.
+// done in-function. The skip set is restricted to Next internals + the
+// known root static endpoints ONLY — NOT "any path ending in .ext", which
+// would let a dynamic slug containing a dot (e.g. /businesses/foo.css)
+// bypass host validation and defeat the unknown-host → 404 contract.
 
 import { NextResponse, type NextRequest } from "next/server";
 
 import { resolveSiteByHost, SITE_HEADERS } from "@/lib/site-context";
 
-const SKIP =
-  /^\/(?:_next\/static|_next\/image|favicon\.ico|robots\.txt|sitemap\.xml|opengraph-image)|\.(?:svg|png|jpe?g|gif|webp|avif|ico|css|js|woff2?)$/;
+const UNKNOWN_HOST = "/__unknown_host__";
+
+function isSkippable(pathname: string): boolean {
+  if (pathname.startsWith("/_next/")) return true;
+  if (pathname.startsWith("/opengraph-image")) return true;
+  return (
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml"
+  );
+}
 
 export default async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (SKIP.test(request.nextUrl.pathname)) {
+  if (isSkippable(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
 
@@ -31,13 +41,23 @@ export default async function proxy(request: NextRequest): Promise<NextResponse>
   const rawHost =
     request.headers.get("x-forwarded-host") ?? request.headers.get("host");
 
-  const site = await resolveSiteByHost(rawHost);
+  let site;
+  try {
+    site = await resolveSiteByHost(rawHost);
+  } catch (err) {
+    // Resolver failure (DB/Redis down) must degrade deterministically to a
+    // 404, never a 500 — and never guess a site. Logged for visibility.
+    const { logger } = await import("@bec/logger");
+    logger.error({ err, host: rawHost }, "proxy: host resolve failed → 404");
+    return NextResponse.rewrite(new URL(UNKNOWN_HOST, request.url));
+  }
 
   if (!site) {
-    // No route exists at this path → Next renders not-found.tsx (HTTP 404).
-    // We do NOT fall back to a default site: an unmapped host is an error,
-    // not "show Pensacola".
-    return NextResponse.rewrite(new URL("/__unknown_host__", request.url));
+    // `/__unknown_host__` is an explicit STATIC route (app/__unknown_host__/
+    // page.tsx) that calls notFound(). A static segment outranks the dynamic
+    // `(site)/[category]` route, so an unmapped host reliably 404s instead
+    // of rendering a category page.
+    return NextResponse.rewrite(new URL(UNKNOWN_HOST, request.url));
   }
 
   // Forward the resolved site on request headers for the render pass.

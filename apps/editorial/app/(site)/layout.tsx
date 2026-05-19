@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+
 import { getSiteContext } from "@/lib/site-context";
 
 // Per-site chrome. This layout wraps only real, request-time routes — never
@@ -9,13 +11,18 @@ export default async function SiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const site = await getSiteContext();
-  const siteName = site?.name ?? "Best Emerald Coast";
+  // Fail closed: a (site) route reached without resolved site context means
+  // proxy.ts didn't run / headers are absent — that's a misconfiguration,
+  // not "render Best Emerald Coast". Never guess a tenant (host-routing
+  // no-guessing contract); 404 instead.
+  if (!site) notFound();
+  const siteName = site.name;
 
   return (
     // `data-archetype` is the seam Commit 2.2 keys per-site theme-token
     // injection off of; the shell ships no hardcoded palette (globals.css
     // inherits @bec/ui's default Magazine variables).
-    <div data-archetype={site?.archetype ?? "magazine"}>
+    <div data-archetype={site.archetype}>
       <a href="#main" className="bec-skip-link">
         Skip to content
       </a>
