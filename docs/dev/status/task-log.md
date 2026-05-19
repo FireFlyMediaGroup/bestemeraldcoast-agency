@@ -733,17 +733,18 @@ Each phase gate (per ADR-035) is a special entry:
 - Next phase opens: Phase X+1 / Commit X+1.1
 ```
 
-## 2026-05-16 — PHASE 1 GATE — STATUS: NOT PASSED (blocked on operator actions)
+## 2026-05-19 — PHASE 1 GATE PASSED
 
 Per ADR-035 a gate is acceptance criteria, not aspiration, and must not be
-skipped "to make progress." All Phase 1 *implementation* is merged
-(Commits 1.1–1.11, PRs #3–#22); the autonomous loop has done everything
-code/CI-provable. The remaining boxes are inherently operator/infra/human
-actions the loop cannot perform or self-certify. **Phase 2 does NOT open
-until the operator closes these and this entry is replaced with
-`PHASE 1 GATE PASSED`.**
+skipped "to make progress." All 17 Phase 1 quality-gate boxes are now
+green — implementation (Commits 1.1–1.11, PRs #3–#22) plus the
+operator/infra/human boxes that the loop could not self-certify. The
+remediation arc that unblocked the live-agent boxes: PR #33 (agent-API
+middleware bypass) and PR #36 (`@bec/db` fetch-transport `db.transaction()`
+500), then live Scout + Diagnoser verification, the ADR-006 restore drill,
+and the ADR-019 external blind validation. **Phase 2 / Commit 2.1 opens.**
 
-Checklist status (master plan § Phase 1 quality gate, 17 boxes):
+Fully-checked checklist (master plan § Phase 1 quality gate, 17 boxes):
 
 - ✅ **Migrations forward/backward** — CI migration-test workflow runs
   0000–0003 forward + idempotent + rollback on a per-PR ephemeral Neon
@@ -768,20 +769,20 @@ Checklist status (master plan § Phase 1 quality gate, 17 boxes):
 - ✅ **Scout writes pipeline_signals** — code complete (1.11) + PR #33/#36; verified in Postgres: canonical niches wrote `lead_added` signals (`charter_fishing` 7, `auto_detailing` 2); the non-canonical `beach chair rentals` run correctly skipped (ADR-040 FK).
 - ✅ **Diagnoser 50-word diagnosis per lead** — operator-run live 2026-05-18. 11/11 leads diagnosed with ~50-word consultant-voice diagnosis + tiered offer, rubric-screened; every `PATCH /api/agent/leads/:id` returned HTTP 200 `transitioned:true` (the path PR #36 fixed from a hard 500).
 - ✅ **Diagnoser writes pipeline_signals** — code complete (1.11) + PR #36; verified in Postgres: `charter_fishing` 7 + `auto_detailing` 2 `diagnosis_done` signals in the ADR-040 14d trailing window (non-canonical run correctly skipped).
-- 🔴 **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study.
+- ✅ **External blind validation: ≥3/5 Diagnoser outputs pass as human** — operator-run human study completed 2026-05-19. 3 peers blind-rated 5 random Diagnoser `summary` outputs (handout `docs/dev/validation/phase1-box15-blind-validation.md`, answer key held separately). Operator-confirmed result: **3/5 judged human → PASS** (meets the ≥3/5 ADR-019 threshold; passed at the minimum bar — see note in summary). Recorded from operator attestation of the tally, not loop self-certification.
 - ✅ **One restore drill (ADR-006)** — operator-authorized, executed 2026-05-19 against Neon project `royal-feather-07747239`. PITR scratch branch `dr-drill-2026-05-19` created from restore point `2026-05-19T00:55:00Z` (parent = default `production` branch); production never written (read-only on the clone), scratch branch torn down + confirmed gone. **Timing:** restore ≈1s, verify ≈1.5 min, teardown ≈2s, total ≈2 min 19 s (01:25:09Z→01:27:28Z). **PASS:** static seed tables exact (8/48/2/9/10/30/120/8); functional probe `charter_fishing` month-6 multiplier = 1.50 (= seed acceptance `getSeasonalWeight('charter_fishing',2026-06-15)=1.5`); integrity clean (0 leads missing history, 0 orphan `lead_added` signals, 0 rows past the PITR boundary); dynamic tables internally consistent (businesses 47 ≥ leads 11; lead_status_history 11 ≥ leads 11; pipeline_signals 18 = 9 `lead_added` + 9 `diagnosis_done`). Timed runbook: `docs/dev/validation/phase1-box17-restore-drill.md`.
 
-Summary (updated 2026-05-19, post restore drill): **16 green**
-(migrations, unit tests, schema, Neon-verified, deploy+magic-link,
-live seed, Scout ≥10, Scout pipeline_signals, Diagnoser 50-word, Diagnoser
-pipeline_signals, iPhone-Safari login, **restore drill**), **0 yellow**,
-**1 red** (external blind validation, box 15). Everything except the
-operator-run human blind study (ADR-019) is closed and verified. The loop
-remains **correctly blocked** — box 15 is non-negotiable per ADR-035;
-proceeding into Phase 2 before it closes would violate it. (Stray
-`agent_runs` row `2b1fe09f-…` was finalized `aborted` 2026-05-18.)
-See `next-step.md` for the residual operator action list.
-
-<!-- Replace with `## YYYY-MM-DD — PHASE 1 GATE PASSED` once the operator
-closes the 🔴/🟡 items and pastes the fully-checked checklist. -->
+Summary (final, 2026-05-19): **17 green / 0 yellow / 0 red — GATE
+PASSED.** Every Phase 1 quality-gate box closed: migrations, unit tests,
+schema, Neon-verified, deploy+magic-link, live seed, iPhone-Safari login,
+Scout ≥10, Scout pipeline_signals, Diagnoser 50-word, Diagnoser
+pipeline_signals, restore drill (ADR-006), external blind validation
+(ADR-019). The stray `agent_runs` row `2b1fe09f-…` was finalized
+`aborted` 2026-05-18. **Note (ADR-019, carry into Phase 2):** the blind
+validation passed at the **minimum bar (3/5)**, not comfortably — the
+Diagnoser copy clears the human-pass threshold but with no margin. This
+is a legitimate pass, not a gate skip, but flags Diagnoser-prompt quality
+as a worthwhile early Phase-2 improvement candidate (a future ADR-019
+`version: 2` iteration is optional, not gate-required). Phase 2 / Commit
+2.1 is now the active step in `next-step.md`.
 
