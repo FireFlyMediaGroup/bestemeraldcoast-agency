@@ -13,6 +13,13 @@
 
 @import "@bec/ui/styles/globals.css";
 
+/* Tailwind v4 auto-detects content in this app but does NOT scan sibling
+   workspace packages. @bec/ui's Magazine components use utility classes
+   (bg-primary, font-heading, rounded-md, …) that must be generated into
+   THIS app's stylesheet — register them as an explicit source. Path is
+   relative to this file (apps/editorial/app → repo root is ../../../). */
+@source "../../../packages/ui/components/**/*.{ts,tsx}";
+
 /* Reader-side HIG baseline (ADR-029 reader principles, ADR-036 WCAG 2.2 AA).
    Archetype tokens override the values; these are structural, not themed. */
 
