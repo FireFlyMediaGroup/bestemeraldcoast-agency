@@ -2,18 +2,31 @@
   "name": "@bec/content",
   "version": "0.0.0",
   "private": true,
-  "description": "Editorial content types + queries (ADR-021, ADR-040).",
+  "description": "Editorial content + shared legal pages (ADR-014, ADR-021, ADR-040).",
   "type": "module",
   "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./legal": {
+      "types": "./src/legal/index.ts",
+      "default": "./src/legal/index.ts"
+    }
+  },
   "scripts": {
     "build": "echo '(noop)'",
     "dev": "echo '(noop)'",
     "lint": "echo '(noop)'",
-    "type-check": "echo '(noop)'",
+    "type-check": "tsc --noEmit",
     "test:unit": "echo '(noop)'"
   },
   "devDependencies": {
     "@bec/config-eslint": "workspace:*",
-    "@bec/config-tsconfig": "workspace:*"
+    "@bec/config-tsconfig": "workspace:*",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
   }
 }

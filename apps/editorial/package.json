@@ -15,13 +15,15 @@
   },
   "dependencies": {
     "@bec/config": "workspace:*",
+    "@bec/content": "workspace:*",
     "@bec/db": "workspace:*",
     "@bec/logger": "workspace:*",
     "@bec/ui": "workspace:*",
     "@upstash/redis": "^1.38.0",
     "next": "^16.2.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "vanilla-cookieconsent": "^3.0.0"
   },
   "devDependencies": {
     "@bec/config-eslint": "workspace:*",

@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { SiteHeader, SiteFooter, archetypes, themeToCssVars } from "@bec/ui";
 import type { Archetype } from "@bec/ui";
 
+import { CookieConsent } from "@/components/cookie-consent";
 import { getSiteContext } from "@/lib/site-context";
 
 // Per-site chrome. This layout wraps only real, request-time routes — never
@@ -64,6 +65,8 @@ export default async function SiteLayout({
       </main>
 
       <SiteFooter siteName={site.name} />
+
+      <CookieConsent />
     </div>
   );
 }
