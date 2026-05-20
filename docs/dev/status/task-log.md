@@ -1296,3 +1296,92 @@ Resend key, never writes Postgres, never rewrites copy.
   `risk_flag='high'` business returns `409` / `412`. Local
   `next build` sandbox-impossible — CI/Vercel authoritative.
 
+## 2026-05-20 — Phase 2 / Commit 2.10: Legal pages package + cookie consent
+
+Closes the ADR-014 compliance surface for the editorial network: 5
+legal pages shipping on every domain via a shared `@bec/content`
+package, an opt-in cookie-consent banner that doubles as the EU CMP,
+and the AI-disclosure byline already in place from Commit 2.3.
+
+- **`@bec/content`** (filled scaffold): five ADR-014 legal pages as
+  typed TS modules in `packages/content/src/legal/{privacy,terms,
+  advertiser-disclosure,cookie-policy,editorial-standards}.ts`, with
+  a manifest (`LEGAL_PAGES`, `LEGAL_SLUGS`, `getLegalPage()`) and a
+  real `tsc` type-check. **V1 content is operator-authored
+  placeholder that meets ADR-014's structural requirements** (third-
+  party processors, CCPA/GDPR rights, FTC disclosure, jurisdiction,
+  fact-check + corrections + AI-disclosure policy). **Lawyer review
+  per ADR-014 is a deferred operator action**, flagged in each
+  file's header (mirrors the "owed editorial Vercel" deferred-
+  acceptance pattern). The "MDX file" wording in ADR-014 is honored
+  *in spirit* — v1 content is markdown-only (no JSX embeds), so
+  pages live as `.ts` files with markdown in template literals
+  rendered by the existing zero-dep markdown path. A real MDX
+  renderer (`next-mdx-remote`) is a future swap when a legal page
+  actually needs a JSX embed.
+- **Editorial `(legal)/` route group**: `apps/editorial/app/
+  (legal)/[page]/page.tsx` with `generateStaticParams` over the 5
+  slugs, sane metadata (title, canonical, `robots:index`), 404 on
+  unknown. `(legal)/layout.tsx` reuses `SiteHeader` + `SiteFooter`
+  + per-site `--bec-*` theme injection so legal pages match the
+  resolved archetype.
+- **`apps/editorial/lib/markdown.tsx`** — zero-dep renderer
+  mirroring ops-console 2.7's pattern (semantic React elements,
+  never `dangerouslySetInnerHTML`; `safeHref` scheme allowlist
+  rejects `javascript:` / `data:` URLs). Adds GFM pipe-table
+  support for the cookie-policy cookie tables. Editorial keeps
+  its own copy (different security context from ops-console;
+  future shared-package extraction is a separate concern).
+- **Cookie consent — `vanilla-cookieconsent` v3**: focused
+  ~30 kb dep, no PostHog Web added to editorial.
+  `components/cookie-consent.tsx` (`'use client'`), opt-in
+  analytics default (GDPR-correct + safe everywhere), strictly-
+  necessary always-on, footer Privacy / Cookie Policy links,
+  manage-preferences modal as the CMP. Single config covers EU
+  + non-EU — the library's bar+modal pair satisfies ADR-014's
+  "minimal banner / full CMP" split. `window.__becReopenCookieBanner`
+  hook so a future footer "Cookie preferences" link can re-open
+  it. Mounted in both `(site)/layout.tsx` AND `(legal)/layout.tsx`.
+  CSS theme overrides recolor `cc-*` tokens to the per-site
+  palette so the banner doesn't look like a foreign widget.
+- **AI-disclosure byline** — the third ADR-014 acceptance bullet
+  (`"AI disclosure visible"`) is **already met code-wise** since
+  Commit 2.3 (`apps/editorial/app/(site)/[category]/[slug]/
+  page.tsx:88-120` renders ADR-027's "Drafted with AI assistance,
+  edited by [Reviewer]" exactly as the plan calls for). No code
+  work in 2.10; data-gated only (operator publishes an
+  AI-authored article with `reviewedById` set on the deployed
+  editorial Vercel project).
+- **`apps/editorial/package.json`** — `@bec/content` workspace
+  dep + `vanilla-cookieconsent ^3.0.0`. `next.config.ts` —
+  `@bec/content` added to `transpilePackages` (matches 2.9's
+  `@bec/email` pattern).
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.10-legal-pages`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/61
+- Merge SHA: `2a7b004508357ae3432970debb4101febd50b763`
+- Review: required CI all green (lint 22 s / type-check 27 s /
+  unit-tests 3 m 30 s). cubic `NEUTRAL` (skipped, advisory).
+  CodeRabbit `SUCCESS` (review skipped, advisory). **Zero posted
+  findings across CR + cubic**, so §7d triage was a no-op.
+  Vercel Preview Comments + Vercel `bec-ops-console` + Vercel
+  `bec-storybook` all green. Auto-merge fired the instant the
+  required CI cleared; standard squash-merge.
+- Files: `packages/content/{package.json,tsconfig.json,src/index.ts,
+  src/legal/{index.ts,privacy.ts,terms.ts,advertiser-disclosure.ts,
+  cookie-policy.ts,editorial-standards.ts}}`, `apps/editorial/app/
+  (legal)/{[page]/page.tsx,layout.tsx}`, `apps/editorial/app/
+  (site)/layout.tsx` (cookie-consent mount), `apps/editorial/app/
+  globals.css` (cc-* theme overrides), `apps/editorial/components/
+  cookie-consent.tsx`, `apps/editorial/lib/{legal.ts,markdown.tsx}`,
+  `apps/editorial/{next.config.ts,package.json}`, `pnpm-lock.yaml`.
+  19 files, +1174 / −5.
+- Validation (Node 22): type-check `@bec/content` +
+  `@bec/editorial` clean. Lint repo-noop locally (CI eslint
+  authoritative). **Acceptance** ("all 5 legal pages render on
+  every domain; cookie consent works; AI disclosure visible") is
+  **operator-run on the deployed editorial Vercel project** —
+  same owed-infra dependency as 2.1–2.5 (see next-step.md
+  "Editorial deploy acceptance — DEFERRED"). Local `next build`
+  sandbox-impossible — CI/Vercel authoritative.
+
