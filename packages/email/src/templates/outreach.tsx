@@ -83,10 +83,18 @@ export function outreachSubject(
   }
 }
 
-/** Append the tracking code as `?ref=` (or `&ref=`) without dropping a query. */
+/**
+ * Append the tracking code as a query param, preserving any existing query
+ * AND any URL fragment (`#section`). Naive `${url}?ref=…` concatenation
+ * stuffs the param after the fragment for `https://x.com/p#hero`, which
+ * the server never sees. Splitting on `#` first keeps the fragment intact.
+ */
 function tracked(url: string, code: string): string {
-  const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}ref=${encodeURIComponent(code)}`;
+  const hashIdx = url.indexOf("#");
+  const base = hashIdx === -1 ? url : url.slice(0, hashIdx);
+  const fragment = hashIdx === -1 ? "" : url.slice(hashIdx);
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}ref=${encodeURIComponent(code)}${fragment}`;
 }
 
 export function OutreachEmail(props: OutreachEmailProps) {
@@ -99,6 +107,8 @@ export function OutreachEmail(props: OutreachEmailProps) {
     siteUrl,
     trackingCode,
     postalAddress,
+    unsubscribeAddress,
+    isReplyToMonitored,
   } = props;
   const s = STYLES[archetype] ?? STYLES.magazine;
   const ctaHref = tracked(siteUrl, trackingCode);
@@ -217,6 +227,11 @@ export function OutreachEmail(props: OutreachEmailProps) {
           >
             {fromName} · {postalAddress}
           </Text>
+          {/* CAN-SPAM opt-out wording must match a path the operator is
+              actually monitoring. "Reply unsubscribe" only works when a
+              monitored Reply-To is set; otherwise we point at the explicit
+              unsubscribe inbox (mailto) so the recipient has a guaranteed
+              working channel either way. */}
           <Text
             style={{
               fontFamily: SANS,
@@ -226,8 +241,25 @@ export function OutreachEmail(props: OutreachEmailProps) {
               margin: 0,
             }}
           >
-            Not interested? Reply with “unsubscribe” and we’ll remove you and
-            never contact you again.
+            Not interested?{" "}
+            {isReplyToMonitored ? (
+              <>
+                Reply with “unsubscribe” and we’ll remove you and never
+                contact you again.
+              </>
+            ) : (
+              <>
+                Email{" "}
+                <Link
+                  href={`mailto:${unsubscribeAddress}?subject=unsubscribe`}
+                  style={{ color: "#6b6b6b", textDecoration: "underline" }}
+                >
+                  {unsubscribeAddress}
+                </Link>{" "}
+                with “unsubscribe” and we’ll remove you and never contact
+                you again.
+              </>
+            )}
           </Text>
         </Container>
       </Body>

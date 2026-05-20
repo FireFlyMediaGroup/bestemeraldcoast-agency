@@ -24,6 +24,17 @@ The agent owns the procedure. It will:
      and m.sent_at is null
      and b.do_not_contact = false
      and (b.risk_flag is distinct from 'high' or m.approved_at is not null)
+     -- Email-contactable: at least one non-opted-out email channel.
+     -- v1 sends email only, so a row without one would just be rejected
+     -- by the server (`409 no_email_channel`) and would waste a slot if
+     -- we let it through `limit`.
+     and exists (
+       select 1
+       from jsonb_array_elements(coalesce(b.contact_channels, '[]'::jsonb)) ch
+       where ch->>'kind' = 'email'
+         and (ch->>'optedOutAt') is null
+         and length(coalesce(ch->>'value', '')) > 0
+     )
    order by m.created_at asc
    limit <remaining>;
    ```

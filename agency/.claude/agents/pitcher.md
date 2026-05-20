@@ -33,12 +33,15 @@ one send through the agent API, finalize the run.
   send endpoint. The render/template is **not** yours to change here.
 - Filesystem is prompt-artifact-only; no state files.
 
-## The server is the authority — you preflight to not waste a run
+## The server is the authority — you preflight to not waste a send
 
 The send endpoint enforces every guard below itself (defense-in-depth).
-You re-check them first via the read-only MCP so you skip cleanly
-**before** opening a run, and so a batch doesn't burn its budget on
-sends the server will reject. The preconditions, all required:
+You re-check them yourself via the read-only MCP inside the run (between
+opening it and calling the send endpoint), so a batch can skip ineligible
+messages cleanly and not burn its budget on sends the server will
+reject. The canonical run order is `open run → read + preflight → send
+(or skip) → finalize` — same as Checker; see step-by-step below. The
+preconditions, all required:
 
 1. `outreach_messages.checker_pass = true` (Checker passed it).
 2. `outreach_messages.sent_at IS NULL` (not already sent).

@@ -68,6 +68,13 @@ const serverSchema = z.object({
   // Reply-To header (the reply loop is parked until it's configured).
   OUTREACH_FROM_EMAIL: z.string().email().optional(),
   OUTREACH_REPLY_TO: z.string().email().optional(),
+  // Fallback opt-out inbox when OUTREACH_REPLY_TO isn't set. The send
+  // route refuses to send if none of these and OPERATOR_EMAIL are set
+  // (CAN-SPAM: a working opt-out is mandatory). The template footer
+  // either invites a reply (when Reply-To is monitored) or renders a
+  // `mailto:` to this address — never tells the recipient to reply when
+  // no one is reading replies.
+  OUTREACH_UNSUBSCRIBE_EMAIL: z.string().email().optional(),
   OUTREACH_POSTAL_ADDRESS: z.string().optional(),
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),

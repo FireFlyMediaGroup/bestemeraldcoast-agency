@@ -25,6 +25,21 @@ export interface OutreachEmailProps {
   trackingCode: string;
   /** Physical mailing address — CAN-SPAM requirement (ADR-014/031). */
   postalAddress: string;
+  /**
+   * Where the recipient's "unsubscribe" actually lands — either the
+   * monitored Reply-To inbox (then the footer says "reply 'unsubscribe'")
+   * or an explicit unsubscribe inbox (the footer renders a `mailto:`
+   * link). The send route resolves this from OUTREACH_REPLY_TO ||
+   * OUTREACH_UNSUBSCRIBE_EMAIL || OPERATOR_EMAIL and refuses to send if
+   * none are configured (CAN-SPAM: a working opt-out is mandatory).
+   */
+  unsubscribeAddress: string;
+  /**
+   * `true` when the address above is the monitored Reply-To; `false` when
+   * it's a fallback inbox. Drives the footer wording so we never tell a
+   * recipient to reply when no one is reading replies.
+   */
+  isReplyToMonitored: boolean;
 }
 
 export interface SendOutreachInput {
