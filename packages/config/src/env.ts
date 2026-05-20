@@ -62,6 +62,20 @@ const serverSchema = z.object({
 
   // Email — Resend + AWS SES (ADR-013).
   RESEND_API_KEY: z.string().startsWith("re_").optional(),
+  // Outreach send identity (Commit 2.9; ADR-013 amended 2026-05-19 to the
+  // verified ops.bestemeraldcoast.com domain). All optional — the send
+  // route falls back to safe defaults; OUTREACH_REPLY_TO unset ⇒ no
+  // Reply-To header (the reply loop is parked until it's configured).
+  OUTREACH_FROM_EMAIL: z.string().email().optional(),
+  OUTREACH_REPLY_TO: z.string().email().optional(),
+  // Fallback opt-out inbox when OUTREACH_REPLY_TO isn't set. The send
+  // route refuses to send if none of these and OPERATOR_EMAIL are set
+  // (CAN-SPAM: a working opt-out is mandatory). The template footer
+  // either invites a reply (when Reply-To is monitored) or renders a
+  // `mailto:` to this address — never tells the recipient to reply when
+  // no one is reading replies.
+  OUTREACH_UNSUBSCRIBE_EMAIL: z.string().email().optional(),
+  OUTREACH_POSTAL_ADDRESS: z.string().optional(),
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   AWS_REGION: z.string().optional(),

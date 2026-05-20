@@ -16,6 +16,7 @@
   "dependencies": {
     "@bec/config": "workspace:*",
     "@bec/db": "workspace:*",
+    "@bec/email": "workspace:*",
     "@bec/logger": "workspace:*",
     "@bec/ui": "workspace:*",
     "@auth/drizzle-adapter": "^1.11.2",
