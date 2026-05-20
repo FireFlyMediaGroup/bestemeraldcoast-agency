@@ -147,25 +147,38 @@ export const POST = agentRoute<{ id: string }>(async (req, ctx) => {
   // ── Atomic claim ────────────────────────────────────────────────────
   // The claim UPDATE is the single race-safe boundary that simultaneously
   // enforces "not already sent", "not already in-flight on this row",
-  // AND the daily cap. The cap subquery counts BOTH today's completed
-  // sends (sent_at >= today) AND any currently-in-flight claims
-  // (tracking_code set, sent_at null) — without the in-flight half, two
-  // parallel claims on DIFFERENT rows at sentToday=29 could both pass a
-  // stale count and over-cap (cubic #3270908948). Orphan caveat: a
-  // process crash between claim and finalize/release would leave a row
-  // with tracking_code set but no sent_at; it would count against the
-  // cap until cleared. Operator cleanup SQL:
+  // AND the daily cap.
+  //
+  // Cap-race fix (cubic P1 #3270922575): the cap subquery alone isn't
+  // enough — under READ COMMITTED two parallel UPDATEs on DIFFERENT
+  // rows can each evaluate the count subquery against their own
+  // snapshot and both pass `< DAILY_CAP`. `pg_advisory_xact_lock` on a
+  // stable cap key serializes the claim statement: only one tx runs the
+  // count+update at a time, so the second always observes the first's
+  // tentative-then-committed tracking_code and is counted correctly.
+  // The lock auto-releases at statement end (autocommit ⇒ 1-stmt tx).
+  // At a cap of 30/day the queueing cost is irrelevant.
+  //
+  // Cap counts BOTH today's completed sends (sent_at >= today) AND any
+  // currently-in-flight claims (tracking_code set, sent_at null), so an
+  // in-flight claim consumes a slot the moment it wins this UPDATE.
+  // Orphan caveat: a process crash between claim and finalize/release
+  // leaves the row counted indefinitely. Operator cleanup SQL:
   //   UPDATE outreach_messages SET tracking_code = NULL
   //   WHERE tracking_code IS NOT NULL AND sent_at IS NULL
   //     AND created_at < now() - interval '1 hour';
-  // (We deliberately don't auto-prune here — orphans are rare, recovery
-  // is trivial, and a heuristic prune could race with a genuine claim.)
+  // (We deliberately don't auto-prune — orphans are rare, recovery is
+  // trivial, and a heuristic prune could race with a genuine claim.)
   const capCount = sql<number>`(select count(*) from outreach_messages where sent_at >= date_trunc('day', now()) or (tracking_code is not null and sent_at is null))`;
   const claimed = await db
     .update(schema.outreachMessages)
     .set({ trackingCode })
     .where(
       and(
+        // Serialize the claim statement on a stable cap key — left side
+        // of `and` is evaluated first, so the lock is held before the
+        // count subquery runs.
+        sql`pg_advisory_xact_lock(hashtext('outreach_daily_cap')) is not distinct from null`,
         eq(schema.outreachMessages.id, id),
         isNull(schema.outreachMessages.sentAt),
         isNull(schema.outreachMessages.trackingCode),
