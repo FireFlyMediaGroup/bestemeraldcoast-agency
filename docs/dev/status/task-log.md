@@ -1190,3 +1190,109 @@ never rewrites it.
   2.9-gated** (Pitcher produces the messages Checker grades). Local
   `next build` sandbox-impossible — CI/Vercel authoritative.
 
+## 2026-05-19 — Phase 2 / Commit 2.9: Pitcher agent + Resend integration
+
+The outreach sender — closes the cold-email loop. Server-side
+render+send+record behind the agent API; the agent never holds the
+Resend key, never writes Postgres, never rewrites copy.
+
+- **`@bec/email`** (was a bare scaffold): `templates/outreach.tsx` — 3
+  archetype voice variants (Magazine/Coastal/Premium per ADR-032 voice;
+  ADR-033 inbox constraints: ≤600px, system fonts, `color-scheme` dark
+  meta, no JS/forms, single-column). Body is the Checker-approved copy,
+  **verbatim** (ADR-034 — template is chrome only). CAN-SPAM footer =
+  physical address + opt-out (conditional wording — never tells the
+  recipient to reply when no monitored Reply-To exists). `render.ts`
+  (HTML + plain-text), `send.ts` (Resend; key passed in, no
+  `process.env` reads). Real `tsc` type-check + a real `tsx` smoke
+  `test:unit` (60+ invariants across 3 archetypes × 2 opt-out variants
+  × 2 URL shapes: tracking-code embedding, no `javascript:` /
+  `<script>` / `<form>`, dark-mode meta, 600px, CAN-SPAM address,
+  verbatim body, conditional opt-out wording, URL-fragment + existing-
+  query preservation).
+- **`POST /api/agent/outreach-messages/[id]/send`** (ops-console): the
+  only send path. **Claim-then-send** pattern (cubic P1) — one atomic
+  `UPDATE … SET tracking_code = $code WHERE id = $id AND sent_at IS
+  NULL AND tracking_code IS NULL AND (cap count) < 30` is the single
+  race-safe boundary, with `pg_advisory_xact_lock(hashtext(
+  'outreach_daily_cap'))` serializing the claim under READ COMMITTED
+  (cubic P1 #3270922575). Cap counts both completed sends today AND
+  any currently-in-flight claims (cubic P2). Only the claim winner
+  calls Resend; on send failure the claim is released (tracking_code
+  cleared) so retry can re-acquire. Finalize stamps `sent_at` +
+  `sent_message_id` + `channel`. No `db.transaction()` (PR #36
+  lesson). Defense-in-depth guards mirroring 2.8: 404, 409
+  already_sent / already_claimed / no_email_channel /
+  daily_cap_reached / claim_failed, 422 not_checker_passed, 412
+  risk_requires_approval (ADR-031), 412 opt_out_misconfigured
+  (CAN-SPAM hard gate — refuses to send when no Reply-To /
+  Unsubscribe / Operator address is configured), 502 send_failed
+  (logged via `@bec/logger` ADR-012, row NOT marked sent ⇒
+  retryable). Resend key stays in ops-console env. `@bec/email` wired
+  via `transpilePackages` + workspace dep.
+- **`agency/.claude/agents/pitcher.md` v1** (ADR-019 frontmatter;
+  mirrors `checker.md`) + **`/pitch`** + **`/pitch-batch`**:
+  preflight the 5 preconditions (`checker_pass=true`,
+  `sent_at IS NULL`, not do-not-contact, risk_flag not high unless
+  approved_at, has email channel) + remaining cap via read-only
+  Postgres MCP; call the send endpoint; `agent_runs` lifecycle with
+  `[pitcher-metrics attempted=N sent=M skipped=K failed=F]`. Sends
+  only — never drafts/grades/rewrites/self-approves; ADR-003 intact.
+  Batch SQL also requires a non-opted-out email contact channel via
+  `exists (jsonb_array_elements(coalesce(b.contact_channels, '[]'::
+  jsonb)) …)` so ineligible rows don't consume daily cap slots
+  (cubic P2 #3270879761).
+- **ADR-013 amended** (`docs/dev/adr-log.md`): v1 sends From
+  `noreply@ops.bestemeraldcoast.com` (the already-verified Resend
+  domain — operator: "keep things easy and consistent"); the
+  dedicated `mail.bestemeraldcoast.com` warm-up is deferred to
+  ADR-013's existing Phase-6 reputation trigger. From-name stays
+  dynamic per site (ADR-013's UX point, preserved). New optional
+  env in `env.ts` + `.env.example`: `OUTREACH_FROM_EMAIL`,
+  `OUTREACH_REPLY_TO`, `OUTREACH_UNSUBSCRIBE_EMAIL`,
+  `OUTREACH_POSTAL_ADDRESS`. Reply-To unset ⇒ inbound-reply loop
+  parked, footer falls back to `mailto:` against the unsubscribe
+  address (CAN-SPAM-compliant either way).
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.9-pitcher`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/59
+- Merge SHA: `8cc0bc4ad207ee044281319f7cc50754568fb041`
+- Review: 14 posted findings across two CR + cubic passes — **8 fixed
+  + 5 deferred with rationale + 1 cubic-flagged cap-race regression
+  caught and fixed (advisory-lock serialization), none silently
+  dismissed (§7d)**. Fix commits: `56da582` (claim-then-send + cap-
+  in-claim + opt-out compliance + send-failure logging + batch SQL
+  email filter + pitcher.md run-order + tracked() URL fragments),
+  `a3e3d32` (in-flight claims count toward cap), `05c8fad`
+  (`pg_advisory_xact_lock` serializes the claim under READ
+  COMMITTED). CR's `CHANGES_REQUESTED` was stale (pre-fix); CR
+  re-review ping went unanswered ~13 min past §7c's 10-min window
+  → operator-authorized dismissal (mirroring #55) + standard
+  squash-merge (no `--admin` — `enforce_admins: true` from
+  ADR-038's 2026-05-18 hardening explicitly does NOT bypass
+  `CHANGES_REQUESTED`, so admin merge failed at the GraphQL gate;
+  dismissal was the only path). Required CI + cubic SUCCESS;
+  required CI green throughout.
+- Files: `packages/email/{package.json,tsconfig.json,src/index.ts,
+  src/render.ts,src/send.ts,src/types.ts,src/templates/outreach.tsx,
+  src/templates/outreach.smoke.ts}`, `apps/ops-console/app/api/agent/
+  outreach-messages/[id]/send/route.ts`, `apps/ops-console/
+  {next.config.ts,package.json}`, `agency/.claude/agents/pitcher.md`,
+  `agency/.claude/commands/{pitch.md,pitch-batch.md}`,
+  `packages/config/src/env.ts`, `.env.example`, `docs/dev/adr-log.md`
+  (ADR-013 amendment), `pnpm-lock.yaml`.
+- Validation: type-check `@bec/email` + `@bec/config` +
+  `@bec/ops-console` clean (Node 22). Smoke tests pass — 60+
+  invariants for templates (3 archetypes × 2 opt-out variants × 2
+  URL shapes), 18 tests for config. Lint repo-noop locally (CI
+  eslint authoritative). **Acceptance** ("Pitcher sends to a test
+  inbox; tracking code embeds in links; daily cap enforced") is
+  **operator-run on the deployed ops-console** (`bec-ops-console`
+  Vercel — NOT gated on the owed editorial Vercel): real
+  `RESEND_API_KEY` + a test-inbox `contact_channels.email`;
+  verify the email arrives, `?ref=<trackingCode>` appears in the
+  CTA link, a 31st same-day send returns
+  `409 daily_cap_reached`, a `do_not_contact` / unapproved
+  `risk_flag='high'` business returns `409` / `412`. Local
+  `next build` sandbox-impossible — CI/Vercel authoritative.
+
