@@ -146,11 +146,21 @@ export const POST = agentRoute<{ id: string }>(async (req, ctx) => {
 
   // ── Atomic claim ────────────────────────────────────────────────────
   // The claim UPDATE is the single race-safe boundary that simultaneously
-  // enforces "not already sent", "not already in-flight", AND the daily
-  // cap (cubic P1 + P2). The cap subquery runs inside the same statement
-  // so two parallel requests at #29 and #30 can't both pass a count of
-  // 29 and over-cap. A 0-row result is disambiguated below to give the
-  // caller a precise error (already_sent / already_claimed / cap reached).
+  // enforces "not already sent", "not already in-flight on this row",
+  // AND the daily cap. The cap subquery counts BOTH today's completed
+  // sends (sent_at >= today) AND any currently-in-flight claims
+  // (tracking_code set, sent_at null) — without the in-flight half, two
+  // parallel claims on DIFFERENT rows at sentToday=29 could both pass a
+  // stale count and over-cap (cubic #3270908948). Orphan caveat: a
+  // process crash between claim and finalize/release would leave a row
+  // with tracking_code set but no sent_at; it would count against the
+  // cap until cleared. Operator cleanup SQL:
+  //   UPDATE outreach_messages SET tracking_code = NULL
+  //   WHERE tracking_code IS NOT NULL AND sent_at IS NULL
+  //     AND created_at < now() - interval '1 hour';
+  // (We deliberately don't auto-prune here — orphans are rare, recovery
+  // is trivial, and a heuristic prune could race with a genuine claim.)
+  const capCount = sql<number>`(select count(*) from outreach_messages where sent_at >= date_trunc('day', now()) or (tracking_code is not null and sent_at is null))`;
   const claimed = await db
     .update(schema.outreachMessages)
     .set({ trackingCode })
@@ -159,18 +169,19 @@ export const POST = agentRoute<{ id: string }>(async (req, ctx) => {
         eq(schema.outreachMessages.id, id),
         isNull(schema.outreachMessages.sentAt),
         isNull(schema.outreachMessages.trackingCode),
-        sql`(select count(*) from outreach_messages where sent_at >= date_trunc('day', now())) < ${DAILY_CAP}`,
+        sql`${capCount} < ${DAILY_CAP}`,
       ),
     )
     .returning({ id: schema.outreachMessages.id });
 
   if (claimed.length === 0) {
-    // Disambiguate why the claim failed — a single follow-up read.
+    // Disambiguate why the claim failed — a single follow-up read,
+    // counting completed + in-flight the same way the claim does.
     const probe = await db
       .select({
         sentAt: schema.outreachMessages.sentAt,
         trackingCode: schema.outreachMessages.trackingCode,
-        sentToday: sql<number>`(select count(*) from outreach_messages where sent_at >= date_trunc('day', now()))`,
+        capUsed: capCount,
       })
       .from(schema.outreachMessages)
       .where(eq(schema.outreachMessages.id, id))
@@ -182,10 +193,10 @@ export const POST = agentRoute<{ id: string }>(async (req, ctx) => {
     if (p?.trackingCode) {
       return Response.json({ error: "already_claimed" }, { status: 409 });
     }
-    const sentToday = Number(p?.sentToday ?? 0);
-    if (sentToday >= DAILY_CAP) {
+    const capUsed = Number(p?.capUsed ?? 0);
+    if (capUsed >= DAILY_CAP) {
       return Response.json(
-        { error: "daily_cap_reached", sentToday, cap: DAILY_CAP },
+        { error: "daily_cap_reached", capUsed, cap: DAILY_CAP },
         { status: 409 },
       );
     }
