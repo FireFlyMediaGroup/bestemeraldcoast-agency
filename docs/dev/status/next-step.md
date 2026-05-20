@@ -4,22 +4,24 @@
 
 ---
 
-## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.8 merged, 2.9 next
+## ✅ Loop status: Phase 2 in progress — Commits 2.1–2.9 merged, 2.10 next
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
 **2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
 `2663d3d`), **2.3** Article + structured data (#47 `a751016`), **2.4**
 Sitemap/robots/OG (#49 `9d591e5`), **2.5** Coastal + Premium (#51
 `02e2e29`), **2.6** Editor agent (#53 `304512f`), **2.7** Editorial
-composer (#55 `84985c2`), **2.8** Checker agent (#57 `96a9ceb`) — see
-their `task-log.md` entries. Loop advances to **Commit 2.9**.
+composer (#55 `84985c2`), **2.8** Checker agent (#57 `96a9ceb`),
+**2.9** Pitcher agent + Resend (#59 `8cc0bc4`) — see their
+`task-log.md` entries. Loop advances to **Commit 2.10**.
 
-End-to-end editorial path is code-complete (Editor `/draft-article` →
-composer review/edit → publish + ADR-020 feedback). The outreach
-quality gate is now in place: Checker grades drafts against ADR-034
-(≥9/12, no zero, three outreach extra gates) and PATCHes the verdict;
-the PATCH boundary itself rejects self-contradictory grades. Pitcher
-(2.9) is the producer/sender that closes the outreach loop.
+End-to-end outreach pipeline is now code-complete: Scout discovers →
+Diagnoser diagnoses → (drafting + Checker grades against ADR-034) →
+Pitcher sends via Resend with a CAN-SPAM-compliant template and a
+race-safe daily cap (`pg_advisory_xact_lock`-serialized claim).
+ADR-013 amended in `adr-log.md`: v1 sends From the already-verified
+`noreply@ops.bestemeraldcoast.com` domain; dedicated `mail.` warm-up
+deferred to ADR-013's existing Phase-6 reputation trigger.
 
 ⚠️ **Working copy moved:** the loop now runs from
 `~/dev/bestemeraldcoast-agency`. The original `~/Desktop/...` copy was
@@ -28,31 +30,38 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 / Commit 2.9 — Pitcher agent + Resend integration.** Read
-  `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.9 + ADR-015 (FTC
-  sponsored disclosure) / ADR-032 (3 archetype voices), then run the
-  loop normally (`/adr-plan` → execute → validate → `/ship-task`).
-  Scope: `packages/email/templates/outreach.tsx` (React Email — three
-  variants matching the three archetypes' voice); `agency/.claude/
-  agents/pitcher.md` v1 — input a **Checker-passed** outreach message;
-  pick channel from `contactChannels` priority; render template; send
-  via Resend; write `outreachMessages.sentAt` + `sentMessageId`; attach
-  a tracking code; `agent_runs` lifecycle; **daily cap 30**. Slash
-  commands `/pitch [outreach_id]` + `/pitch-batch`.
-  - **Acceptance:** Pitcher sends to a test inbox; tracking code embeds
-    in links; daily cap enforced.
-  - **Verify in /adr-plan, don't assume:** does a `packages/email`
-    workspace exist yet (React Email + Resend SDK deps)? Are
-    `outreach_messages.sent_at` / `sent_message_id` / tracking-code
-    columns in the `@bec/db` schema (the `checker_*` columns were
-    already present at 2.8)? Is `RESEND_API_KEY` an existing env var
-    (`.env.example`)? A new package or new schema columns that change a
-    decision → STOP → adr-log before coding. Pitcher **writes via the
-    agent API** (new/existing `PATCH /api/agent/outreach-messages/[id]`
-    for `sentAt`/`sentMessageId`) and reads via the read-only Postgres
-    MCP (ADR-003), mirroring Scout/Diagnoser/Editor/Checker. The send
-    side-effect (Resend) is the one external action — keep it behind the
-    daily cap and the Checker-passed precondition.
+- **Phase 2 / Commit 2.10 — Legal pages package + cookie consent.**
+  Read `MASTER-bec-project-plan.md` § Phase 2 / Commit 2.10 +
+  **ADR-014** (5 legal pages — Privacy / Terms / Advertiser Disclosure
+  / Cookie Policy / Editorial Standards), then run the loop normally
+  (`/adr-plan` → execute → validate → `/ship-task`). Scope: the five
+  legal MDX pages in `packages/content/legal/` (rendered in editorial
+  under `(legal)/`); a cookie-consent banner using
+  `vanilla-cookieconsent` or PostHog's built-in (minimal banner for
+  non-EU, full CMP for EU); the **AI-disclosure label** ("Drafted with
+  AI assistance, edited by [Author]") on the article byline footer.
+  - **Acceptance:** all 5 legal pages render on every domain; cookie
+    consent works; AI disclosure visible.
+  - **Verify in /adr-plan, don't assume:** does `packages/content`
+    exist? If not, this commit creates it as a workspace package. The
+    AI-disclosure label needs an `articles` column to flag AI
+    authorship — ADR-027 (AI-authorship byline) — check whether the
+    `articles` schema already has `is_ai_authored` / `editor_name`
+    or whether this commit needs a tiny migration. Cookie-consent
+    library choice (`vanilla-cookieconsent` vs PostHog) is a code
+    pick, not an ADR change; surface as an `AskUserQuestion` if both
+    look viable. Heads-up: ADR-014 specifies "Termly/Iubenda template,
+    lawyer-reviewed once" for the content itself — for v1 ship
+    operator-authored MDX placeholders that meet the structural
+    requirements and flag the lawyer-review step as a deferred
+    operator action (mirrors the "owed editorial Vercel" pattern).
+  - **Operator follow-up tied to 2.9 (not blocking 2.10):** before the
+    first real `/pitch` send, set `OUTREACH_REPLY_TO` to a monitored
+    inbox + `OUTREACH_POSTAL_ADDRESS` to the real mailing address (the
+    server refuses to send via `412 opt_out_misconfigured` until at
+    least one of `OUTREACH_REPLY_TO` / `OUTREACH_UNSUBSCRIBE_EMAIL` /
+    `OPERATOR_EMAIL` is set; CAN-SPAM also requires a real postal
+    address). Documented in `.env.example` and the 2.9 task-log entry.
 - **Plan ref:** `MASTER-bec-project-plan.md` § Phase 2.
 - **Build env note:** local sandbox cannot `next build` any app here
   (clean `main`/ops-console fails identically — React-19 RSC prerender
