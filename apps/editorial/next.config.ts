@@ -19,7 +19,13 @@ const nextConfig: NextConfig = {
   // its CSS. (The Commit 2.1 `_not-found` build crash was later proven to
   // be a sandbox-only env limit — clean `main` fails identically — not
   // caused by transpiling @bec/ui; the lockfile pins react 19.1.1.)
-  transpilePackages: ["@bec/ui", "@bec/db", "@bec/logger", "@bec/config"],
+  transpilePackages: [
+    "@bec/ui",
+    "@bec/db",
+    "@bec/logger",
+    "@bec/config",
+    "@bec/content",
+  ],
   // @bec/db's Neon serverless driver + its ws transport must load as native
   // Node modules, not get bundled (proxy.ts runs on the Node runtime and
   // resolves host→site via @bec/db). Same externalization ops-console uses.
