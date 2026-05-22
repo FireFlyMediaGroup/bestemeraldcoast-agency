@@ -1520,5 +1520,149 @@ Zod's `.url()` rejected it.
   Playwright E2E + visual regression + a11y) — that's a larger
   separate commit, queued next.
 
+## 2026-05-22 — Phase 2 / Commit 2.11.3: RateLimit-* headers on every response (ADR-017 observability)
+
+The 2.11 `publicPages` limiter only emitted `RateLimit-*` headers on
+the 429 path (via `tooManyRequests`). On the allow-path, responses
+were header-less — meaning the only way to prove the limiter was wired
+was to burst 1001 req/IP/min at a live domain. This commit attaches
+the standard `RateLimit-Limit / -Remaining / -Reset` header set to
+every code path that reaches the limiter, so a single quiet `curl -sI`
+is enough proof.
+
+- **`@bec/rate-limit` — new `rateLimitHeaders(result)` helper** in
+  `packages/rate-limit/src/ratelimit.ts`. Returns `{}` for the
+  `ALLOW` sentinel (`limit=0`) — would mislead clients into thinking
+  they are already rate-limited otherwise. `tooManyRequests()` now
+  composes from the helper + `Retry-After` (the 429-only RFC 6585
+  header).
+- **`apps/editorial/proxy.ts` — `withRateLimitHeaders()` helper**
+  attaches the header set to every response that reaches the limiter
+  check (resolved-host pass, unknown-host 404 rewrite, host-resolve-
+  error 404 rewrite). Skippable paths (`_next`, OG, favicon) short-
+  circuit before the limiter and stay header-less by design.
+- Type: off-plan pre-gate observability fix (RALPH-LOOP § Git
+  Discipline).
+- Branch: `phase-2/commit-2.11.3-ratelimit-headers`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/67
+- Merge SHA: `744b58cc40762ae8b8ce5e1ce92dc4ed5860dfc1`
+- Review: required CI all green (lint 21 s / type-check 24 s / unit-
+  tests 33 s). Auto-merge fired instantly. CodeRabbit + cubic still
+  propagating at merge — advisory, did not block.
+- Files: `packages/rate-limit/src/{ratelimit.ts, ratelimit.test.ts,
+  index.ts}`, `apps/editorial/proxy.ts`. 4 files, +85 / −9.
+- Validation (Node 22): `pnpm --filter @bec/rate-limit test:unit`
+  21/21 (was 18; +3 helper tests); `pnpm --filter @bec/editorial
+  type-check` clean.
+- **Acceptance**: a single `curl -sI https://bestpensacola.com/`
+  returns `RateLimit-Limit: 1000` / `RateLimit-Remaining: 999` /
+  `RateLimit-Reset: <60s>` once `bec-editorial` redeploys 2.11.3.
+
+## 2026-05-22 — Phase 2 / Commit 2.11.2: Playwright E2E surface for the editorial network (ADR-016)
+
+Lands the missing half of Phase-2 quality-gate Box 8 — "All Phase 2
+unit **+ Playwright tests** pass." Pre-2.11.2: zero `@playwright/test`
+deps anywhere, `apps/editorial/test:e2e` was a `(noop)`. Now: the
+minimum surface ADR-016's E2E section calls for, scoped to what
+Phase 2 actually delivers (archetype routing, theming, legal pages,
+rate-limit observability). Newsletter / mobile-`/m` / unsubscribe
+flows land in Phase 3 / 5 when those surfaces exist.
+
+- **`apps/editorial/tests/e2e/`**:
+  - `archetypes.spec.ts` — 3 tests × 4 projects = 12 invocations:
+    homepage renders with correct `data-archetype` + per-site
+    header; `RateLimit-*` response headers expose the publicPages
+    limiter state (2.11.3 wiring proof; graceful `test.skip` when
+    Upstash unconfigured); unknown-host returns 404 (ADR-001
+    contract).
+  - `article.spec.ts` — 1 test × 4 projects, data-gated:
+    gracefully `test.skip`s when 0 articles published. Asserts
+    JSON-LD Article schema + article region.
+  - `a11y.spec.ts` — axe-core WCAG 2.1 AA homepage check × 4
+    projects.
+  - `fixtures.ts` — single source of truth for project →
+    archetype → expected-header map.
+- **`apps/editorial/playwright.config.ts`** — 4 projects:
+  magazine (`bestpensacola.com`), coastal (`bestpensacolabeach.com`),
+  premium (`bestsouthwalton.com`), magazine-mobile (iPhone 14 /
+  WebKit; ADR-006/024/029 mandate iPhone Safari as the primary
+  editorial reading surface). Per-archetype `baseURL` overridable
+  via `PLAYWRIGHT_BASE_URL_{ARCHETYPE}`. No `webServer:` block —
+  host-resolve needs Postgres + Upstash that local sandboxes
+  don't have; live deploys are the practical target.
+- **`apps/editorial/package.json`** — `@playwright/test ^1.49.1` +
+  `@axe-core/playwright ^4.10.0` devDeps; `test:e2e: playwright
+  test` (was `(noop)`); `test:e2e:ui` for the Playwright UI runner.
+- **`.gitignore`** — `playwright-report/`, `test-results/`,
+  `**/.playwright/`, `playwright/.cache/`.
+- Type: Phase 2 plan-clearing commit (off-plan; clears gate Box 8
+  Playwright clause).
+- Branch: `phase-2/commit-2.11.2-playwright-surface`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/68
+- Merge SHA: `bbf731b410c41b468fc1fff265bd70390ca1e298`
+- Review: required CI all green (lint 23 s / type-check 29 s /
+  unit-tests 33 s). Auto-merge fired instantly.
+- Files: `apps/editorial/{playwright.config.ts, tests/e2e/{a11y,
+  archetypes, article, fixtures}.{spec.ts,ts}, package.json}`,
+  `.gitignore`, `pnpm-lock.yaml`. 8 files, +362 / −10.
+- Validation (Node 22): `pnpm --filter @bec/editorial test:e2e`
+  against the operator's live deploys → 12 passed / 0 failed / 8
+  graceful skips (4 article-page skips are data-gated; 4 rate-
+  limit-header skips await `bec-editorial` redeploy of 2.11.3 — both
+  flip to pass automatically once upstream state lands). type-check
+  clean.
+- **Acceptance**: Phase-2 gate Box 8 Playwright clause satisfiable
+  via `pnpm --filter @bec/editorial test:e2e`. CI integration
+  (every-PR Playwright run) and `toHaveScreenshot()` visual baselines
+  are queued follow-ups — both need operator decisions on cadence +
+  one-time baseline approval.
+
+## 2026-05-22 — DISCOVERED: bec-editorial deploy blocker (pre-existing 2.10 route ambiguity)
+
+While validating 2.11.2 E2E against `bec-editorial`, found that the
+Vercel build of the editorial app currently **fails on `main`**:
+
+```
+Error: Ambiguous app routes detected:
+Ambiguous route pattern "/[*]" matches multiple routes:
+  - /[page]   (from apps/editorial/app/(legal)/[page]/page.tsx, Commit 2.10)
+  - /[category] (from apps/editorial/app/(site)/[category]/page.tsx, Commit 2.4)
+```
+
+Cause: Commit 2.1 shipped placeholder static legal pages at
+`apps/editorial/app/(site)/(legal)/{privacy,terms,disclosure,cookies,
+editorial-standards}/page.tsx`, intending 2.10 to "swap the body
+for MDX without changing the routes" (per the Commit 2.1
+`legal-placeholder.tsx` header comment). Commit 2.10 instead added
+a NEW dynamic route at `(legal)/[page]/page.tsx` under a separate
+route group, leaving the 2.1 stubs in place. Both route groups
+resolve to `/privacy`, `/terms`, etc. at the same URL level —
+Next 16.2.6's ambiguous-route detector now (correctly) refuses to
+build.
+
+This is NOT introduced by 2.11.x — `git log` confirms the conflict
+has been latent on `main` since 2.10 merged (2026-05-20). It was
+masked because no `bec-editorial` Vercel project existed yet; the
+operator created the project today during the 2.11 unblock and the
+first build attempt surfaced it.
+
+The fix is operator-aligned: their stashed local WIP deletes
+`(legal)/[page]/{page,layout}.tsx` and re-implements the static
+legal pages to source from `@bec/content/legal/` directly via a new
+`components/legal-document.tsx`. That work is **not yet committed**;
+it sits in the local stash at `stash@{0}: On phase-2/commit-2.11.3-
+ratelimit-headers: operator-wip-vercel-json-legal-restructure`.
+
+**Next step for the operator**: either pop the stash and commit it as
+Commit 2.11.4 (legal-page route restructure), or have Claude ship a
+minimal equivalent. Until this lands, `bec-editorial` Vercel deploys
+fail at "Creating an optimized production build" with the
+ambiguous-routes error, and Phase-2 gate Box 5 ("Editorial app
+deployed at all 8 domains via proxy.ts") cannot complete on the
+current `main` — the live 6/8 domains are serving from a stale
+pre-2.10 successful deploy.
+
+
+
 
 
