@@ -17,9 +17,27 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 
+import { checkRateLimit, tooManyRequests } from "@bec/rate-limit";
+
 import { resolveSiteByHost, SITE_HEADERS } from "@/lib/site-context";
 
 const UNKNOWN_HOST = "/__unknown_host__";
+
+/**
+ * Best-effort client IP from forwarding headers. Vercel sets
+ * `x-forwarded-for` to a comma-separated client→proxy chain; the first
+ * entry is the original client. Falls back to a sentinel when neither
+ * header is present (proxy.ts always runs on the Node runtime, so there
+ * is no socket-level remote address to recover here).
+ */
+function clientIp(request: NextRequest): string {
+  const xff = request.headers.get("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return request.headers.get("x-real-ip") ?? "unknown";
+}
 
 function isSkippable(pathname: string): boolean {
   if (pathname.startsWith("/_next/")) return true;
@@ -40,9 +58,17 @@ function isSkippable(pathname: string): boolean {
   return pathname === "/favicon.ico";
 }
 
-export default async function proxy(request: NextRequest): Promise<NextResponse> {
+export default async function proxy(request: NextRequest): Promise<NextResponse | Response> {
   if (isSkippable(request.nextUrl.pathname)) {
     return NextResponse.next();
+  }
+
+  // ADR-017 publicPages DDoS guard — 1000 req/IP/min across every domain.
+  // Fail-open if Upstash is unset (local dev / CI ephemeral env) or if the
+  // backing Redis hiccups; checkRateLimit handles both internally.
+  const rl = await checkRateLimit("publicPages", clientIp(request));
+  if (!rl.success) {
+    return tooManyRequests(rl);
   }
 
   // Vercel sets x-forwarded-host to the real domain; `host` is the fallback

@@ -1,0 +1,36 @@
+{
+  "name": "@bec/rate-limit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Upstash Redis rate limiting + Cloudflare Turnstile + email validation (ADR-017).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "echo '(noop)'",
+    "lint": "echo '(noop)'",
+    "type-check": "tsc --noEmit",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@bec/config": "workspace:*",
+    "@bec/logger": "workspace:*",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
+    "disposable-email-domains": "^1.0.62"
+  },
+  "devDependencies": {
+    "@bec/config-eslint": "workspace:*",
+    "@bec/config-tsconfig": "workspace:*",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
