@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetLimiterCacheForTesting,
   checkRateLimit,
+  rateLimitHeaders,
   tooManyRequests,
   type RateLimitResult,
 } from "./ratelimit.js";
@@ -71,5 +72,37 @@ describe("tooManyRequests", () => {
     const r: RateLimitResult = { success: false, limit: 3, remaining: 0, reset: Date.now() - 5_000 };
     const res = tooManyRequests(r);
     expect(res.headers.get("Retry-After")).toBe("1");
+  });
+});
+
+describe("rateLimitHeaders", () => {
+  it("returns the three RateLimit-* headers for a normal allow result", () => {
+    const reset = Date.now() + 30_000;
+    const headers = rateLimitHeaders({ success: true, limit: 1000, remaining: 998, reset });
+    expect(headers["RateLimit-Limit"]).toBe("1000");
+    expect(headers["RateLimit-Remaining"]).toBe("998");
+    const reset_s = Number(headers["RateLimit-Reset"]);
+    expect(reset_s).toBeGreaterThan(0);
+    expect(reset_s).toBeLessThanOrEqual(30);
+    // Allow-path responses do NOT carry Retry-After — that's a 429-only signal.
+    expect(headers["Retry-After"]).toBeUndefined();
+  });
+
+  it("returns an empty header set for the ALLOW sentinel (no limiter configured)", () => {
+    // checkRateLimit returns this shape when Upstash is unset — emitting
+    // RateLimit-Limit: 0 / Remaining: 0 would misleadingly tell clients they
+    // are already rate-limited.
+    const headers = rateLimitHeaders({ success: true, limit: 0, remaining: 0, reset: 0 });
+    expect(headers).toEqual({});
+  });
+
+  it("clamps RateLimit-Reset to a minimum of 1 second when the reset is in the past", () => {
+    const headers = rateLimitHeaders({
+      success: true,
+      limit: 1000,
+      remaining: 999,
+      reset: Date.now() - 5_000,
+    });
+    expect(headers["RateLimit-Reset"]).toBe("1");
   });
 });

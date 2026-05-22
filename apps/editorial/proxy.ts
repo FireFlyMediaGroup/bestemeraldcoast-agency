@@ -17,7 +17,9 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 
-import { checkRateLimit, tooManyRequests } from "@bec/rate-limit";
+import { checkRateLimit, rateLimitHeaders, tooManyRequests } from "@bec/rate-limit";
+
+import type { RateLimitResult } from "@bec/rate-limit";
 
 import { resolveSiteByHost, SITE_HEADERS } from "@/lib/site-context";
 
@@ -37,6 +39,22 @@ function clientIp(request: NextRequest): string {
     if (first) return first;
   }
   return request.headers.get("x-real-ip") ?? "unknown";
+}
+
+/**
+ * Attach the IETF `RateLimit-*` header set to a response so clients (and
+ * synthetic monitors) can see the limiter's state on every request, not
+ * only on a 429. No-op when the limiter is unconfigured (rateLimitHeaders
+ * returns `{}`), so dev/CI responses stay header-clean.
+ */
+function withRateLimitHeaders<T extends NextResponse | Response>(
+  response: T,
+  rl: RateLimitResult,
+): T {
+  for (const [k, v] of Object.entries(rateLimitHeaders(rl))) {
+    response.headers.set(k, v);
+  }
+  return response;
 }
 
 function isSkippable(pathname: string): boolean {
@@ -84,7 +102,7 @@ export default async function proxy(request: NextRequest): Promise<NextResponse 
     // 404, never a 500 — and never guess a site. Logged for visibility.
     const { logger } = await import("@bec/logger");
     logger.error({ err, host: rawHost }, "proxy: host resolve failed → 404");
-    return NextResponse.rewrite(new URL(UNKNOWN_HOST, request.url));
+    return withRateLimitHeaders(NextResponse.rewrite(new URL(UNKNOWN_HOST, request.url)), rl);
   }
 
   if (!site) {
@@ -92,7 +110,7 @@ export default async function proxy(request: NextRequest): Promise<NextResponse 
     // page.tsx) that calls notFound(). A static segment outranks the dynamic
     // `(site)/[category]` route, so an unmapped host reliably 404s instead
     // of rendering a category page.
-    return NextResponse.rewrite(new URL(UNKNOWN_HOST, request.url));
+    return withRateLimitHeaders(NextResponse.rewrite(new URL(UNKNOWN_HOST, request.url)), rl);
   }
 
   // Forward the resolved site on request headers for the render pass.
@@ -104,5 +122,5 @@ export default async function proxy(request: NextRequest): Promise<NextResponse 
   headers.set(SITE_HEADERS.domain, site.domain);
   headers.set(SITE_HEADERS.tagline, site.tagline ?? "");
 
-  return NextResponse.next({ request: { headers } });
+  return withRateLimitHeaders(NextResponse.next({ request: { headers } }), rl);
 }

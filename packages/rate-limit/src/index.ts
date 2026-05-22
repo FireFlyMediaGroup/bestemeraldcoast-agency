@@ -12,6 +12,7 @@
 
 export {
   checkRateLimit,
+  rateLimitHeaders,
   tooManyRequests,
   __resetLimiterCacheForTesting,
   type LimiterName,
