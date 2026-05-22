@@ -11,7 +11,8 @@
     "lint": "echo '(noop)'",
     "type-check": "next typegen && tsc --noEmit",
     "test:unit": "echo '(noop)'",
-    "test:e2e": "echo '(noop)'"
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@bec/config": "workspace:*",
@@ -27,8 +28,10 @@
     "vanilla-cookieconsent": "^3.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
     "@bec/config-eslint": "workspace:*",
     "@bec/config-tsconfig": "workspace:*",
+    "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.0",
