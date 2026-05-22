@@ -1,15 +1,5 @@
 // Article data loader for the city-site article route (Commit 2.3).
-//
-// Cache Components: this is a `'use cache'` function keyed purely by its
-// args (siteId, categorySlug, slug) — it reads NO request APIs, so it is
-// safely cacheable. `cacheTag` lets the Editor/composer revalidate a single
-// article on publish (`revalidateTag('article:<siteId>:<slug>')`, Commit
-// 2.7). Only `published` articles are ever returned (drafts/scheduled are
-// invisible to the public site). A URL whose `category` segment doesn't
-// match the article's real category resolves to null → the page 404s
-// (no soft-canonical guessing).
-
-import { cacheLife, cacheTag } from "next/cache";
+// Article-level `'use cache'` is parked while cacheComponents is off.
 
 export interface ArticleAuthorView {
   slug: string;
@@ -65,10 +55,6 @@ export async function getArticle(
   categorySlug: string,
   slug: string,
 ): Promise<ArticleView | null> {
-  "use cache";
-  cacheTag(`article:${siteId}:${slug}`);
-  cacheLife("hours");
-
   const { getDb, schema, eq, and, inArray } = await import("@bec/db");
   const db = getDb();
 

@@ -16,11 +16,14 @@ export interface SiteFooterProps {
   className?: string;
 }
 
+// Slugs match the canonical ADR-014 page list in `@bec/content/legal`. Don't
+// reorder casually — visual rhythm of the footer + the sitemap iteration
+// order both follow this sequence.
 const DEFAULT_LINKS: SiteFooterLink[] = [
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
-  { label: "Disclosure", href: "/disclosure" },
-  { label: "Cookies", href: "/cookies" },
+  { label: "Advertiser Disclosure", href: "/advertiser-disclosure" },
+  { label: "Cookie Policy", href: "/cookie-policy" },
   { label: "Editorial Standards", href: "/editorial-standards" },
 ];
 

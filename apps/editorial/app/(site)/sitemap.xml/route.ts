@@ -5,8 +5,9 @@ import { getSiteContext } from "@/lib/site-context";
 // listable-business + event URLs for the resolved site only. (site) group so
 // proxy injects host/site context. With no content seeded the sitemap is
 // still valid — just the static + category routes (correct, not a failure;
-// articles arrive from the Editor agent, Commit 2.6).
-export const dynamic = "force-dynamic";
+// articles arrive from the Editor agent, Commit 2.6). Stays dynamic via
+// getSiteContext() (no `export const dynamic` — incompatible with
+// cacheComponents in Next 16).
 
 export async function GET(): Promise<Response> {
   const site = await getSiteContext();

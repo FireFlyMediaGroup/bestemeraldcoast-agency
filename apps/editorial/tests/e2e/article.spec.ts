@@ -25,8 +25,14 @@ test.describe.parallel("article publish → editorial render", () => {
     );
 
     // Pick the first link that looks like a real article path (excludes the
-    // legal pages: /privacy, /terms, /disclosure, /cookies, /editorial-standards).
-    const LEGAL_PATHS = ["/privacy", "/terms", "/disclosure", "/cookies", "/editorial-standards"];
+    // five ADR-014 legal pages — kept in sync with packages/content/legal/index.ts).
+    const LEGAL_PATHS = [
+      "/privacy",
+      "/terms",
+      "/advertiser-disclosure",
+      "/cookie-policy",
+      "/editorial-standards",
+    ];
     const hrefs = await candidates.evaluateAll((els) =>
       (els as HTMLAnchorElement[])
         .map((a) => a.getAttribute("href"))
