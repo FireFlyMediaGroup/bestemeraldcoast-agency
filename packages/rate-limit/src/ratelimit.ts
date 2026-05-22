@@ -126,18 +126,42 @@ export async function checkRateLimit(
   }
 }
 
-/** Build a standard 429 with rate-limit headers. */
+/**
+ * Build the standard `RateLimit-*` response header set for a given check
+ * result. Spec: IETF draft-ietf-httpapi-ratelimit-headers — `RateLimit-Limit`,
+ * `RateLimit-Remaining`, `RateLimit-Reset` (seconds-until-reset, not unix-ms).
+ *
+ * Returns an empty object when the result is the ALLOW sentinel
+ * (`limit === 0`) — i.e. when no limiter was configured at all. Emitting
+ * `RateLimit-Limit: 0 / Remaining: 0` for the no-limiter case is misleading
+ * (clients would think they're already rate-limited); silence is correct.
+ *
+ * Caller attaches these to whatever response shape the surface uses:
+ *   - Editorial `proxy.ts` allow-path: `NextResponse.next({ request: { headers } })`
+ *     plus `for (const [k, v] of Object.entries(rateLimitHeaders(r))) res.headers.set(k, v)`.
+ *   - 429 path: `tooManyRequests(r)` packages them into a JSON 429 (below).
+ */
+export function rateLimitHeaders(r: RateLimitResult): Record<string, string> {
+  // The ALLOW sentinel has limit=0 — no limiter configured. Emit nothing.
+  if (r.limit === 0) return {};
+  const retryAfter = Math.max(1, Math.ceil((r.reset - Date.now()) / 1000));
+  return {
+    "RateLimit-Limit": String(r.limit),
+    "RateLimit-Remaining": String(r.remaining),
+    "RateLimit-Reset": String(retryAfter),
+  };
+}
+
+/** Build a standard 429 with rate-limit + Retry-After headers. */
 export function tooManyRequests(r: RateLimitResult): Response {
-  // Compute the delta once so the two headers are always consistent.
   const retryAfter = Math.max(1, Math.ceil((r.reset - Date.now()) / 1000));
   return Response.json(
     { error: "rate_limited" },
     {
       status: 429,
       headers: {
-        "RateLimit-Limit": String(r.limit),
-        "RateLimit-Remaining": String(r.remaining),
-        "RateLimit-Reset": String(retryAfter),
+        ...rateLimitHeaders(r),
+        // RFC 6585: Retry-After is the canonical 429 header.
         "Retry-After": String(retryAfter),
       },
     },
