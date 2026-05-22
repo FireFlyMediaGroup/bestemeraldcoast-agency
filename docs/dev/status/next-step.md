@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ Loop status: Phase 2 code-complete — Commits 2.1–2.11 merged; Phase 2 quality gate (ADR-035) is next
+## ✅ Loop status: Phase 2 code-complete — Commits 2.1–2.11 merged + 2.11.1 pre-gate fix; Phase 2 quality gate (ADR-035) in progress
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
 **2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
@@ -14,8 +14,16 @@ Sitemap/robots/OG (#49 `9d591e5`), **2.5** Coastal + Premium (#51
 composer (#55 `84985c2`), **2.8** Checker agent (#57 `96a9ceb`),
 **2.9** Pitcher agent + Resend (#59 `8cc0bc4`), **2.10** Legal pages
 + cookie consent (#61 `2a7b004`), **2.11** Rate limiting + Turnstile
-(#63 `426d09d`) — see their `task-log.md` entries. Loop advances to
-the **Phase 2 quality gate (ADR-035)**.
+(#63 `426d09d`), **2.11.1** @bec/config quote-stripping pre-gate fix
+(#65 `5795249`) — see their `task-log.md` entries. Loop advances to
+the **Phase 2 quality gate (ADR-035)**, currently mid-execution.
+
+### Phase 2 gate run-state (2026-05-22)
+
+Boxes attempted to date:
+- **Box 1 — Checker rubric**: ⚠️ **NOT EXERCISABLE.** Zero `outreach_messages` rows; zero `articles`. Pipeline is upstream-blocked — Editor + composer have produced nothing to score yet. Operator unblock: produce drafts via the ops-console editorial composer against the 11 `diagnosed` leads.
+- **Box 8 — Unit + Playwright tests**: 🟡 **partial.** Unit-test surface is **green** post-2.11.1 (`pnpm -r --no-bail test:unit` exit 0, 15/15 packages, zero FAIL lines on dev + CI). Playwright clause **still 🔴** — zero `@playwright/test` deps + zero `*.spec.ts` files; ADR-016 mandates Playwright E2E + visual regression + a11y. Larger commit queued next.
+- Boxes 2, 3, 4, 5, 6, 7, 9 — all operator-infra-blocked (see below).
 
 End-to-end outreach pipeline + ADR-014 compliance surface + ADR-017
 anti-abuse infrastructure are now code-complete: Scout → Diagnoser →
@@ -33,8 +41,16 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 quality gate (ADR-035) — 9 acceptance boxes.** Run the
-  gate per `MASTER-bec-project-plan.md` § Phase 2 quality gate.
+- **Phase 2 quality gate (ADR-035) — in progress.** Two pre-gate
+  commits already moved a box: 2.11.1 cleared the unit-test clause of
+  Box 8. The **next loop-actionable code work** is the **Playwright
+  clause of Box 8** — landing the minimum Playwright surface ADR-016
+  requires (one project covering homepage of each archetype + article
+  page + axe-core a11y). Until that ships, Box 8 stays 🟡.
+  Suggested branch: `phase-2/commit-2.11.2-playwright-surface`.
+- **Concurrent operator work** unblocks Boxes 2-7 + 9 (see follow-ups
+  below). All remaining 9-box gate work per
+  `MASTER-bec-project-plan.md` § Phase 2 quality gate.
   Boxes are acceptance criteria, not aspirations (ADR-035):
   - [ ] Checker runs all outputs through ADR-034 rubric.
   - [ ] Pitcher dispatches 10 real cold messages via Resend.

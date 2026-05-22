@@ -1474,3 +1474,51 @@ landed here.
   + a PR comment with the exact action. Until this is done, every
   ops-console deploy fails the same way.
 
+## 2026-05-22 — Phase 2 / Commit 2.11.1: @bec/config strips quoted .env values (pre-gate fix)
+
+Off-plan pre-gate commit surfaced while running Phase 2 quality-gate
+Box 8 ("All Phase 2 unit + Playwright tests pass") on dev. The
+unit-test surface was `1 fails, 14 passes` because `@bec/logger` tests
+imported `@bec/config`, which hit `EnvValidationError: B2_ENDPOINT:
+Invalid url`. Root cause: `scripts/dev-session.sh` splits each `.env`
+line on the FIRST `=` only and exports the value literally (preserving
+the `&` in Neon URLs by design) — which also preserved any quote chars
+the operator wrote in their `.env`. So `B2_ENDPOINT="https://..."`
+ended up in `process.env` with literal quote chars on both ends, and
+Zod's `.url()` rejected it.
+
+- **`packages/config/src/env.ts`** — extends `normalizeEnv()` to strip
+  a single matched pair of surrounding `"..."` / `'...'` quote chars
+  before validation, mirroring the existing empty-string-to-undefined
+  collapse. Safe by construction (only matched pairs are stripped;
+  partial leading/trailing quotes pass through unchanged). Applies to
+  every Zod-validated var, not just `B2_ENDPOINT`, so future
+  operator-quoted values don't re-trigger this.
+- **`packages/config/src/env.test.ts`** — +4 tests covering double-
+  quote strip, single-quote strip, partial-quote pass-through, and
+  empty-quoted collapse. All 4 fail without the fix; all pass with it.
+- **Bellwether (`@bec/logger` test:unit)** flipped 14/14 + 1-failed-
+  suite → **20/20**. Full workspace sweep `pnpm -r --no-bail test:unit`
+  flipped exit 1 (1 fail / 14 pass) → **exit 0 (15/15)**.
+- Type: off-plan pre-gate remediation (RALPH-LOOP § Git Discipline).
+- Branch: `phase-2/commit-2.11.1-env-quote-stripping`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/65
+- Merge SHA: `5795249036f59f7e520123e0c7f73299e470cfb8`
+- Review: required CI all green (lint 25 s / type-check 43 s / unit-
+  tests 35 s). Auto-merge fired the instant the required CI cleared.
+  CodeRabbit + cubic still propagating at merge time — advisory per
+  §7b–§7e, did not block. No posted findings at merge.
+- Files: `packages/config/src/{env.ts, env.test.ts}`. 2 files, +55 /
+  −1.
+- Validation (Node 22): `pnpm --filter @bec/config test:unit` 22/22
+  green (was 18); `pnpm --filter @bec/logger test:unit` 20/20 green
+  (was 14/14 + 1 failed suite); `pnpm -r --no-bail test:unit` exit 0
+  with all 15 workspace packages Done, zero FAIL lines.
+- **Acceptance**: dev-side unit-test surface clean. Box 8's unit-test
+  clause flips 🔴 → 🟢. The Playwright clause of Box 8 remains
+  outstanding (no `@playwright/test` dep anywhere; ADR-016 mandates
+  Playwright E2E + visual regression + a11y) — that's a larger
+  separate commit, queued next.
+
+
+
