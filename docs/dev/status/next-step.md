@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ Loop status: Phase 2 code-complete — Commits 2.1–2.11 + pre-gate fixes 2.11.1–2.11.3 merged; Phase 2 gate (ADR-035) in progress
+## ✅ Loop status: Phase 2 code-complete — five pre-gate fixes (2.11.1–2.11.5) shipped; editorial deploy now live + serving current code; Phase 2 gate mid-execution
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
 **2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
@@ -16,42 +16,53 @@ composer (#55 `84985c2`), **2.8** Checker agent (#57 `96a9ceb`),
 + cookie consent (#61 `2a7b004`), **2.11** Rate limiting + Turnstile
 (#63 `426d09d`), **2.11.1** @bec/config quote-stripping pre-gate fix
 (#65 `5795249`), **2.11.3** RateLimit-* headers on every response
-(#67 `744b58c`), **2.11.2** Playwright E2E surface (#68 `bbf731b`)
-— see their `task-log.md` entries. Loop advances to the **Phase 2
-quality gate (ADR-035)**, currently mid-execution.
+(#67 `744b58c`), **2.11.2** Playwright E2E surface (#68 `bbf731b`),
+**2.11.4** legal route restructure + Vercel build-cmd lock-in
+(#70 `865dfc7`), **2.11.5** 301 redirects for legacy legal URLs
+(#71 `21f032d`) — see their `task-log.md` entries.
 
-### Phase 2 gate run-state (2026-05-22, post-2.11.2/3)
+### Phase 2 gate run-state (2026-05-22, end-of-day)
 
-Operator's progress on Phase A-C of the 2.11 unblock list:
-- ✅ ops-console Vercel Build Command realigned (`vercel.json` files
-  added under operator's WIP).
-- ✅ Upstash Redis + Cloudflare Turnstile creds provisioned + set on
-  Vercel projects.
-- ✅ `bec-editorial` Vercel project created + 6/8 domains attached
-  + serving HTTP 200 (live via proxy.ts host resolve).
+Operator + loop progress on the 2.11 unblock list:
+- ✅ ops-console Vercel Build Command pinned via `vercel.json` (no
+  more dashboard drift). First green ops-console deploy since 2.11.
+- ✅ Upstash Redis + Cloudflare Turnstile creds provisioned + live
+  on `bec-editorial` Vercel project.
+- ✅ `bec-editorial` Vercel project created + 6/8 domains live.
+- ✅ `bec-editorial` deploys current `main` cleanly (was broken by
+  the 2.10 ambiguous-routes bug; fixed in 2.11.4).
+- ✅ Live deploys serve 2.11.3 `RateLimit-*` headers on every
+  response (verified via `curl -sI` on 3 archetype domains:
+  `RateLimit-Limit: 1000`, `RateLimit-Remaining: <decreasing>`,
+  `RateLimit-Reset: <60s>`).
+- ✅ All five canonical ADR-014 legal pages return 200 on the live
+  network (`/privacy`, `/terms`, `/advertiser-disclosure`,
+  `/cookie-policy`, `/editorial-standards`).
+- ✅ Legacy `/cookies` + `/disclosure` URLs redirect (308) to their
+  canonical successors (no orphaned bookmarks / search results).
 - ⏳ 2/8 domains (`bestcr30a.com`, `best30a.life`) still on parking
-  IPs.
+  IPs — operator DNS work.
+- ⚠️ `Vercel – bestemeraldcoast-agency` (a Vercel-auto-created
+  repo-root project with no app — Vercel scanned the workspace root
+  and made a stray project) fails on every push. Pre-existing noise;
+  operator can delete that project safely.
 
 Boxes attempted:
 - **Box 1 — Checker rubric**: ⚠️ NOT EXERCISABLE. Zero
   `outreach_messages` rows; zero `articles`. Pipeline upstream-
   blocked — Editor + composer have produced nothing to score yet.
-- **Box 5 — Editorial 8 domains via proxy.ts**: 🟡 **partial.** 6/8
-  domains live + serving (proxy.ts host-resolve + archetype routing
-  + unknown-host 404 contract all verified via Playwright). The
-  remaining 2 are operator DNS work. **Plus** a newly-surfaced
-  blocker: current `main` editorial app **cannot build on Vercel**
-  due to a pre-existing 2.10 route-ambiguity bug — see the dedicated
-  section below. The 6 live domains are serving from a stale pre-
-  2.10 successful deploy.
-- **Box 8 — Unit + Playwright tests**: ✅ **GREEN (when invoked).**
-  Unit-test surface clean since 2.11.1 (15/15 packages, exit 0).
-  Playwright surface clean post-2.11.2 (`pnpm --filter @bec/editorial
-  test:e2e` → 12 passed / 0 failed / 8 graceful skips on live
-  deploys). CI integration of the E2E job is queued but not blocking
-  — gate satisfied by on-demand invocation per ADR-035 ("acceptance,
-  not aspiration").
-- Boxes 2, 3, 4, 6, 7, 9 — all operator-infra-blocked.
+- **Box 5 — Editorial 8 domains via proxy.ts**: 🟢 **GREEN for 6/8
+  domains** (current code, archetype routing, unknown-host 404
+  contract, RateLimit-* observability, all 5 canonical legal pages,
+  legacy URL redirects — all verified live). The 2 DNS-pending
+  domains stay operator-blocked.
+- **Box 8 — Unit + Playwright tests**: ✅ **GREEN.** Unit clean
+  since 2.11.1 (15/15 packages, exit 0). Playwright clean post-
+  2.11.2 (12 pass / 0 fail / 8 graceful skips). CI E2E job queued
+  but not blocking — gate satisfied by on-demand invocation per
+  ADR-035 ("acceptance, not aspiration").
+- Boxes 2, 3, 4, 6, 7, 9 — operator-infra-blocked or downstream of
+  operator unblocks; see follow-ups below.
 
 End-to-end outreach pipeline + ADR-014 compliance surface + ADR-017
 anti-abuse infrastructure are now code-complete: Scout → Diagnoser →
@@ -69,24 +80,26 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 quality gate (ADR-035) — in progress.** Three pre-gate
-  commits already moved boxes: 2.11.1 cleared the unit-test clause of
-  Box 8, 2.11.3 made the publicPages limiter single-curl-observable,
-  2.11.2 landed the minimum Playwright surface (Box 8 fully green).
-- **🚨 NEXT LOOP-ACTIONABLE BLOCKER: the editorial deploy is broken
-  on `main`** due to a pre-existing 2.10 route ambiguity (`/[page]`
-  in `(legal)/` collides with `/[category]` in `(site)/`). See the
-  dedicated section below. Operator's stashed local WIP is the
-  intended fix; needs to be committed as Commit 2.11.4. Until then,
-  Box 5 stays 🟡 and Boxes 6 / 7 / 9 remain blocked downstream.
-- **Concurrent operator work** unblocks Boxes 2-7 + 9 (see follow-ups
-  below). All remaining 9-box gate work per
-  `MASTER-bec-project-plan.md` § Phase 2 quality gate.
+- **Phase 2 quality gate (ADR-035) — in progress.** Five pre-gate
+  commits shipped today (2.11.1 quote-stripping fix, 2.11.2
+  Playwright surface, 2.11.3 RateLimit-* headers, 2.11.4 legal
+  route restructure + vercel.json lock-in, 2.11.5 legacy-URL 301s).
+  Box 5 is now 🟢 for the 6 live domains; Box 8 is fully 🟢. The
+  remaining boxes need **operator pipeline runs + the 2 DNS-pending
+  domains**.
+- **Next loop-actionable code work**: nothing pressing. The gate is
+  pipeline-dependent from here — outreach drafts (Box 1), Pitcher
+  sends (Boxes 2-4), published articles (Box 6), Search Console
+  setup (Box 7), Lighthouse + axe runs against live (Box 9 — the
+  Playwright a11y test already passes; full Lighthouse needs a one-
+  shot operator-run).
+- All remaining 9-box gate work per `MASTER-bec-project-plan.md`
+  § Phase 2 quality gate.
 
-## 🚨 NEW BLOCKER (2026-05-22): editorial Vercel deploy fails on `main` (ambiguous app routes)
+## ~~🚨 NEW BLOCKER (2026-05-22): editorial Vercel deploy fails on `main` (ambiguous app routes)~~ — RESOLVED in 2.11.4
 
 `bec-editorial` Vercel deploys of `bbf731b` (and every commit since
-2.10 merged on 2026-05-20) fail at:
+2.10 merged on 2026-05-20) had been failing at:
 
 ```
 Error: Ambiguous app routes detected:
@@ -111,27 +124,15 @@ Vercel project existed yet; the project was created today during the
 2.11 unblock, and the first build attempt surfaced it. The currently-
 live 6/8 domains are serving from a stale pre-2.10 successful deploy.
 
-**Fix (operator-aligned, queued)**: the operator's stashed local WIP
-(`stash@{0}: On phase-2/commit-2.11.3-ratelimit-headers: operator-
-wip-vercel-json-legal-restructure`) deletes `(legal)/[page]/{page,
-layout}.tsx` and re-implements the static legal pages to source from
-`@bec/content/legal/` directly via a new
-`apps/editorial/components/legal-document.tsx`. That WIP is the
-intended fix; the operator chose to either pop it and commit, or have
-Claude ship a minimal equivalent.
-
-**Until this lands**:
-- `bec-editorial` deploys fail at "Creating an optimized production
-  build" with the ambiguous-routes error.
-- Box 5 ("Editorial app deployed at all 8 domains via proxy.ts")
-  cannot be cleared on current `main`.
-- Boxes 6 / 7 / 9 (downstream of Box 5) stay blocked.
-- The 6 live domains continue to serve the stale pre-2.10 successful
-  deploy, which means the live Phase 2.10 acceptance checks (legal
-  pages render, cookie consent works, AI byline visible) cannot run
-  against current code — Vercel is serving an older artifact.
-
-Suggested next commit: `phase-2/commit-2.11.4-legal-route-restructure`.
+**Resolution (2.11.4, merged at `865dfc7`)**: the operator's stashed
+local WIP was popped + extended (footer + sitemap STATIC_PATHS + the
+E2E test slug list all aligned with the canonical ADR-014 slugs from
+`@bec/content/legal`) and shipped as Commit 2.11.4. `bec-editorial`
+deploys current `main` cleanly. The legacy `/cookies` and `/disclosure`
+URLs were initially left exposed (rendered the bogus `[category]`
+shell); Commit 2.11.5 added 301-permanent redirects to the canonical
+successors. Both verified live via curl + RateLimit-* header probes
++ Playwright suite.
   Boxes are acceptance criteria, not aspirations (ADR-035):
   - [ ] Checker runs all outputs through ADR-034 rubric.
   - [ ] Pitcher dispatches 10 real cold messages via Resend.
