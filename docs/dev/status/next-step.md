@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ Loop status: Phase 2 code-complete — Commits 2.1–2.11 merged + 2.11.1 pre-gate fix; Phase 2 quality gate (ADR-035) in progress
+## ✅ Loop status: Phase 2 code-complete — Commits 2.1–2.11 + pre-gate fixes 2.11.1–2.11.3 merged; Phase 2 gate (ADR-035) in progress
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
 **2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
@@ -15,15 +15,43 @@ composer (#55 `84985c2`), **2.8** Checker agent (#57 `96a9ceb`),
 **2.9** Pitcher agent + Resend (#59 `8cc0bc4`), **2.10** Legal pages
 + cookie consent (#61 `2a7b004`), **2.11** Rate limiting + Turnstile
 (#63 `426d09d`), **2.11.1** @bec/config quote-stripping pre-gate fix
-(#65 `5795249`) — see their `task-log.md` entries. Loop advances to
-the **Phase 2 quality gate (ADR-035)**, currently mid-execution.
+(#65 `5795249`), **2.11.3** RateLimit-* headers on every response
+(#67 `744b58c`), **2.11.2** Playwright E2E surface (#68 `bbf731b`)
+— see their `task-log.md` entries. Loop advances to the **Phase 2
+quality gate (ADR-035)**, currently mid-execution.
 
-### Phase 2 gate run-state (2026-05-22)
+### Phase 2 gate run-state (2026-05-22, post-2.11.2/3)
 
-Boxes attempted to date:
-- **Box 1 — Checker rubric**: ⚠️ **NOT EXERCISABLE.** Zero `outreach_messages` rows; zero `articles`. Pipeline is upstream-blocked — Editor + composer have produced nothing to score yet. Operator unblock: produce drafts via the ops-console editorial composer against the 11 `diagnosed` leads.
-- **Box 8 — Unit + Playwright tests**: 🟡 **partial.** Unit-test surface is **green** post-2.11.1 (`pnpm -r --no-bail test:unit` exit 0, 15/15 packages, zero FAIL lines on dev + CI). Playwright clause **still 🔴** — zero `@playwright/test` deps + zero `*.spec.ts` files; ADR-016 mandates Playwright E2E + visual regression + a11y. Larger commit queued next.
-- Boxes 2, 3, 4, 5, 6, 7, 9 — all operator-infra-blocked (see below).
+Operator's progress on Phase A-C of the 2.11 unblock list:
+- ✅ ops-console Vercel Build Command realigned (`vercel.json` files
+  added under operator's WIP).
+- ✅ Upstash Redis + Cloudflare Turnstile creds provisioned + set on
+  Vercel projects.
+- ✅ `bec-editorial` Vercel project created + 6/8 domains attached
+  + serving HTTP 200 (live via proxy.ts host resolve).
+- ⏳ 2/8 domains (`bestcr30a.com`, `best30a.life`) still on parking
+  IPs.
+
+Boxes attempted:
+- **Box 1 — Checker rubric**: ⚠️ NOT EXERCISABLE. Zero
+  `outreach_messages` rows; zero `articles`. Pipeline upstream-
+  blocked — Editor + composer have produced nothing to score yet.
+- **Box 5 — Editorial 8 domains via proxy.ts**: 🟡 **partial.** 6/8
+  domains live + serving (proxy.ts host-resolve + archetype routing
+  + unknown-host 404 contract all verified via Playwright). The
+  remaining 2 are operator DNS work. **Plus** a newly-surfaced
+  blocker: current `main` editorial app **cannot build on Vercel**
+  due to a pre-existing 2.10 route-ambiguity bug — see the dedicated
+  section below. The 6 live domains are serving from a stale pre-
+  2.10 successful deploy.
+- **Box 8 — Unit + Playwright tests**: ✅ **GREEN (when invoked).**
+  Unit-test surface clean since 2.11.1 (15/15 packages, exit 0).
+  Playwright surface clean post-2.11.2 (`pnpm --filter @bec/editorial
+  test:e2e` → 12 passed / 0 failed / 8 graceful skips on live
+  deploys). CI integration of the E2E job is queued but not blocking
+  — gate satisfied by on-demand invocation per ADR-035 ("acceptance,
+  not aspiration").
+- Boxes 2, 3, 4, 6, 7, 9 — all operator-infra-blocked.
 
 End-to-end outreach pipeline + ADR-014 compliance surface + ADR-017
 anti-abuse infrastructure are now code-complete: Scout → Diagnoser →
@@ -41,16 +69,69 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 quality gate (ADR-035) — in progress.** Two pre-gate
-  commits already moved a box: 2.11.1 cleared the unit-test clause of
-  Box 8. The **next loop-actionable code work** is the **Playwright
-  clause of Box 8** — landing the minimum Playwright surface ADR-016
-  requires (one project covering homepage of each archetype + article
-  page + axe-core a11y). Until that ships, Box 8 stays 🟡.
-  Suggested branch: `phase-2/commit-2.11.2-playwright-surface`.
+- **Phase 2 quality gate (ADR-035) — in progress.** Three pre-gate
+  commits already moved boxes: 2.11.1 cleared the unit-test clause of
+  Box 8, 2.11.3 made the publicPages limiter single-curl-observable,
+  2.11.2 landed the minimum Playwright surface (Box 8 fully green).
+- **🚨 NEXT LOOP-ACTIONABLE BLOCKER: the editorial deploy is broken
+  on `main`** due to a pre-existing 2.10 route ambiguity (`/[page]`
+  in `(legal)/` collides with `/[category]` in `(site)/`). See the
+  dedicated section below. Operator's stashed local WIP is the
+  intended fix; needs to be committed as Commit 2.11.4. Until then,
+  Box 5 stays 🟡 and Boxes 6 / 7 / 9 remain blocked downstream.
 - **Concurrent operator work** unblocks Boxes 2-7 + 9 (see follow-ups
   below). All remaining 9-box gate work per
   `MASTER-bec-project-plan.md` § Phase 2 quality gate.
+
+## 🚨 NEW BLOCKER (2026-05-22): editorial Vercel deploy fails on `main` (ambiguous app routes)
+
+`bec-editorial` Vercel deploys of `bbf731b` (and every commit since
+2.10 merged on 2026-05-20) fail at:
+
+```
+Error: Ambiguous app routes detected:
+Ambiguous route pattern "/[*]" matches multiple routes:
+  - /[page]     (apps/editorial/app/(legal)/[page]/page.tsx, Commit 2.10)
+  - /[category] (apps/editorial/app/(site)/[category]/page.tsx, Commit 2.4)
+```
+
+Cause: Commit 2.1 shipped placeholder static legal pages at
+`(site)/(legal)/{privacy,terms,disclosure,cookies,editorial-
+standards}/page.tsx`, intending 2.10 to "swap the body for MDX
+without changing the routes" (per the Commit 2.1 `legal-
+placeholder.tsx` header comment). Commit 2.10 instead added a NEW
+dynamic route at `(legal)/[page]/page.tsx` under a different route
+group, leaving the 2.1 stubs in place. Both groups resolve to
+`/privacy`, `/terms`, etc. at the same URL level — Next 16.2.6's
+ambiguous-route detector (correctly) refuses to build.
+
+This is **not** introduced by 2.11.x — `git log` confirms the conflict
+has been latent since 2.10. It was masked because no `bec-editorial`
+Vercel project existed yet; the project was created today during the
+2.11 unblock, and the first build attempt surfaced it. The currently-
+live 6/8 domains are serving from a stale pre-2.10 successful deploy.
+
+**Fix (operator-aligned, queued)**: the operator's stashed local WIP
+(`stash@{0}: On phase-2/commit-2.11.3-ratelimit-headers: operator-
+wip-vercel-json-legal-restructure`) deletes `(legal)/[page]/{page,
+layout}.tsx` and re-implements the static legal pages to source from
+`@bec/content/legal/` directly via a new
+`apps/editorial/components/legal-document.tsx`. That WIP is the
+intended fix; the operator chose to either pop it and commit, or have
+Claude ship a minimal equivalent.
+
+**Until this lands**:
+- `bec-editorial` deploys fail at "Creating an optimized production
+  build" with the ambiguous-routes error.
+- Box 5 ("Editorial app deployed at all 8 domains via proxy.ts")
+  cannot be cleared on current `main`.
+- Boxes 6 / 7 / 9 (downstream of Box 5) stay blocked.
+- The 6 live domains continue to serve the stale pre-2.10 successful
+  deploy, which means the live Phase 2.10 acceptance checks (legal
+  pages render, cookie consent works, AI byline visible) cannot run
+  against current code — Vercel is serving an older artifact.
+
+Suggested next commit: `phase-2/commit-2.11.4-legal-route-restructure`.
   Boxes are acceptance criteria, not aspirations (ADR-035):
   - [ ] Checker runs all outputs through ADR-034 rubric.
   - [ ] Pitcher dispatches 10 real cold messages via Resend.
