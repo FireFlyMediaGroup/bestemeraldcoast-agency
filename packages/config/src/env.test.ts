@@ -73,6 +73,39 @@ describe("parseEnv — dev", () => {
     const result = parseEnv({ ...validDev, RESEND_API_KEY: "" });
     expect(result.server.RESEND_API_KEY).toBeUndefined();
   });
+
+  it('strips a matched pair of surrounding double quotes from a value (dev-session.sh foot-gun)', () => {
+    // `dev-session.sh` splits `.env` on `=` literally, so a line like
+    // `B2_ENDPOINT="https://s3.us-west-002.backblazeb2.com"` arrives in
+    // process.env with literal quote chars on both ends. parseEnv must strip
+    // them before Zod's .url() validator runs.
+    const result = parseEnv({
+      ...validDev,
+      B2_ENDPOINT: '"https://s3.us-west-002.backblazeb2.com"',
+    });
+    expect(result.server.B2_ENDPOINT).toBe("https://s3.us-west-002.backblazeb2.com");
+  });
+
+  it("strips a matched pair of surrounding single quotes", () => {
+    const result = parseEnv({
+      ...validDev,
+      B2_ENDPOINT: "'https://s3.us-west-002.backblazeb2.com'",
+    });
+    expect(result.server.B2_ENDPOINT).toBe("https://s3.us-west-002.backblazeb2.com");
+  });
+
+  it('leaves a value with only a leading quote untouched (no foot-gun for partial quotes)', () => {
+    // No matched pair → no strip → Zod sees the literal value and rejects it
+    // as the invalid URL it is, which is the correct behavior.
+    expect(() => parseEnv({ ...validDev, B2_ENDPOINT: '"https://example.com' })).toThrow(
+      EnvValidationError,
+    );
+  });
+
+  it("collapses an empty quoted string to undefined", () => {
+    const result = parseEnv({ ...validDev, B2_ENDPOINT: '""' });
+    expect(result.server.B2_ENDPOINT).toBeUndefined();
+  });
 });
 
 describe("parseEnv — production", () => {

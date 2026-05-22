@@ -168,11 +168,32 @@ export interface ParseResult {
  * In a real shell `.env`, an empty assignment (`FOO=`) produces an empty
  * string in `process.env`. Zod's `.optional()` accepts `undefined` but not
  * `""`, so we normalize before validating.
+ *
+ * We also strip a matched pair of surrounding `"…"` / `'…'` quote characters.
+ * Why: `scripts/dev-session.sh` (the documented loop session-launcher)
+ * intentionally splits each `.env` line on the FIRST `=` only and exports the
+ * value literally — that preserves `&` in Neon connection strings (the bug
+ * `dev-session.sh` exists to prevent) but also preserves any quote characters
+ * the operator wrote in their `.env`. So `B2_ENDPOINT="https://…"` ends up in
+ * `process.env` with literal quote chars surrounding the URL, and Zod's
+ * `.url()` (and every other Zod string validator with a format check) rejects
+ * it. Stripping a single matched surrounding quote pair is safe — values that
+ * legitimately begin OR end with a quote but not both pass through unchanged,
+ * and the empty-string → undefined collapse below handles `""` / `''`.
  */
 function normalizeEnv(raw: NodeJS.ProcessEnv): Record<string, string | undefined> {
   const out: Record<string, string | undefined> = {};
   for (const [k, v] of Object.entries(raw)) {
-    out[k] = v === "" ? undefined : v;
+    let normalized: string | undefined = v;
+    if (
+      typeof normalized === "string" &&
+      normalized.length >= 2 &&
+      (normalized.startsWith('"') || normalized.startsWith("'")) &&
+      normalized[0] === normalized[normalized.length - 1]
+    ) {
+      normalized = normalized.slice(1, -1);
+    }
+    out[k] = normalized === "" ? undefined : normalized;
   }
   return out;
 }
