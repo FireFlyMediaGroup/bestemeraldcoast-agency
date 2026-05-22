@@ -1385,3 +1385,92 @@ and the AI-disclosure byline already in place from Commit 2.3.
   "Editorial deploy acceptance — DEFERRED"). Local `next build`
   sandbox-impossible — CI/Vercel authoritative.
 
+## 2026-05-22 — Phase 2 / Commit 2.11: Rate limiting + Turnstile (ADR-017)
+
+Lands the ADR-017 anti-abuse infrastructure for the editorial network.
+Pure-implementation commit — no ADR changes. Forward-compatible scope:
+the acceptance lines that need a live signup endpoint defer to Commit
+3.3, where `apps/newsletter-public/api/subscribe` consumes the helpers
+landed here.
+
+- **New `@bec/rate-limit` workspace package**: all six ADR-017 surface
+  limiters in one module (`newsletterSignup` 3/1h, `contactForm` 5/24h,
+  `magicLink` 5/15m, `outreachRedirect` 100/1m, `agentApi` 60/1m,
+  `publicPages` 1000/1m). Same fail-open / build-inert / dynamic
+  `@bec/config` pattern as the prior `apps/ops-console/lib/ratelimit.ts`
+  (which had two of the six). Plus `verifyTurnstile()` and
+  `validateEmail()` (syntax + MX + disposable-domain blocklist via
+  the `disposable-email-domains` npm package, silent-reject at the
+  caller per ADR-017). 18-test vitest suite covering all three modules:
+  fail-open semantics, 429-header shape, Turnstile pass/reject/
+  network-error paths, email syntax + disposable + MX + DNS-error
+  paths.
+- **`apps/editorial/proxy.ts`** now calls
+  `checkRateLimit("publicPages", clientIp)` before host resolution as
+  a global DDoS guard. Skippable paths (`_next`, OG, favicon) still
+  short-circuit first. Fail-open preserved when Upstash unset.
+  `clientIp(request)` helper extracts the first comma-separated entry
+  of `x-forwarded-for`, falling back to `x-real-ip` then `"unknown"`.
+- **`apps/ops-console/lib/ratelimit.ts`** becomes a thin re-export of
+  `@bec/rate-limit`. Existing `agentApi` + `magicLink` consumers
+  (`agent-handler.ts`) keep the same import surface — zero behavior
+  change; the migration is non-breaking. Prefixes (`rl:agent` /
+  `rl:magiclink`) and rate values preserved bit-for-bit so any in-
+  flight Redis windows roll forward without invalidation.
+- **`docs/runbooks/domain-setup.md`** (new): operator runbook for
+  attaching the 8 editorial domains to the `bec-editorial` Vercel
+  project + per-domain Google Search Console TXT verification (the
+  ADR-017 Search Console step is operator follow-up, tracked per-
+  domain in a checklist; not commit-blocking).
+- **`docs/runbooks/ops-console-deploy.md`** update — adds a warning
+  about hand-written explicit-filter Vercel Build Commands silently
+  breaking when a new workspace dep is added (the 2.11 trip-wire:
+  the existing Vercel project had drifted to `--filter=@bec/db
+  --filter=@bec/config --filter=@bec/logger`, which failed
+  `Module not found: Can't resolve '@bec/rate-limit'` because the
+  explicit list didn't cover the new dep). The runbook's canonical
+  `--filter=@bec/ops-console` form auto-follows the dep graph and
+  is the only correct value.
+- Type: Phase 2 plan commit (RALPH-LOOP §69).
+- Branch: `phase-2/commit-2.11-rate-limit-turnstile`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/63
+- Merge SHA: `426d09da04b9b822073c5effadc0038cfe7c8183`
+- Review: required CI all green (lint 22 s / type-check 18 s /
+  unit-tests 32 s). cubic + CodeRabbit pending at merge (advisory
+  per §7b–§7e — required CI cleared, auto-merge fired instantly).
+  Vercel `bec-storybook` green. Vercel `bec-ops-console` **failed**
+  — operator-managed Build Command drift, see Acceptance note below;
+  advisory, did not block merge. Vercel Preview Comments green.
+  Zero posted CR/cubic findings at merge time.
+- Files: `packages/rate-limit/{package.json,tsconfig.json,vitest.config.ts,
+  test-setup.ts,src/{index,ratelimit,turnstile,email,ratelimit.test,
+  turnstile.test,email.test}.ts}` (12 new files),
+  `apps/editorial/{package.json,proxy.ts}`,
+  `apps/ops-console/{package.json,lib/ratelimit.ts}`,
+  `docs/runbooks/{domain-setup.md (new),ops-console-deploy.md}`,
+  `pnpm-lock.yaml`. 18 files total, +864 / −113 in the impl commit
+  + 1 file / +2 / −1 in the runbook follow-up.
+- Validation (Node 22): `pnpm --filter @bec/rate-limit test:unit`
+  18/18 green; `type-check` clean for rate-limit + ops-console +
+  editorial; `build` of rate-limit emits dist/ cleanly. CI's
+  authoritative results match: lint/type-check/unit-tests green.
+- **Acceptance**: forward-compatible. The master-plan acceptance
+  line ("10 signups from one IP → 429; Turnstile renders; disposable
+  emails silently rejected") requires a live signup endpoint —
+  `apps/newsletter-public` is still a noop placeholder (lands
+  Commit 3.2 / 3.3). The three acceptance items **defer to Commit
+  3.3**, where `/api/subscribe` consumes the helpers landed here.
+  This is the next-step.md-ratified scope ("forward-compatible
+  shared rate-limit util in `packages/rate-limit`"). The Search
+  Console TXT records are operator-only and deferred per the
+  runbook (§3 tracking table).
+- **Operator follow-up tied to 2.11** (does NOT block the Phase-2
+  gate but does block the next ops-console deploy off `main`):
+  Vercel `bec-ops-console` → Settings → Build & Deployment → Build
+  Command must be reset to
+  `cd ../.. && pnpm turbo run build --filter=@bec/ops-console`
+  (drop the explicit `--filter=@bec/db --filter=@bec/config
+  --filter=@bec/logger` list). PR #63 carries the runbook update
+  + a PR comment with the exact action. Until this is done, every
+  ops-console deploy fails the same way.
+
