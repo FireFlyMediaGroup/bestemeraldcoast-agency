@@ -26,6 +26,9 @@ importers:
       '@bec/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@bec/rate-limit':
+        specifier: workspace:*
+        version: link:../../packages/rate-limit
       '@bec/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -96,6 +99,9 @@ importers:
       '@bec/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@bec/rate-limit':
+        specifier: workspace:*
+        version: link:../../packages/rate-limit
       '@bec/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -324,6 +330,40 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.21.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.19)(lightningcss@1.32.0)(terser@5.47.1)
+
+  packages/rate-limit:
+    dependencies:
+      '@bec/config':
+        specifier: workspace:*
+        version: link:../config
+      '@bec/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@upstash/ratelimit':
+        specifier: ^2.0.8
+        version: 2.0.8(@upstash/redis@1.38.0)
+      '@upstash/redis':
+        specifier: ^1.38.0
+        version: 1.38.0
+      disposable-email-domains:
+        specifier: ^1.0.62
+        version: 1.0.62
+    devDependencies:
+      '@bec/config-eslint':
+        specifier: workspace:*
+        version: link:../config-eslint
+      '@bec/config-tsconfig':
+        specifier: workspace:*
+        version: link:../config-tsconfig
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.19.19
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -3126,6 +3166,9 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  disposable-email-domains@1.0.62:
+    resolution: {integrity: sha512-LBQvhRw7mznQTPoyZbsmYeNOZt1pN5aCsx4BAU/3siVFuiM9f2oyKzUaB8v1jbxFjE3aYqYiMo63kAL4pHgfWQ==}
 
   doctrine@3.0.0:
     resolution: {integrity: sha512-yS+Q5i3hBf7GBkd4KG8a7eBNNWNGLTaEwwYWUijIYM7zrlYDM0BFXHjjPWlWZ1Rg7UaddZeIDmi9jF3HmqiQ2w==}
@@ -7053,6 +7096,8 @@ snapshots:
   dequal@2.0.3: {}
 
   detect-libc@2.1.2: {}
+
+  disposable-email-domains@1.0.62: {}
 
   doctrine@3.0.0:
     dependencies:

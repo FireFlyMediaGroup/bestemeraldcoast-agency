@@ -18,6 +18,7 @@
     "@bec/db": "workspace:*",
     "@bec/email": "workspace:*",
     "@bec/logger": "workspace:*",
+    "@bec/rate-limit": "workspace:*",
     "@bec/ui": "workspace:*",
     "@auth/drizzle-adapter": "^1.11.2",
     "@sentry/nextjs": "^10.53.1",
