@@ -20,6 +20,12 @@ storybook-static/
 coverage/
 *.lcov
 
+# Playwright (ADR-016 E2E) — reports + per-run traces + downloaded browsers
+playwright-report/
+test-results/
+**/.playwright/
+playwright/.cache/
+
 # ──────────────────────────────────────────────────────────────────────
 # Environment files — broad catch, then whitelist the documented examples
 # ──────────────────────────────────────────────────────────────────────
