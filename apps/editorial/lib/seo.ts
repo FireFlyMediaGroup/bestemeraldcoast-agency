@@ -9,13 +9,15 @@ export interface SiteRef {
   domain: string;
 }
 
+// Slugs match the canonical ADR-014 page list in `@bec/content/legal` and
+// the SiteFooter DEFAULT_LINKS order — keep these three lists aligned.
 const STATIC_PATHS = [
   "/",
   "/events",
   "/privacy",
   "/terms",
-  "/disclosure",
-  "/cookies",
+  "/advertiser-disclosure",
+  "/cookie-policy",
   "/editorial-standards",
 ];
 

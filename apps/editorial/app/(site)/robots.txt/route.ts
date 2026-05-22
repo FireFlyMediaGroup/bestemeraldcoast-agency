@@ -4,8 +4,8 @@ import { getSiteContext } from "@/lib/site-context";
 // Per-domain robots.txt (ADR-009). Lives in the (site) group so proxy.ts
 // injects the resolved host/site context (Commit 2.4 removed robots.txt
 // from proxy's skip set for exactly this). Per-request, per-domain — never
-// statically shared across hosts.
-export const dynamic = "force-dynamic";
+// statically shared across hosts. Stays dynamic via getSiteContext() (no
+// `export const dynamic` — incompatible with cacheComponents in Next 16).
 
 export async function GET(): Promise<Response> {
   const site = await getSiteContext();

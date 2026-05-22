@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 
-import { LegalPlaceholder } from "../legal-placeholder";
+import { LegalDocument, legalMetadata } from "@/components/legal-document";
 
-export const metadata: Metadata = { title: "Terms of Service" };
+export async function generateMetadata(): Promise<Metadata> {
+  return legalMetadata("terms");
+}
 
 export default function TermsPage() {
-  return <LegalPlaceholder title="Terms of Service" />;
+  return <LegalDocument slug="terms" />;
 }

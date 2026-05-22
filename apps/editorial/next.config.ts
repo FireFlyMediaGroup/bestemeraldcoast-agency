@@ -7,13 +7,13 @@ import type { NextConfig } from "next";
 const workspaceRoot = path.resolve(import.meta.dirname, "..", "..");
 
 const nextConfig: NextConfig = {
-  // Commit 2.3: Cache Components. Next 16 requires this flag for the
-  // `'use cache'` directive + `cacheTag`/`cacheLife` used by the article
-  // data loader (lib/article.ts). Under cacheComponents, data is cached
-  // only where explicitly marked `'use cache'`; routes that read request
-  // APIs (proxy-set headers via getSiteContext) remain dynamic — which is
-  // already how every (site) route behaves.
-  cacheComponents: true,
+  // Commit 2.3: Cache Components + `'use cache'` on the article loader
+  // (lib/article.ts). Disabled until every (site) route that reads proxy
+  // headers is wrapped for Cache Components' Suspense contract — the
+  // multi-tenant host router needs request-time site context on every page
+  // (see (site)/layout.tsx). Re-enable in a dedicated commit once the
+  // PPR/Suspense split is wired (2.11.2+).
+  cacheComponents: false,
   // Transpile the workspace TS packages we import JS from. @bec/ui is back
   // (Commit 2.2): editorial now imports its Magazine components, not just
   // its CSS. (The Commit 2.1 `_not-found` build crash was later proven to

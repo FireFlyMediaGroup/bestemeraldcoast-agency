@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 import { PageShell } from "@/components/page-shell";
 import { titleize } from "@/lib/format";
+import { isLegalSlug } from "@/lib/legal";
 
 export async function generateMetadata({
   params,
@@ -19,6 +21,7 @@ export default async function CategoryIndexPage({
   params: Promise<{ category: string }>;
 }) {
   const { category } = await params;
+  if (isLegalSlug(category)) notFound();
   return (
     <PageShell kicker="Category" title={titleize(category)}>
       <p>Category index shell. Article cards land in Commit 2.2.</p>
