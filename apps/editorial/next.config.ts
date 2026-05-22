@@ -14,6 +14,19 @@ const nextConfig: NextConfig = {
   // (see (site)/layout.tsx). Re-enable in a dedicated commit once the
   // PPR/Suspense split is wired (2.11.2+).
   cacheComponents: false,
+  // 2.11.5 — preserve the old /cookies + /disclosure URLs (Commit 2.1
+  // placeholders) after the 2.11.4 restructure aligned the routes with the
+  // canonical ADR-014 slugs in @bec/content/legal. Without these the old
+  // URLs fall through to the `(site)/[category]` dynamic route and render a
+  // bogus "Category: Cookies" / "Category: Disclosure" page — confusing for
+  // anyone with bookmarks and a search-result regression on already-indexed
+  // pages. 301 permanent: tells crawlers + browsers the canonical URL moved.
+  async redirects() {
+    return [
+      { source: "/cookies", destination: "/cookie-policy", permanent: true },
+      { source: "/disclosure", destination: "/advertiser-disclosure", permanent: true },
+    ];
+  },
   // Transpile the workspace TS packages we import JS from. @bec/ui is back
   // (Commit 2.2): editorial now imports its Magazine components, not just
   // its CSS. (The Commit 2.1 `_not-found` build crash was later proven to
