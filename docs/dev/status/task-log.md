@@ -1662,6 +1662,134 @@ deployed at all 8 domains via proxy.ts") cannot complete on the
 current `main` — the live 6/8 domains are serving from a stale
 pre-2.10 successful deploy.
 
+## 2026-05-22 — Phase 2 / Commit 2.11.4: legal route restructure + Vercel build-cmd lock-in (unblocks editorial deploy)
+
+Off-plan pre-gate commit. Resolves the ambiguous-routes blocker
+discovered in the 2.11.2/3 task-log entry above, and permanently
+fixes the Vercel build-command drift with in-repo `vercel.json`
+files.
+
+**Legal route restructure**:
+- DELETES the conflicting `(legal)/[page]/page.tsx` +
+  `(legal)/layout.tsx` dynamic route from 2.10.
+- DELETES the now-superseded `(site)/(legal)/{cookies,
+  disclosure}/page.tsx` placeholders + `legal-placeholder.tsx`
+  from 2.1.
+- ADDS `apps/editorial/components/legal-document.tsx` — the new
+  shared component. Same `getEditorialLegalPage(slug)` + markdown
+  content path as the deleted 2.10 dynamic route, just invoked
+  statically from five known-slug page files.
+- ADDS `(site)/(legal)/{advertiser-disclosure,cookie-policy}/
+  page.tsx` — completes the five ADR-014 routes at the canonical
+  slugs from `@bec/content/legal`.
+- REFACTORS `(site)/(legal)/{privacy,terms,editorial-standards}/
+  page.tsx` to call `<LegalDocument slug=…/>`.
+- ADDS narrow-measure `(site)/(legal)/layout.tsx` (.legal-prose).
+- ADDS `notFound()` guard on `(site)/[category]/page.tsx` for legal
+  slugs (defense-in-depth).
+
+**URL alignment with @bec/content/legal canonical slugs**: `/cookies`
+→ `/cookie-policy`, `/disclosure` → `/advertiser-disclosure`.
+Downstream refs updated:
+- `packages/ui/components/site-footer.tsx` — DEFAULT_LINKS labels
+  + hrefs.
+- `apps/editorial/lib/seo.ts` — STATIC_PATHS.
+- `apps/editorial/tests/e2e/article.spec.ts` — LEGAL_PATHS.
+(`cookie-consent.tsx` already used `/cookie-policy` — unchanged.)
+
+**Vercel build-command lock-in**: `apps/editorial/vercel.json` +
+`apps/ops-console/vercel.json` pin
+`pnpm turbo run build --filter=@bec/{editorial,ops-console}` so
+future workspace deps land via the dep graph automatically. End of
+the dashboard-drift foot-gun the 2.11 commit surfaced.
+
+**cacheComponents: false** — Next 16's Cache Components requires every
+(site) route reading proxy-injected headers (`getSiteContext()`) to
+be wrapped for the Suspense contract. Editorial is multi-tenant —
+every page reads those — so enabling cacheComponents without the
+full PPR/Suspense wiring breaks production builds. Parks article-
+loader `'use cache'` with a documented re-enable plan post-2.11.
+Removes two now-redundant `export const dynamic = "force-dynamic"`
+lines that were Next-16-incompatible with cacheComponents.
+
+- Type: off-plan pre-gate remediation (RALPH-LOOP § Git Discipline).
+- Branch: `phase-2/commit-2.11.4-legal-route-restructure`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/70
+- Merge SHA: `865dfc7fa172c42a3e942abb96efec6e3cf976c6`
+- Review: required CI all green (lint 22 s / type-check 27 s /
+  unit-tests 35 s). Auto-merge fired instantly. **First successful
+  `Vercel – bec-editorial` deploy** (every commit since 2.10 had
+  failed at the ambiguous-routes detector); `Vercel – bec-ops-
+  console` also green for the first time since 2.11 introduced
+  `@bec/rate-limit`. The auto-created `Vercel – bestemeraldcoast-
+  agency` project (Vercel scans the repo root + makes a project
+  per detected app) failed at the repo root, which has no Next
+  app — pre-existing noise, operator can delete that project.
+- Files: 23 files, +95 / −156. Key: `apps/editorial/{components/
+  legal-document.tsx, app/(legal)/[page]/page.tsx (deleted),
+  app/(legal)/layout.tsx (deleted), app/(site)/(legal)/{advertiser-
+  disclosure,cookie-policy}/page.tsx (new), app/(site)/(legal)/
+  layout.tsx (new), app/(site)/(legal)/{cookies,disclosure}/page.tsx
+  (deleted), app/(site)/(legal)/legal-placeholder.tsx (deleted),
+  app/(site)/(legal)/{privacy,terms,editorial-standards}/page.tsx
+  (refactored), app/(site)/[category]/page.tsx (legal guard),
+  app/(site)/{robots.txt,sitemap.xml}/route.ts (drop force-dynamic),
+  lib/{article.ts,seo.ts}, next.config.ts, tests/e2e/article.spec.ts,
+  vercel.json (new)}`, `apps/ops-console/{.gitignore,vercel.json}` (new),
+  `packages/ui/components/site-footer.tsx`, `.gitignore`.
+- Validation (Node 22): `pnpm -r --no-bail test:unit` exit 0 (15/15);
+  type-check clean for editorial + ui; Playwright suite 12 pass / 0
+  fail / 8 graceful skips (unchanged from 2.11.2); local
+  `pnpm --filter @bec/editorial build` progresses past the ambiguity
+  detector cleanly (still dies at the documented sandbox-only React-
+  19 prerender bug — CI/Vercel build is authoritative).
+- **Acceptance (verified post-deploy)**:
+  - ✅ Editorial Vercel deploy succeeds.
+  - ✅ All 6 live domains now serve current code with the canonical
+    legal URLs: `/privacy`, `/terms`, `/advertiser-disclosure`,
+    `/cookie-policy`, `/editorial-standards` all return 200.
+  - ✅ Live 2.11.3 `RateLimit-*` headers visible:
+    `RateLimit-Limit: 1000 / RateLimit-Remaining: 999 /
+    RateLimit-Reset: <60s>` on every probed homepage.
+  - ✅ Footer renders canonical labels (`Advertiser Disclosure`,
+    `Cookie Policy`).
+  - ⚠️ The old `/cookies` and `/disclosure` URLs are exposed and
+    fall through to the `[category]` shell — small live regression
+    queued for 2.11.5 fix.
+
+## 2026-05-22 — Phase 2 / Commit 2.11.5: 301 redirects for legacy legal URLs (2.11.4 follow-up)
+
+Quick follow-up to 2.11.4. After aligning the legal routes with
+the canonical ADR-014 slugs, the old URLs were left exposed and
+fell through to `(site)/[category]` — rendering a bogus "Category:
+Cookies" / "Category: Disclosure" shell page on the live site.
+Confusing for bookmarks, a search-result regression on already-
+indexed pages.
+
+Adds `redirects()` config in `apps/editorial/next.config.ts` with
+two 308-permanent rules (Next defaults `permanent: true` to 308,
+which has identical SEO semantics to 301 and is the recommended
+modern status):
+  /cookies     → /cookie-policy
+  /disclosure  → /advertiser-disclosure
+
+- Type: off-plan pre-gate cleanup.
+- Branch: `phase-2/commit-2.11.5-legal-url-redirects`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/71
+- Merge SHA: `21f032d2b21ab2899071e80eab5288664eb7485e`
+- Review: required CI all green (lint 23 s / type-check 24 s /
+  unit-tests 34 s). Auto-merge fired instantly.
+- Files: `apps/editorial/next.config.ts` — 1 file, +13 / −0.
+- Validation (Node 22): `pnpm --filter @bec/editorial type-check`
+  clean (redirects() field is typed via NextConfig).
+- **Acceptance (verified post-deploy)**:
+  - ✅ `curl -sI https://bestpensacola.com/cookies` → 308 with
+    `Location: /cookie-policy`.
+  - ✅ `curl -sI https://bestpensacola.com/disclosure` → 308 with
+    `Location: /advertiser-disclosure`.
+
+
+
 
 
 
