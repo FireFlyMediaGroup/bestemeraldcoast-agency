@@ -105,6 +105,51 @@ export function localBusinessJsonLd(
 }
 
 /**
+ * Network-level Organization schema for the publisher. Identical across every
+ * domain — Best Emerald Coast is the publisher behind all 8 sites. Per
+ * ADR-031 / ADR-014 publisher disclosure: the brand is the network.
+ */
+export function organizationJsonLd(site: SiteInfo): JsonLd {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://bestemeraldcoast.com/#organization",
+    name: "Best Emerald Coast",
+    alternateName: site.name,
+    url: "https://bestemeraldcoast.com/",
+    logo: "https://bestemeraldcoast.com/opengraph-image",
+  };
+}
+
+/**
+ * Per-domain WebSite schema. Surfaces in Google Rich Results as a sitelinks
+ * search box once the site has enough pages indexed. `potentialAction`
+ * points at the per-domain (future) /search endpoint — when /search lands,
+ * Google starts rendering an inline search box on SERP. Until then it is
+ * harmless + forward-compatible. The `@id` is per-domain so Google can
+ * disambiguate across the 8 sites.
+ */
+export function websiteJsonLd(site: SiteInfo): JsonLd {
+  const url = abs(site.domain, "/");
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${url}#website`,
+    name: site.name,
+    url,
+    publisher: { "@id": "https://bestemeraldcoast.com/#organization" },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: abs(site.domain, "/search?q={search_term_string}"),
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+}
+
+/**
  * Serialize a JSON-LD object for safe embedding inside a
  * `<script type="application/ld+json">`. `<` / `>` / `&` are unicode-escaped
  * so document-sourced strings can never break out of the script element or
