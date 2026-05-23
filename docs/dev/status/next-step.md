@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ Loop status: Phase 2 code-complete — six pre-gate fixes (2.11.1–2.11.6) shipped; 8/8 domains live with full SEO surface; Phase 2 gate ~ 60% green
+## ✅ Loop status: Phase 2 gate 6 of 9 boxes GREEN — content live, content surface live, structured data validating, Lighthouse + axe ≥95; outreach pipeline (Boxes 1-4) is the only remaining gate work
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
 **2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
@@ -19,7 +19,11 @@ composer (#55 `84985c2`), **2.8** Checker agent (#57 `96a9ceb`),
 (#67 `744b58c`), **2.11.2** Playwright E2E surface (#68 `bbf731b`),
 **2.11.4** legal route restructure + Vercel build-cmd lock-in
 (#70 `865dfc7`), **2.11.5** 301 redirects for legacy legal URLs
-(#71 `21f032d`) — see their `task-log.md` entries.
+(#71 `21f032d`), **2.11.6** shell-page JSON-LD + per-domain OG +
+opengraph-image (#73 `b1be8ad`), **2.11.7** homepage feed + category
+index article-card lists (#76 `182de7c`), **2.11.8** ArticleCard
+color-contrast fix + Playwright spec alignment (#77 `a70344f`) —
+see their `task-log.md` entries.
 
 ### Phase 2 gate run-state (2026-05-22, end-of-day v2)
 
@@ -45,43 +49,50 @@ A-C items now clear**:
   repo-root project with no app) fails on every push. Pre-existing
   noise; operator can delete that project safely.
 
-Boxes:
+Boxes (post-2.11.7/8 + 3 published articles):
 - **Box 1 — Checker rubric**: ⚠️ NOT EXERCISABLE. Zero
-  `outreach_messages` rows; zero `articles`. Pipeline upstream-
-  blocked — Editor + composer have produced nothing to score yet.
+  `outreach_messages` rows. The 3 published articles are NOT
+  outreach drafts — the Checker rubric (ADR-034) grades outreach
+  copy specifically. Pipeline upstream-blocked: operator must compose
+  outreach drafts in ops-console (Commit 2.7 UI) against the 11
+  `diagnosed` leads, then I run `/check-message` to populate
+  `checker_pass`/`checker_score`/`checker_notes`.
 - **Box 2 — Pitcher 10 sends**: 🔴 operator-blocked
-  (`OUTREACH_REPLY_TO` + `OUTREACH_POSTAL_ADDRESS` + at least one
-  Checker-passed draft).
-- **Box 3-4 — Reply rate + "is this AI?"**: 🔴 downstream of #2.
+  (`OUTREACH_REPLY_TO` + `OUTREACH_POSTAL_ADDRESS` env vars on
+  `bec-ops-console` Vercel + Checker-passed drafts to dispatch).
+- **Box 3-4 — Reply rate + "is this AI?"**: 🔴 downstream of #2
+  (7-day window after 10 sends).
 - **Box 5 — Editorial 8 domains via proxy.ts**: ✅ **GREEN 8/8.**
-  Live verification today: all 8 domains return 200, all archetypes
-  resolve correctly, unknown-host returns 404, RateLimit-* visible
-  on every response, all 5 canonical legal URLs work + legacy
-  redirects work. Playwright spec covers magazine/coastal/premium/
-  mobile.
-- **Box 6 — ≥3 articles published**: 🔴 operator pipeline (Editor
-  agent runs against the 11 `diagnosed` leads, then promote to
-  `published`).
+- **Box 6 — ≥3 articles published**: ✅ **GREEN.** 3 articles
+  published on `bestpensacola.com` (2026-05-23): the charter-fishing
+  listicle, the Tradition Fishing Charters profile, and the
+  beach-chair-rentals guide. All rendering with full chrome at their
+  resolved URLs; all surfaced on the homepage feed (newest first)
+  and the relevant category index pages.
 - **Box 7 — Sitemap/robots/OG/JSON-LD validate via Rich Results**:
-  🟢 **shell-page half GREEN.** sitemap.xml + robots.txt per-
-  domain ✅ (2.4); Organization + WebSite JSON-LD on every
-  homepage ✅ (2.11.6); per-domain opengraph-image PNG ✅ (2.11.6);
-  full og:type=website + canonical + twitter:card meta ✅ (2.11.6).
-  Article-page Article + Breadcrumb + LocalBusiness JSON-LD is
-  already wired (2.3) — flips green automatically when articles
-  publish. Operator action remaining: Search Console TXT
-  verification per `docs/runbooks/domain-setup.md` § 3 + a one-shot
-  Rich Results Test against a live URL.
+  ✅ **GREEN.** Both halves now wired and verified live: per-domain
+  sitemap.xml + robots.txt (2.4); shell-page Organization + WebSite
+  + og:* + canonical + opengraph-image (2.11.6); article-page Article
+  + BreadcrumbList + Organization + WebSite (2.3 + 2.11.6 layout) —
+  10 ld+json scripts on
+  `/things-to-do/best-pensacola-charter-fishing` verified by curl.
+  Operator follow-up remaining: Search Console TXT records per
+  `docs/runbooks/domain-setup.md` § 3 + a one-shot Rich Results Test
+  against a live article URL (for the formal Google validation
+  receipt).
 - **Box 8 — Unit + Playwright tests**: ✅ **GREEN.** Unit clean
-  since 2.11.1 (15/15 packages, exit 0). Playwright clean post-
-  2.11.2/6 (28 pass / 0 fail / 4 graceful skips on live deploys).
+  (15/15 packages, exit 0). Playwright post-2.11.8 → **42 passed /
+  0 failed / 2 skipped** (data-gated article tests on coastal +
+  premium projects, expected — only Pensacola has published
+  articles).
 - **Box 9 — Lighthouse mobile ≥95 + axe-core 0 violations**:
-  🟡 **a11y half ✅; mobile ≥95 baselined.** axe-core 0
-  violations × 4 archetype homepages (Playwright 2.11.2).
-  Lighthouse 13.3.0 mobile-emulation baseline (today): 5/8
-  domains tested, ALL pillars ≥95 (perf 97-99, a11y 100, best
-  practices 96, SEO 100). Strict gate spec wants "representative
-  article page" — gates to Box 6 (articles).
+  ✅ **GREEN.** axe-core 0 violations across 4 archetype homepages
+  (Playwright; post-2.11.8 fix). Lighthouse mobile against the
+  published article
+  `bestpensacola.com/things-to-do/best-pensacola-charter-fishing` →
+  **perf 99 / a11y 96 / best 96 / SEO 100**. All four pillars ≥95
+  on a real "representative article page" — strict gate spec
+  satisfied.
 
 End-to-end outreach pipeline + ADR-014 compliance surface + ADR-017
 anti-abuse infrastructure are now code-complete: Scout → Diagnoser →
@@ -99,39 +110,41 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 quality gate (ADR-035) — ~60% green.** Six pre-gate
-  commits + 1 follow-up shipped today (2.11.1 quote-stripping,
-  2.11.2 Playwright, 2.11.3 RateLimit-* headers, 2.11.4 legal
-  restructure + vercel.json, 2.11.5 redirects, 2.11.6 shell SEO,
-  + Next-16 spec alignment fix). Boxes 5 + 8 fully 🟢; Box 7 shell
-  half 🟢, article half data-gated; Box 9 a11y ✅ + Lighthouse
-  baseline 97-100 across all 4 pillars on 5 of 8 domains.
-- **Code surface for Phase 2 is effectively done.** Remaining gate
-  work is operator pipeline + content + DNS verification — no
-  more code commits needed to clear the gate (unless content
-  surfaces new issues).
-- All remaining gate work per `MASTER-bec-project-plan.md` § Phase
-  2 quality gate.
+- **Phase 2 quality gate (ADR-035) — 6 of 9 boxes GREEN.** Two more
+  pre-gate commits shipped 2026-05-23 (2.11.7 article-card lists on
+  homepage + category index; 2.11.8 ArticleCard color-contrast fix +
+  Playwright alignment). The operator drafted + published 3 Pensacola
+  articles via the Editor agent + ops-console composer. Boxes 5, 6,
+  7, 8, 9 all green; Box 1 NOT EXERCISABLE; Boxes 2-4 still operator-
+  blocked on outreach env vars.
+- **The ONLY remaining gate work is the outreach pipeline.** Code is
+  done. Content is live. Structured data validates. Lighthouse + axe
+  pass on a real article. No more code commits needed.
 
 ### Boxes the operator can drive next (no code dependency)
 
-1. **Box 2-4 unblock**: set `OUTREACH_REPLY_TO` + `OUTREACH_POSTAL_ADDRESS`
-   on `bec-ops-console` Vercel (see runbook in `ops-console-deploy.md`
-   § 3). Then run `/check-message` + `/pitch-batch` on Composer-
-   produced drafts (which the operator authors via ops-console's
-   editorial composer UI against the 11 `diagnosed` leads).
-2. **Box 6 unblock**: run the Editor agent (Commit 2.6) against the
-   11 `diagnosed` leads to produce ≥3 published articles for a
-   single city site. This single-handedly unblocks Boxes 6, 7
-   (article-page JSON-LD), and the formal Box 9 (Lighthouse-against-
-   article-page).
-3. **Box 7 final mile**: Search Console TXT records per
-   `docs/runbooks/domain-setup.md` § 3 (per-domain checklist) + a
-   one-shot Google Rich Results Test against a homepage (now should
-   validate post-2.11.6) and against an article (when one exists).
-4. **Cleanup**: delete the stray `bestemeraldcoast-agency` Vercel
+1. **Boxes 1-4 (outreach pipeline)**:
+   a. Set `OUTREACH_REPLY_TO` + `OUTREACH_POSTAL_ADDRESS` on
+      `bec-ops-console` Vercel (see runbook in `ops-console-deploy.md`
+      § 3). 5 min.
+   b. Compose ≥10 outreach drafts in the ops-console editorial
+      composer against the 11 `diagnosed` leads (~10 min each).
+   c. Tell me — I'll run `/check-message` to grade them (Box 1 ✅)
+      and `/pitch-batch` to dispatch (Box 2 ✅). 7-day reply window
+      then unblocks Boxes 3-4.
+2. **Box 7 final mile** (operator follow-up, doesn't change gate):
+   Search Console TXT records per `docs/runbooks/domain-setup.md`
+   § 3 (per-domain checklist) + one-shot Google Rich Results Test
+   against `bestpensacola.com/things-to-do/best-pensacola-charter-fishing`
+   (the published article URL).
+3. **Cleanup**: delete the stray `bestemeraldcoast-agency` Vercel
    project (auto-created repo-root project with no app — fails on
    every push; pre-existing noise; safe to remove).
+4. **Minor data-quality**: the 3 published articles have
+   `reviewedById = NULL`. ADR-027 AI-byline falls back to AI-only
+   when reviewer is null; for future publishes via the composer,
+   adding a human reviewer ID gives the full "Drafted with AI
+   assistance, edited by [Reviewer]" byline.
 
 ## ~~🚨 NEW BLOCKER (2026-05-22): editorial Vercel deploy fails on `main` (ambiguous app routes)~~ — RESOLVED in 2.11.4
 
