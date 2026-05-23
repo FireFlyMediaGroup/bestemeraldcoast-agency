@@ -59,7 +59,13 @@ export function ArticleCard({
         ) : null}
         <div className="p-4">
           {kicker ? (
-            <p className="m-0 font-body text-xs font-semibold uppercase tracking-widest text-accent">
+            // ADR-027/036 a11y: kicker is small uppercase text — WCAG 2 AA
+            // requires ≥4.5:1 contrast for text under 18pt. The accent
+            // color tokens are tuned for bold display use; on a near-white
+            // archetype background they fall below the small-text bar.
+            // Switch to the muted-fg token (same as PageShell's kicker)
+            // which is contrast-checked across all 3 archetype palettes.
+            <p className="m-0 font-body text-xs font-semibold uppercase tracking-widest text-muted-fg">
               {kicker}
             </p>
           ) : null}

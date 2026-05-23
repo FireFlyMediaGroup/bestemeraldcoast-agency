@@ -15,6 +15,8 @@
 
 import { expect, test } from "@playwright/test";
 
+import { fixtureFor } from "./fixtures";
+
 const LEGACY_HOMEPAGE_PLACEHOLDER = "real content arrives in Phase 2";
 const LEGACY_CATEGORY_PLACEHOLDER = "Article cards land in Commit 2.2";
 
@@ -61,16 +63,18 @@ test.describe.parallel("homepage feed (Commit 2.11.7)", () => {
 });
 
 test.describe.parallel("category index (Commit 2.11.7)", () => {
-  // One concrete category per archetype that exists in the seeded taxonomy.
-  // /things-to-do exists for every site in the network (categories table is
-  // network-wide). 404 on a fake slug.
-  test("/things-to-do no longer renders the Commit 2.1 placeholder", async ({ page }) => {
+  // Each archetype seeds a different taxonomy (`magazine: things-to-do …;
+  // coastal: beaches-water …; premium: restaurants-bars …`) — `fixtures.ts`
+  // carries one concrete category per project. Hard-coding `/things-to-do`
+  // 404s on coastal + premium since those slugs don't exist there.
+  test("category index no longer renders the Commit 2.1 placeholder", async ({ page }, testInfo) => {
     test.skip(
       !(await feedsDeployed(page)),
       "2.11.7 not deployed to this target yet — category index unavailable.",
     );
-    const response = await page.goto("/things-to-do");
-    expect(response?.status(), "category index should respond 200").toBe(200);
+    const fx = fixtureFor(testInfo.project.name);
+    const response = await page.goto(`/${fx.categorySlug}`);
+    expect(response?.status(), `${fx.categorySlug} category index should respond 200`).toBe(200);
 
     const body = (await page.locator("body").innerText()).toLowerCase();
     expect(body, "category index must not still say 'Article cards land in Commit 2.2'").not.toContain(
@@ -80,7 +84,7 @@ test.describe.parallel("category index (Commit 2.11.7)", () => {
     // Heading reflects the resolved category name, not the URL slug
     // titleized — confirms `getArticlesByCategory` returned a real category
     // row and we're not just rendering on a fabricated label.
-    await expect(page.locator("h1")).toContainText("Things to Do");
+    await expect(page.locator("h1")).toContainText(fx.categoryName);
   });
 
   test("unknown category slug returns 404, not a fabricated empty index", async ({
