@@ -1,5 +1,12 @@
-// Article data loader for the city-site article route (Commit 2.3).
+// Article data loaders for the city-site editorial surface.
 // Article-level `'use cache'` is parked while cacheComponents is off.
+//
+// Three loaders here:
+//   getArticle(siteId, categorySlug, slug)  — single article (Commit 2.3, /[cat]/[slug])
+//   getArticlesByCategory(siteId, ...)       — category index list (Commit 2.11.7)
+//   getRecentArticles(siteId, opts)          — homepage feed         (Commit 2.11.7)
+//
+// All three filter to `status = 'published'`. Drafts never render publicly.
 
 export interface ArticleAuthorView {
   slug: string;
@@ -191,4 +198,145 @@ export async function getArticle(
       }))
       .sort((x, y) => (x.rank ?? 1e9) - (y.rank ?? 1e9)),
   };
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Article-card list views (Commit 2.11.7 — homepage feed + category index)
+// ───────────────────────────────────────────────────────────────────────
+
+/**
+ * Compact teaser for ArticleCard. The full ArticleView is heavy (joins
+ * authors + images + businesses); list surfaces only need the four
+ * fields the card actually renders plus the URL parts (`category.slug`
+ * + article `slug`) to build `href`.
+ */
+export interface ArticleTeaser {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  publishedAt: Date | null;
+  category: { slug: string; name: string };
+  heroImage: { blobUrl: string; altText: string } | null;
+}
+
+interface ListOptions {
+  /** Hard cap; default 12. Pagination lands later if we ever exceed it. */
+  limit?: number;
+}
+
+/**
+ * Recent published articles across every category on the site —
+ * powers the homepage feed (`(site)/page.tsx`). Newest first.
+ */
+export async function getRecentArticles(
+  siteId: string,
+  opts: ListOptions = {},
+): Promise<ArticleTeaser[]> {
+  return queryArticleTeasers(siteId, { ...opts, limit: opts.limit ?? 12 });
+}
+
+/**
+ * Published articles within a single category — powers the category index
+ * (`(site)/[category]/page.tsx`). Returns `null` when the category slug
+ * doesn't exist for the site (caller can `notFound()`); otherwise returns
+ * an array (possibly empty if no articles yet).
+ */
+export async function getArticlesByCategory(
+  siteId: string,
+  categorySlug: string,
+  opts: ListOptions = {},
+): Promise<{ category: { slug: string; name: string }; articles: ArticleTeaser[] } | null> {
+  const { getDb, schema, eq, and } = await import("@bec/db");
+  const db = getDb();
+
+  // Confirm the category exists on this site first — a typo in the URL
+  // should 404, not render an empty list under a fabricated title.
+  const [cat] = await db
+    .select({ id: schema.categories.id, slug: schema.categories.slug, name: schema.categories.name })
+    .from(schema.categories)
+    .where(and(eq(schema.categories.siteId, siteId), eq(schema.categories.slug, categorySlug)));
+  if (!cat) return null;
+
+  const articles = await queryArticleTeasers(siteId, {
+    limit: opts.limit ?? 24,
+    categoryId: cat.id,
+  });
+  return { category: { slug: cat.slug, name: cat.name }, articles };
+}
+
+interface QueryOptions {
+  limit: number;
+  categoryId?: string;
+}
+
+async function queryArticleTeasers(
+  siteId: string,
+  { limit, categoryId }: QueryOptions,
+): Promise<ArticleTeaser[]> {
+  const { getDb, schema, eq, and, desc, inArray } = await import("@bec/db");
+  const db = getDb();
+
+  const whereClauses = [
+    eq(schema.articles.siteId, siteId),
+    eq(schema.articles.status, "published"),
+  ];
+  if (categoryId) whereClauses.push(eq(schema.articles.categoryId, categoryId));
+
+  const rows = await db
+    .select({
+      id: schema.articles.id,
+      slug: schema.articles.slug,
+      title: schema.articles.title,
+      subtitle: schema.articles.subtitle,
+      metaDescription: schema.articles.metaDescription,
+      publishedAt: schema.articles.publishedAt,
+      heroImageId: schema.articles.heroImageId,
+      cSlug: schema.categories.slug,
+      cName: schema.categories.name,
+    })
+    .from(schema.articles)
+    .innerJoin(
+      schema.categories,
+      eq(schema.articles.categoryId, schema.categories.id),
+    )
+    .where(and(...whereClauses))
+    .orderBy(desc(schema.articles.publishedAt))
+    .limit(limit);
+
+  // Hydrate hero images in a single batch (avoids N+1).
+  const heroIds = rows.map((r) => r.heroImageId).filter((x): x is string => Boolean(x));
+  const heroes = heroIds.length
+    ? await db
+        .select({
+          id: schema.images.id,
+          blobUrl: schema.images.blobUrl,
+          altText: schema.images.altText,
+        })
+        .from(schema.images)
+        .where(inArray(schema.images.id, heroIds))
+    : [];
+
+  return rows.map((r) => {
+    const hero = r.heroImageId ? heroes.find((h) => h.id === r.heroImageId) : undefined;
+    return {
+      id: r.id,
+      slug: r.slug,
+      title: r.title,
+      // Card excerpt prefers the subtitle (the article's own "dek"); falls
+      // back to metaDescription. Drop trailing whitespace; cap to ~220 chars
+      // so cards stay visually consistent.
+      excerpt: truncate(r.subtitle ?? r.metaDescription, 220),
+      publishedAt: r.publishedAt,
+      category: { slug: r.cSlug, name: r.cName },
+      heroImage: hero ? { blobUrl: hero.blobUrl, altText: hero.altText } : null,
+    };
+  });
+}
+
+function truncate(s: string | null, max: number): string | null {
+  if (!s) return null;
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return t.slice(0, max - 1).trimEnd() + "…";
 }
