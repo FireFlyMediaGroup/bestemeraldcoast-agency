@@ -46,11 +46,25 @@ export function articleJsonLd(a: ArticleView, site: SiteInfo): JsonLd {
   if (a.heroImage) ld.image = [a.heroImage.blobUrl];
   // ADR-027: the AI is the author; the human is the reviewer/editor. Both
   // are surfaced so the byline and the structured data agree.
+  //
+  // Google Rich Results requires Article.author. Schema.org accepts Person
+  // OR Organization. If no specific author row is attached, fall back to
+  // the publisher (the network Organization) — semantically: "this article
+  // is by the publication itself." The visible byline (article-page.tsx)
+  // is unaffected by this fallback; that still gates on `a.author` and
+  // shows nothing when no Person is attached, which is correct for the
+  // generic-byline case.
   if (a.author) {
     ld.author = {
       "@type": "Person",
       name: a.author.displayName,
       url: abs(site.domain, `/authors/${a.author.slug}`),
+    };
+  } else {
+    ld.author = {
+      "@type": "Organization",
+      name: site.name,
+      url: abs(site.domain, "/"),
     };
   }
   if (a.reviewer) {
