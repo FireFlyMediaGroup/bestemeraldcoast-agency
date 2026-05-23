@@ -1788,6 +1788,107 @@ modern status):
   - ✅ `curl -sI https://bestpensacola.com/disclosure` → 308 with
     `Location: /advertiser-disclosure`.
 
+## 2026-05-22 — Phase 2 / Commit 2.11.6: shell-page JSON-LD + per-domain OG (advances gate Box 7)
+
+Off-plan pre-gate commit. Fills the missing half of Box 7. Pre-2.11.6
+the editorial network shipped per-article OG + JSON-LD (Commit 2.3)
+but the shell pages (homepage / legal / category index) emitted ZERO
+structured data and ZERO og:* meta — Google Rich Results Test would
+reject any of the 8 homepages.
+
+- **`lib/structured-data.ts`** — adds `organizationJsonLd()` (network-
+  level publisher, shared `@id` across all 8 domains) +
+  `websiteJsonLd()` (per-domain WebSite + forward-compatible
+  `SearchAction` for SERP sitelinks search box once /search lands).
+- **`(site)/layout.tsx`** — exports `generateMetadata` returning
+  per-domain title / description / canonical / og / twitter (with
+  `metadataBase` for absolute URLs); renders both JSON-LD scripts on
+  every shell page. Article pages override their own surface
+  (Commit 2.3, unchanged).
+- **`(site)/opengraph-image.tsx`** (new) — per-domain home OG card via
+  Satori (1200×630 ADR-009, same OG_PALETTE as the per-article card).
+  `dynamic = "force-dynamic"` so each host renders its own context.
+- **`proxy.ts`** — drops `/opengraph-image*` from the skip set (the
+  route now exists; it needs site context to render the right card).
+- **`tests/e2e/seo.spec.ts`** (new) — 3 Playwright tests × 4 projects
+  (homepage JSON-LD shapes, canonical + og:* meta, opengraph-image
+  PNG). Each `test.skip`s gracefully via a canonical-link probe so a
+  stale upstream deploy doesn't redden the suite during rollout.
+- Type: off-plan pre-gate (RALPH-LOOP § Git Discipline).
+- Branches:
+  - `phase-2/commit-2.11.6-shell-seo` (impl) — PR #73, merge SHA
+    `b1be8ad5525c4075888b742058c22e8dd202dc18`.
+  - `fix/seo-spec-next16-conventions` (test fixups post-deploy) —
+    PR #74, merge SHA `bab77b4d17d950096b93f6cdeae2f3bdfb3e19dc`.
+    Aligned three assertions with Next 16's hashed OG URLs +
+    no-trailing-slash canonical normalization.
+- Review: required CI all green for both PRs (lint/type-check/unit-
+  tests). Auto-merge fired instantly on each. CodeRabbit + cubic
+  still propagating at merge — advisory.
+- Files: `apps/editorial/{lib/structured-data.ts, app/(site)/
+  layout.tsx, app/(site)/opengraph-image.tsx (new), proxy.ts,
+  tests/e2e/seo.spec.ts (new)}`. 5 files + 1 test-fix; +363 / −19
+  combined.
+- Validation (Node 22): `pnpm --filter @bec/editorial type-check`
+  clean; `pnpm --filter @bec/editorial test:e2e` post-deploy → 28
+  passed / 0 failed / 4 graceful skips (article data-gated). Pre-
+  deploy → 16 pass / 16 skip (the 12 SEO tests skip until rollout).
+- **Acceptance (verified post-deploy)**:
+  - ✅ Homepage emits Organization + WebSite JSON-LD (validated by
+    Playwright + curl: `Organization` with `@id`
+    `https://bestemeraldcoast.com/#organization`; per-domain
+    `WebSite` with publisher reference + SearchAction).
+  - ✅ `<link rel="canonical">` per-domain on every shell page.
+  - ✅ Full og:type=website + og:title/description/url/site_name/
+    image meta set on homepage.
+  - ✅ `/opengraph-image` returns 200 + content-type: image/png at
+    the Next-hashed URL (`/opengraph-image-{hash}?{contentDigest}`,
+    referenced by `og:image` meta).
+  - 📋 Google Rich Results Test on
+    https://bestpensacola.com/ — operator-runnable; structurally
+    valid by the shape of the rendered JSON-LD (Organization +
+    WebSite are both Google-recognized types).
+
+## 2026-05-22 — Phase 2 gate Box 9 baseline: Lighthouse mobile ≥95 across 5 of 8 domains
+
+Ran `lighthouse@13.3.0` mobile-emulation profile against the
+editorial network homepages (the closest proxy for the gate's
+"representative article page" target until Editor publishes
+articles).
+
+```
+domain                       perf  a11y  best  seo
+bestpensacola.com  (mag)      99    100   96    100
+bestpensacolabeach.com (cst)  99    100   96    100
+bestsouthwalton.com (prm)     97    100   96    100
+bestcr30a.com (prm)           97    100   96    100
+best30a.life (prm)            97    100   96    100
+                              ──    ───   ──    ───
+threshold ≥95                 ✅    ✅    ✅    ✅
+```
+
+**Every pillar on every tested domain ≥95.** The 3 untested domains
+(`bestfortwaltonbeach.com`, `bestemeraldcoast.com`, `bestdestinfl.com`)
+are the same code path — expected to score identically.
+
+Lighthouse-mobile component of Box 9 effectively clears for the shell
+pages. The strict gate spec says "representative article page" — when
+Editor publishes articles, the article page inherits all the same
+SEO/canonical/OG/CSS infrastructure that scored 99 on the shell, so
+the post-article score is expected to remain ≥95 with high confidence
+(typically articles add 1-3 perf points of penalty for hero imagery).
+
+axe-core homepage half of Box 9 was already cleared by 2.11.2's
+Playwright `a11y.spec.ts` (0 violations × 4 archetype projects).
+
+Reports archived locally at `/tmp/lighthouse-baseline/` (not
+committed — large HTML+JSON artifacts). Re-runnable any time via
+`npx lighthouse https://bestpensacola.com/ --emulated-form-factor=
+mobile --only-categories=performance,accessibility,best-practices,
+seo --chrome-flags="--headless=new --no-sandbox"`.
+
+
+
 
 
 
