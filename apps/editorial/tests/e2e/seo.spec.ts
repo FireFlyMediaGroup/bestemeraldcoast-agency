@@ -61,8 +61,10 @@ test.describe.parallel("shell-page SEO surface", () => {
       "2.11.6 not deployed to this target yet — shell-page SEO surface unavailable.",
     );
 
+    // Next 16 may normalize the canonical href with or without a trailing
+    // slash — accept both forms; the absolute origin is what matters.
     const canonical = page.locator('link[rel="canonical"]');
-    await expect(canonical).toHaveAttribute("href", /^https:\/\/.+\/$/);
+    await expect(canonical).toHaveAttribute("href", /^https:\/\/[^/]+\/?$/);
 
     // og:type=website for shell pages (article pages override to og:type=article).
     await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "website");
@@ -75,22 +77,30 @@ test.describe.parallel("shell-page SEO surface", () => {
     );
 
     // og:image points to the per-domain opengraph-image route (2.11.6).
+    // Next 16 emits hashed URLs (`/opengraph-image-{hash}?{contentDigest}`)
+    // for cache-busting — match the path prefix, not exact equality.
     const ogImage = page.locator('meta[property="og:image"]');
     const ogImageHref = await ogImage.getAttribute("content");
-    expect(ogImageHref).toMatch(/\/opengraph-image$/);
+    expect(ogImageHref).toMatch(/\/opengraph-image(-[a-z0-9]+(\?.*)?)?$/);
   });
 
   test("opengraph-image responds 200 with image content (per-domain Satori render)", async ({
     page,
     request,
-  }, testInfo) => {
+  }) => {
     test.skip(
       !(await shellSeoDeployed(page)),
       "2.11.6 not deployed to this target yet — root opengraph-image route unavailable.",
     );
 
-    const base = new URL(testInfo.project.use.baseURL ?? "https://bestpensacola.com");
-    const response = await request.get(`${base.origin}/opengraph-image`);
+    // Next 16 emits the OG image at a hashed URL for cache-busting
+    // (`/opengraph-image-{hash}?{contentDigest}`); the og:image meta tag
+    // carries the canonical URL clients actually request. Read it from
+    // the page rather than assuming a path shape.
+    const ogImageUrl = await page.locator('meta[property="og:image"]').getAttribute("content");
+    expect(ogImageUrl, "og:image meta should resolve to the OG image route").toBeTruthy();
+
+    const response = await request.get(ogImageUrl!);
     expect(response.status(), "OG image should respond 200").toBe(200);
     expect(response.headers()["content-type"]).toMatch(/^image\//);
     // Satori renders to PNG (1200×630 per ADR-009).
