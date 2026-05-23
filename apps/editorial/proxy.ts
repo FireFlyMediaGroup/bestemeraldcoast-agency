@@ -59,20 +59,18 @@ function withRateLimitHeaders<T extends NextResponse | Response>(
 
 function isSkippable(pathname: string): boolean {
   if (pathname.startsWith("/_next/")) return true;
-  // NOTE: `/robots.txt` and `/sitemap.xml` are intentionally NOT skipped
-  // (Commit 2.4). They are per-domain (ADR-009) and their route handlers
-  // need the proxy-resolved site context, so the host→site headers must be
-  // injected for them too (the resolve is Upstash-cached, so crawler hits
-  // are cheap). Only truly site-agnostic static endpoints are skipped.
-  // Only the EXACT root OG endpoint form is skipped (a loose prefix/`\b`
-  // match would also catch `/opengraph-image/foo` or
-  // `/opengraph-image-x`, broadening the skip set and bypassing host
-  // validation). The per-article `[category]/[slug]/opengraph-image` is
-  // never `/opengraph-image*` at the root, so it is NOT skipped — it
-  // needs site + article context.
-  if (pathname === "/opengraph-image" || pathname === "/opengraph-image.png") {
-    return true;
-  }
+  // NOTE: `/robots.txt`, `/sitemap.xml`, AND `/opengraph-image` are
+  // intentionally NOT skipped. They are per-domain (ADR-009) and their
+  // route handlers need the proxy-resolved site context, so the
+  // host→site headers must be injected. The resolve is Upstash-cached, so
+  // crawler hits stay cheap. Only truly site-agnostic static endpoints are
+  // skipped.
+  //
+  // History: 2.4 added the robots/sitemap routes and removed them from the
+  // skip set; 2.11.6 added the root opengraph-image route and removed
+  // `/opengraph-image*` from the skip set (the route now generates a
+  // per-domain card via `getSiteContext()` — Satori-rendered, ADR-009
+  // 1200×630).
   return pathname === "/favicon.ico";
 }
 
