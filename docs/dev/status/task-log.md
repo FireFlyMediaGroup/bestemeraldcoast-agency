@@ -1887,6 +1887,156 @@ committed — large HTML+JSON artifacts). Re-runnable any time via
 mobile --only-categories=performance,accessibility,best-practices,
 seo --chrome-flags="--headless=new --no-sandbox"`.
 
+## 2026-05-23 — 3 Pensacola drafts authored via Editor agent
+
+Operator chose Option A on the 2.11 unblock list: I drive the Editor
+to produce 3 drafts for `bestpensacola.com` (magazine archetype).
+
+Approach: the editor subagent doesn't have `mcp__postgres-ro` in its
+spawn (parent-only MCP) so the first attempt aborted with "cannot
+read verified business facts." Re-dispatched with the brief + verified
+data **inline** (queried via my MCP, fed inline to the agent).
+Worked first try on all three.
+
+Three drafts created via `POST /api/agent/articles` with
+`status='draft'` server-forced + `originalDraftBody === bodyMdx`
+(ADR-020 baseline preserved):
+
+| article_id | slug | content_type | category | self-score |
+|---|---|---|---|---|
+| `604bcd9c-…` | `best-pensacola-charter-fishing` | listicle | Things to Do | 11/12 |
+| `c5781aa0-…` | `tradition-fishing-charters-pensacola-profile` | profile | Local Business | 12/12 |
+| `98160a57-…` | `pensacola-beach-chair-rentals-guide` | guide | Things to Do | 11/12 |
+
+All three feature only verified businesses from the DB (no invented
+hours/prices/captain-names/boat-specs); ADR-015 honesty + ADR-034
+banned-phrases rubric self-scored before submit; agent_runs rows
+all `succeeded`. Visible in `outreach_messages` count: still 0
+(Box 1 still NOT EXERCISABLE — these are articles, not outreach).
+
+## 2026-05-23 — Discovered: Phase-2 content-surface regression (Commit 2.2 unfilled promise)
+
+Operator screenshot from `bestemeraldcoast.com/editorial` revealed the
+homepage + category index pages were still rendering the literal
+Commit 2.1 placeholder text ("Article cards land in Commit 2.2." /
+"real content arrives in Phase 2 (Commits 2.2–2.5)"). Commit 2.2
+ended up shipping ONLY theme tokens, not the content surface — the
+TODOs were never filled. Even publishing the 3 fresh drafts would
+have made them undiscoverable.
+
+Fixed in Commit 2.11.7 (below).
+
+## 2026-05-23 — Phase 2 / Commit 2.11.7: homepage feed + category index article-card lists
+
+Closes the Commit 2.2 content-surface promise that the original
+commit never delivered.
+
+- **`lib/article.ts`** — new `getRecentArticles` + `getArticlesByCategory`
+  loaders. Shared `queryArticleTeasers` helper batches hero-image
+  hydration (no N+1). `ArticleTeaser` projection — compact view
+  ArticleCard renders.
+- **`components/article-feed.tsx`** (new) — reusable grid wrapping
+  `@bec/ui`'s `ArticleCard`. Mobile-first single-column / two columns
+  by desktop. Empty-state copy injectable per surface.
+- **`(site)/page.tsx`** — homepage replaces 2.1 placeholder with
+  `<ArticleFeed>` over the 12 most-recent published articles.
+- **`(site)/[category]/page.tsx`** — category index replaces 2.1
+  placeholder with `<ArticleFeed>` over up to 24 articles. New
+  `generateMetadata` per-category title/description/canonical/og.
+  404 on unknown category slug (no fabricated titles).
+- **`tests/e2e/feeds.spec.ts`** (new) — homepage no-placeholder +
+  category no-placeholder + unknown-slug-404 (3 tests × 4 projects).
+  Each gracefully `test.skip`s pre-deploy via empty-state marker
+  probe (same pattern as 2.11.3/6).
+- Type: off-plan pre-gate (RALPH-LOOP § Git Discipline).
+- Branch: `phase-2/commit-2.11.7-article-lists`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/76
+- Merge SHA: `182de7ca6070d55ed8e11e050c5f719ba340de14`
+- Validation (Node 22): type-check clean; pre-deploy E2E 28/0/16;
+  post-deploy + post-publish E2E 36/0/6 (with 6 failures fixed in 2.11.8).
+- **Acceptance (verified post-deploy)**:
+  - ✅ `bestpensacola.com/` shows 3 ArticleCards (newest first).
+  - ✅ `/things-to-do` shows the 2 Things-to-Do articles.
+  - ✅ `/local-business` shows the Tradition profile.
+  - ✅ Category 404 holds on unknown slugs.
+
+## 2026-05-23 — Operator publishes 3 Pensacola drafts; Box 6 cleared
+
+Via the ops-console editorial composer (Commit 2.7 UI). All three
+articles transitioned `draft` → `published`. ADR-020
+`editorial_feedback` rows written atomically alongside each
+`articles.status` UPDATE per `lib/article-transitions.ts`.
+
+Post-publish state (DB):
+- `articles WHERE status='published' AND site_id=bestpensacola` = **3**
+- `published_at` 2026-05-23 08:48–08:50 UTC
+- `has_reviewer = false` on all three (minor data-quality note —
+  ADR-027 AI-byline rendering will fall back to AI-only when
+  reviewer is null; operator may want to add a reviewer per-publish
+  going forward).
+
+Box-state movement:
+- Box 6: 🔴 → ✅ **GREEN** ("≥1 city site has 3 published articles").
+- Box 7 article-half: 🟡 → ✅ **GREEN** — verified live: 10 JSON-LD
+  scripts on article page including Article, BreadcrumbList,
+  Organization, WebSite, ListItem.
+- Box 9 (formal): Lighthouse mobile against the published article
+  `bestpensacola.com/things-to-do/best-pensacola-charter-fishing` →
+  perf 99 / a11y 96 / best 96 / SEO 100. All four pillars ≥95
+  on a real article — strict gate acceptance.
+
+## 2026-05-23 — Phase 2 / Commit 2.11.8: ArticleCard color-contrast fix + Playwright alignment with post-publish reality
+
+Three bugs surfaced when 2.11.7's ArticleCards started rendering
+real published content; all three fixed in one commit:
+
+1. **prod** — `packages/ui/components/article-card.tsx` kicker used
+   `text-accent` (accent token tuned for bold display; below 4.5:1
+   small-text contrast on every archetype near-white background).
+   Switched to `text-muted-fg` (the same token PageShell uses;
+   contrast-checked across all 3 archetypes). 128 axe-core
+   "serious" violations → 0.
+2. **test** — `tests/e2e/article.spec.ts` asserted JSON-LD
+   `.first()` is Article; layout-level Organization + WebSite from
+   2.11.6 now render first. Updated to scan all ld+json scripts and
+   assert presence of Article + BreadcrumbList.
+3. **test** — `tests/e2e/feeds.spec.ts` hard-coded `/things-to-do`
+   on every archetype; coastal carries `beaches-water`, premium
+   carries `restaurants-bars`. Extended `fixtures.ts` with per-
+   project `categorySlug` + `categoryName`; feeds.spec reads from
+   fixtures.
+- Branch: `phase-2/commit-2.11.8-axe-test-fixes`
+- PR: https://github.com/FireFlyMediaGroup/bestemeraldcoast-agency/pull/77
+- Merge SHA: `a70344f0bf29f4773f83d3768d9daf360971fe7c`
+- Review: required CI green (lint 18 s / type-check 28 s / unit-tests 41 s).
+- Files: 4. `packages/ui/components/article-card.tsx`,
+  `apps/editorial/tests/e2e/{article.spec.ts,feeds.spec.ts,fixtures.ts}`.
+  +67 / −17.
+- Validation (Node 22): type-check clean both packages; post-deploy
+  Playwright → **42 passed / 0 failed / 2 skipped** (article-data-
+  gated on coastal + premium — expected). Box 9 axe-core 0
+  violations restored.
+- ADR impact: none. ADR-027/036 (a11y / WCAG 2 AA) caught this —
+  gate working as designed.
+
+## 2026-05-23 — Phase 2 gate state — 6 of 9 boxes now GREEN
+
+| Box | Status |
+|---|---|
+| 1 | ⚠️ NOT EXERCISABLE (0 outreach_messages — pipeline upstream-blocked) |
+| 2 | 🔴 outreach env (`OUTREACH_REPLY_TO` + `OUTREACH_POSTAL_ADDRESS`) |
+| 3 | 🔴 downstream of #2 (7-day reply window after sends) |
+| 4 | 🔴 downstream of #2/#3 |
+| 5 | ✅ GREEN (8/8 domains live, archetypes correct, RateLimit headers, canonical legal + redirects, all verified) |
+| 6 | ✅ GREEN (3 published articles on bestpensacola.com) |
+| 7 | ✅ GREEN (sitemap + robots + OG + JSON-LD on both shell pages AND article pages — 10 scripts on /things-to-do/best-pensacola-charter-fishing) |
+| 8 | ✅ GREEN (15/15 unit packages; 42-pass / 0-fail Playwright suite) |
+| 9 | ✅ GREEN (Lighthouse mobile 99/96/96/100 on a published article; axe-core 0 violations across 4 projects) |
+
+**Remaining gate work is the outreach pipeline (Boxes 1-4) — operator
+sets outreach env + composes drafts in ops-console + dispatches via
+`/pitch-batch`. Code surface is done.**
+
 
 
 
