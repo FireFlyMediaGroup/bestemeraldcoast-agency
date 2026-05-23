@@ -72,6 +72,26 @@ export const POST = agentRoute(async (req) => {
     })),
   );
 
+  // ADR-027 / ADR-009: when the Editor omits authorId, default to the
+  // seeded AI-author row (`authors WHERE is_ai = true`). Without this,
+  // the article's JSON-LD lacks a required `author` field and Google
+  // Rich Results rejects the Article schema. The visible byline still
+  // resolves via the same author row (showing the AI display-name +
+  // /authors/<slug> link). Falls through silently if no AI author is
+  // seeded (e.g. early-Phase-0 env) — the JSON-LD builder also defends
+  // with a publisher-as-author fallback (apps/editorial/lib/structured-
+  // data.ts), so this is defense-in-depth.
+  let authorId = a.authorId ?? null;
+  if (!authorId) {
+    const { schema, eq } = await import("@bec/db");
+    const [ai] = await db
+      .select({ id: schema.authors.id })
+      .from(schema.authors)
+      .where(eq(schema.authors.isAi, true))
+      .limit(1);
+    if (ai) authorId = ai.id;
+  }
+
   // One statement: insert the draft, then fan its businesses in from the
   // returned id. If the slug collides, `ins` is empty → no joins, empty
   // result → 409. jsonb_to_recordset('[]') yields 0 rows, so "no
@@ -86,7 +106,7 @@ export const POST = agentRoute(async (req) => {
         ${a.siteId}::uuid, ${a.slug}, ${a.title}, ${a.subtitle ?? null},
         ${a.bodyMdx}, ${a.originalDraftBody ?? a.bodyMdx},
         'draft'::article_status, ${a.contentType}::content_type,
-        ${a.authorId ?? null}::uuid, ${a.reviewedById ?? null}::uuid,
+        ${authorId}::uuid, ${a.reviewedById ?? null}::uuid,
         ${a.categoryId ?? null}::uuid,
         ${a.tags ? JSON.stringify(a.tags) : null}::jsonb
       )
