@@ -11,21 +11,53 @@ export interface ArchetypeFixture {
   archetype: "magazine" | "coastal" | "premium";
   /** Substring expected in the rendered <h1>. */
   expectedHeader: string;
+  /**
+   * One category slug known to exist on this archetype's site. Each
+   * archetype seeds a different taxonomy (magazine uses things-to-do +
+   * local-business; coastal uses beaches-water + charters-boats; premium
+   * uses restaurants-bars + towns-of-30a). The category-index spec uses
+   * this to navigate to a real URL — hard-coding `/things-to-do` would
+   * 404 on coastal + premium.
+   */
+  categorySlug: string;
+  /** Resolved category H1 — matches the `categories.name` row. */
+  categoryName: string;
 }
 
 /**
  * Map a Playwright project name (set on `test.describe.parallel`) to its
- * expected archetype + header. Specs do `const fixture = byProject(test.info().project.name)`.
+ * expected archetype + header. Spec files reference these to keep URLs +
+ * archetype-specific expectations consistent.
  */
 export const FIXTURES: Record<string, ArchetypeFixture> = {
-  magazine: { project: "magazine", archetype: "magazine", expectedHeader: "Best Pensacola" },
+  magazine: {
+    project: "magazine",
+    archetype: "magazine",
+    expectedHeader: "Best Pensacola",
+    categorySlug: "things-to-do",
+    categoryName: "Things to Do",
+  },
   "magazine-mobile": {
     project: "magazine",
     archetype: "magazine",
     expectedHeader: "Best Pensacola",
+    categorySlug: "things-to-do",
+    categoryName: "Things to Do",
   },
-  coastal: { project: "coastal", archetype: "coastal", expectedHeader: "Best Pensacola Beach" },
-  premium: { project: "premium", archetype: "premium", expectedHeader: "Best South Walton" },
+  coastal: {
+    project: "coastal",
+    archetype: "coastal",
+    expectedHeader: "Best Pensacola Beach",
+    categorySlug: "beaches-water",
+    categoryName: "Beaches & Water",
+  },
+  premium: {
+    project: "premium",
+    archetype: "premium",
+    expectedHeader: "Best South Walton",
+    categorySlug: "restaurants-bars",
+    categoryName: "Restaurants & Bars",
+  },
 };
 
 export function fixtureFor(projectName: string): ArchetypeFixture {

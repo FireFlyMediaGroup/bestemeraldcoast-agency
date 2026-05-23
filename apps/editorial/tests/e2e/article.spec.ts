@@ -44,11 +44,19 @@ test.describe.parallel("article publish → editorial render", () => {
     const response = await page.goto(articleHref!);
     expect(response?.status()).toBe(200);
 
-    // ADR-003 JSON-LD: every article page emits Article schema.
-    const jsonLd = page.locator('script[type="application/ld+json"]');
-    await expect(jsonLd.first()).toBeAttached();
-    const jsonContent = (await jsonLd.first().textContent()) ?? "";
-    expect(jsonContent, "JSON-LD should declare an Article schema").toContain('"@type":"Article"');
+    // ADR-009 JSON-LD: every article page emits Article + BreadcrumbList
+    // schemas alongside the layout-level Organization + WebSite scripts
+    // (Commit 2.11.6). We can't assume `.first()` is the Article one —
+    // layout scripts render before page scripts — so collect all script
+    // bodies and assert ANY of them carries the Article type.
+    const jsonLdScripts = page.locator('script[type="application/ld+json"]');
+    const scriptCount = await jsonLdScripts.count();
+    expect(scriptCount, "article page should emit at least one JSON-LD script").toBeGreaterThan(0);
+    const allJsonLd = await jsonLdScripts.allTextContents();
+    const hasArticle = allJsonLd.some((s) => s.includes('"@type":"Article"'));
+    expect(hasArticle, "one JSON-LD script should declare an Article schema").toBe(true);
+    const hasBreadcrumb = allJsonLd.some((s) => s.includes('"@type":"BreadcrumbList"'));
+    expect(hasBreadcrumb, "one JSON-LD script should declare a BreadcrumbList").toBe(true);
 
     // ADR-027 / ADR-014 AI-byline: surfaces only when the article has a
     // `reviewedById` set on its row (operator-curated). If absent, the
