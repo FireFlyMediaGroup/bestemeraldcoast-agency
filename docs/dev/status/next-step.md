@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ Loop status: Phase 2 code-complete — five pre-gate fixes (2.11.1–2.11.5) shipped; editorial deploy now live + serving current code; Phase 2 gate mid-execution
+## ✅ Loop status: Phase 2 code-complete — six pre-gate fixes (2.11.1–2.11.6) shipped; 8/8 domains live with full SEO surface; Phase 2 gate ~ 60% green
 
 Phase 1 gate PASSED 2026-05-19 (17/17). Phase 2 merged to `main`:
 **2.1** Editorial shell (#43 `29f2ba0`), **2.2** Theme + Magazine (#45
@@ -21,48 +21,67 @@ composer (#55 `84985c2`), **2.8** Checker agent (#57 `96a9ceb`),
 (#70 `865dfc7`), **2.11.5** 301 redirects for legacy legal URLs
 (#71 `21f032d`) — see their `task-log.md` entries.
 
-### Phase 2 gate run-state (2026-05-22, end-of-day)
+### Phase 2 gate run-state (2026-05-22, end-of-day v2)
 
-Operator + loop progress on the 2.11 unblock list:
+Operator + loop progress on the 2.11 unblock list — **all infra Phase
+A-C items now clear**:
 - ✅ ops-console Vercel Build Command pinned via `vercel.json` (no
   more dashboard drift). First green ops-console deploy since 2.11.
 - ✅ Upstash Redis + Cloudflare Turnstile creds provisioned + live
   on `bec-editorial` Vercel project.
-- ✅ `bec-editorial` Vercel project created + 6/8 domains live.
+- ✅ `bec-editorial` Vercel project created + **8/8 domains live**
+  (the 2 stragglers `bestcr30a.com` + `best30a.life` came online).
 - ✅ `bec-editorial` deploys current `main` cleanly (was broken by
   the 2.10 ambiguous-routes bug; fixed in 2.11.4).
 - ✅ Live deploys serve 2.11.3 `RateLimit-*` headers on every
-  response (verified via `curl -sI` on 3 archetype domains:
-  `RateLimit-Limit: 1000`, `RateLimit-Remaining: <decreasing>`,
-  `RateLimit-Reset: <60s>`).
-- ✅ All five canonical ADR-014 legal pages return 200 on the live
-  network (`/privacy`, `/terms`, `/advertiser-disclosure`,
-  `/cookie-policy`, `/editorial-standards`).
-- ✅ Legacy `/cookies` + `/disclosure` URLs redirect (308) to their
-  canonical successors (no orphaned bookmarks / search results).
-- ⏳ 2/8 domains (`bestcr30a.com`, `best30a.life`) still on parking
-  IPs — operator DNS work.
+  response.
+- ✅ All five canonical ADR-014 legal pages return 200 on every
+  domain. Legacy `/cookies` + `/disclosure` 308-redirect to
+  canonical (no orphan bookmarks).
+- ✅ Per-domain shell-page SEO surface live (2.11.6): Organization
+  + WebSite JSON-LD, full og:* meta, root opengraph-image route
+  rendering per-domain Satori PNGs.
 - ⚠️ `Vercel – bestemeraldcoast-agency` (a Vercel-auto-created
-  repo-root project with no app — Vercel scanned the workspace root
-  and made a stray project) fails on every push. Pre-existing noise;
-  operator can delete that project safely.
+  repo-root project with no app) fails on every push. Pre-existing
+  noise; operator can delete that project safely.
 
-Boxes attempted:
+Boxes:
 - **Box 1 — Checker rubric**: ⚠️ NOT EXERCISABLE. Zero
   `outreach_messages` rows; zero `articles`. Pipeline upstream-
   blocked — Editor + composer have produced nothing to score yet.
-- **Box 5 — Editorial 8 domains via proxy.ts**: 🟢 **GREEN for 6/8
-  domains** (current code, archetype routing, unknown-host 404
-  contract, RateLimit-* observability, all 5 canonical legal pages,
-  legacy URL redirects — all verified live). The 2 DNS-pending
-  domains stay operator-blocked.
+- **Box 2 — Pitcher 10 sends**: 🔴 operator-blocked
+  (`OUTREACH_REPLY_TO` + `OUTREACH_POSTAL_ADDRESS` + at least one
+  Checker-passed draft).
+- **Box 3-4 — Reply rate + "is this AI?"**: 🔴 downstream of #2.
+- **Box 5 — Editorial 8 domains via proxy.ts**: ✅ **GREEN 8/8.**
+  Live verification today: all 8 domains return 200, all archetypes
+  resolve correctly, unknown-host returns 404, RateLimit-* visible
+  on every response, all 5 canonical legal URLs work + legacy
+  redirects work. Playwright spec covers magazine/coastal/premium/
+  mobile.
+- **Box 6 — ≥3 articles published**: 🔴 operator pipeline (Editor
+  agent runs against the 11 `diagnosed` leads, then promote to
+  `published`).
+- **Box 7 — Sitemap/robots/OG/JSON-LD validate via Rich Results**:
+  🟢 **shell-page half GREEN.** sitemap.xml + robots.txt per-
+  domain ✅ (2.4); Organization + WebSite JSON-LD on every
+  homepage ✅ (2.11.6); per-domain opengraph-image PNG ✅ (2.11.6);
+  full og:type=website + canonical + twitter:card meta ✅ (2.11.6).
+  Article-page Article + Breadcrumb + LocalBusiness JSON-LD is
+  already wired (2.3) — flips green automatically when articles
+  publish. Operator action remaining: Search Console TXT
+  verification per `docs/runbooks/domain-setup.md` § 3 + a one-shot
+  Rich Results Test against a live URL.
 - **Box 8 — Unit + Playwright tests**: ✅ **GREEN.** Unit clean
   since 2.11.1 (15/15 packages, exit 0). Playwright clean post-
-  2.11.2 (12 pass / 0 fail / 8 graceful skips). CI E2E job queued
-  but not blocking — gate satisfied by on-demand invocation per
-  ADR-035 ("acceptance, not aspiration").
-- Boxes 2, 3, 4, 6, 7, 9 — operator-infra-blocked or downstream of
-  operator unblocks; see follow-ups below.
+  2.11.2/6 (28 pass / 0 fail / 4 graceful skips on live deploys).
+- **Box 9 — Lighthouse mobile ≥95 + axe-core 0 violations**:
+  🟡 **a11y half ✅; mobile ≥95 baselined.** axe-core 0
+  violations × 4 archetype homepages (Playwright 2.11.2).
+  Lighthouse 13.3.0 mobile-emulation baseline (today): 5/8
+  domains tested, ALL pillars ≥95 (perf 97-99, a11y 100, best
+  practices 96, SEO 100). Strict gate spec wants "representative
+  article page" — gates to Box 6 (articles).
 
 End-to-end outreach pipeline + ADR-014 compliance surface + ADR-017
 anti-abuse infrastructure are now code-complete: Scout → Diagnoser →
@@ -80,21 +99,39 @@ zeroed) and is abandoned. Keep this repo OUT of iCloud-synced paths.
 
 ## Current Step
 
-- **Phase 2 quality gate (ADR-035) — in progress.** Five pre-gate
-  commits shipped today (2.11.1 quote-stripping fix, 2.11.2
-  Playwright surface, 2.11.3 RateLimit-* headers, 2.11.4 legal
-  route restructure + vercel.json lock-in, 2.11.5 legacy-URL 301s).
-  Box 5 is now 🟢 for the 6 live domains; Box 8 is fully 🟢. The
-  remaining boxes need **operator pipeline runs + the 2 DNS-pending
-  domains**.
-- **Next loop-actionable code work**: nothing pressing. The gate is
-  pipeline-dependent from here — outreach drafts (Box 1), Pitcher
-  sends (Boxes 2-4), published articles (Box 6), Search Console
-  setup (Box 7), Lighthouse + axe runs against live (Box 9 — the
-  Playwright a11y test already passes; full Lighthouse needs a one-
-  shot operator-run).
-- All remaining 9-box gate work per `MASTER-bec-project-plan.md`
-  § Phase 2 quality gate.
+- **Phase 2 quality gate (ADR-035) — ~60% green.** Six pre-gate
+  commits + 1 follow-up shipped today (2.11.1 quote-stripping,
+  2.11.2 Playwright, 2.11.3 RateLimit-* headers, 2.11.4 legal
+  restructure + vercel.json, 2.11.5 redirects, 2.11.6 shell SEO,
+  + Next-16 spec alignment fix). Boxes 5 + 8 fully 🟢; Box 7 shell
+  half 🟢, article half data-gated; Box 9 a11y ✅ + Lighthouse
+  baseline 97-100 across all 4 pillars on 5 of 8 domains.
+- **Code surface for Phase 2 is effectively done.** Remaining gate
+  work is operator pipeline + content + DNS verification — no
+  more code commits needed to clear the gate (unless content
+  surfaces new issues).
+- All remaining gate work per `MASTER-bec-project-plan.md` § Phase
+  2 quality gate.
+
+### Boxes the operator can drive next (no code dependency)
+
+1. **Box 2-4 unblock**: set `OUTREACH_REPLY_TO` + `OUTREACH_POSTAL_ADDRESS`
+   on `bec-ops-console` Vercel (see runbook in `ops-console-deploy.md`
+   § 3). Then run `/check-message` + `/pitch-batch` on Composer-
+   produced drafts (which the operator authors via ops-console's
+   editorial composer UI against the 11 `diagnosed` leads).
+2. **Box 6 unblock**: run the Editor agent (Commit 2.6) against the
+   11 `diagnosed` leads to produce ≥3 published articles for a
+   single city site. This single-handedly unblocks Boxes 6, 7
+   (article-page JSON-LD), and the formal Box 9 (Lighthouse-against-
+   article-page).
+3. **Box 7 final mile**: Search Console TXT records per
+   `docs/runbooks/domain-setup.md` § 3 (per-domain checklist) + a
+   one-shot Google Rich Results Test against a homepage (now should
+   validate post-2.11.6) and against an article (when one exists).
+4. **Cleanup**: delete the stray `bestemeraldcoast-agency` Vercel
+   project (auto-created repo-root project with no app — fails on
+   every push; pre-existing noise; safe to remove).
 
 ## ~~🚨 NEW BLOCKER (2026-05-22): editorial Vercel deploy fails on `main` (ambiguous app routes)~~ — RESOLVED in 2.11.4
 
